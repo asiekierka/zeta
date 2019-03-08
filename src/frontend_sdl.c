@@ -136,7 +136,7 @@ static void audio_callback(void *userdata, Uint8 *stream, int len) {
 		audio_to = (long) (audio_to * res_to_samples);
 
 		if (audio_from < 0) audio_from = 0;
-		else if (audio_from >= len) break;
+		else if (audio_from >= len) continue;
 		if (audio_to < 0) audio_to = 0;
 		else if (audio_to > len) audio_to = len;
 
@@ -153,8 +153,6 @@ static void audio_callback(void *userdata, Uint8 *stream, int len) {
 				memset(stream + audio_from, 128, audio_to - audio_from);
 			}
 		}
-
-		if (audio_to >= len) break;
 	}
 
 	/* if (speaker_entry_pos > 0) {
@@ -205,26 +203,38 @@ static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 video_blink = 1;
 
-#define SDL_TIMER_MS 55
-static long last_timer_tick;
+#define SDL_TIMER_MS 54.9451
+static long first_timer_tick;
+static double timer_time;
+
 static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
-	long curr_timer_tick = zeta_time_ms();
-	long duration = curr_timer_tick - last_timer_tick;
-	last_timer_tick = curr_timer_tick;
 	if (!zzt_thread_running) return 0;
+	long curr_timer_tick = zeta_time_ms();
 
 	atomic_fetch_add(&zzt_renderer_waiting, 1);
 	SDL_LockMutex(zzt_thread_lock);
 	atomic_fetch_sub(&zzt_renderer_waiting, 1);
 	zzt_mark_timer();
+
+	timer_time += SDL_TIMER_MS;
+	long duration = curr_timer_tick - first_timer_tick;
+	long tick_time = ((long) (timer_time + SDL_TIMER_MS)) - duration;
+
+	while (tick_time <= 0) {
+		zzt_mark_timer();
+		timer_time += SDL_TIMER_MS;
+		tick_time = ((long) (timer_time + SDL_TIMER_MS)) - duration;
+	}
+
 	SDL_CondBroadcast(zzt_thread_cond);
 	SDL_UnlockMutex(zzt_thread_lock);
-	return (SDL_TIMER_MS * 2) - duration;
+	return tick_time;
 }
 
 static void sdl_timer_init() {
-	last_timer_tick = zeta_time_ms();
-	SDL_AddTimer(SDL_TIMER_MS, sdl_timer_thread, (void*)NULL);
+	first_timer_tick = zeta_time_ms();
+	timer_time = 0;
+	SDL_AddTimer((int) SDL_TIMER_MS, sdl_timer_thread, (void*)NULL);
 }
 
 // try to keep a budget of ~5ms per call
@@ -239,9 +249,9 @@ static int zzt_thread_func(void *ptr) {
 			long duration = zeta_time_ms();
 			if (!zzt_execute(opcodes)) zzt_thread_running = 0;
 			duration = zeta_time_ms() - duration;
-			if (duration < 3) {
+			if (duration < 2) {
 				opcodes = (opcodes * 20 / 19);
-			} else if (duration > 5) {
+			} else if (duration > 4) {
 				opcodes = (opcodes * 19 / 20);
 			}
 			SDL_CondBroadcast(zzt_thread_cond);
