@@ -348,14 +348,8 @@ function vfs_done() {
 	draw_progress(1.0);
 	Zeta().then(function(c) {
 		emu = c;
-		var psp_loc = emu._zzt_init();
+		var psp_loc = emu._zzt_init(vfs_arg);
 		var ram = emu._zzt_get_ram();
-		var arg = vfs_arg + '\r';
-		emu.setValue(ram + psp_loc + 0x80, vfs_arg.length, "i8");
-		for (var i = 0; i < vfs_arg.length; i++) {
-			emu.setValue(ram + psp_loc + 0x81 + i, vfs_arg.charCodeAt(i), "i8");
-		}
-
 		last_timer_time = time_ms();
 		zzt_tick();
 	});
