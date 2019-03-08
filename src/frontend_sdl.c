@@ -26,6 +26,7 @@
 #include <SDL2/SDL_opengl.h>
 #include "zzt.h"
 #include "audio_stream.h"
+#include "posix_vfs.h"
 
 static int def_palette[] = {
 	0x000000, 0x0000aa, 0x00aa00, 0x00aaaa,
@@ -91,8 +92,6 @@ long zeta_time_ms() {
 void cpu_ext_log(const char *s) {
 	fprintf(stderr, "%s\n", s);
 }
-
-void init_posix_vfs(const char *path);
 
 int zeta_has_feature(int feature) {
 	return 1;
@@ -430,7 +429,7 @@ int main(int argc, char **argv) {
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
 
 	init_posix_vfs("");
-	zzt_init();
+	zzt_init(argc > 1 ? argv[1] : "");
 
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();

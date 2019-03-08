@@ -17,6 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include "zzt.h"
 
 #ifdef EMSCRIPTEN
@@ -609,7 +610,9 @@ static u16 vfs_read16(int handle, int pos) {
 	return v1 | (v2 << 8);
 }
 
-u32 zzt_init(void) {
+
+
+u32 zzt_init(const char *arg) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
@@ -678,11 +681,14 @@ u32 zzt_init(void) {
 	// build faux psp
 	int psp = offset_pars * 16;
 	int seg_first = offset_pars + size_pars;
+	int arglen = strlen(arg);
+	if (arglen > 126) arglen = 126;
 	fprintf(stderr, "seg_first %04X\n", seg_first);
 	zzt.cpu.ram[psp + 0x02] = seg_first & 0xFF;
 	zzt.cpu.ram[psp + 0x03] = seg_first >> 8;
-	zzt.cpu.ram[psp + 0x80] = 1;
-	zzt.cpu.ram[psp + 0x81] = 0x0D;
+	zzt.cpu.ram[psp + 0x80] = 1+arglen;
+	strncpy((char*) (zzt.cpu.ram + psp + 0x81), arg, arglen);
+	zzt.cpu.ram[psp + 0x81 + arglen] = 0x0D;
 
 	// load file into memory
 	vfs_seek(handle, hdr_offset * 16, VFS_SEEK_SET);

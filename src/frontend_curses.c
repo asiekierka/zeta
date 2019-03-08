@@ -23,6 +23,7 @@
 #include <time.h>
 #include <ncurses.h>
 #include "zzt.h"
+#include "posix_vfs.h"
 
 long zeta_time_ms() {
 	clock_t c = clock();
@@ -32,8 +33,6 @@ long zeta_time_ms() {
 void cpu_ext_log(const char* s) {
 	fprintf(stderr, "%s\n", s);
 }
-
-void init_posix_vfs(const char* path);
 
 void speaker_on(double freq) {}
 void speaker_off() {}
@@ -101,7 +100,7 @@ static void init_map_char_to_key() {
 int main(int argc, char** argv) {
 	init_posix_vfs("vfs/");
 	init_map_char_to_key();
-	zzt_init();
+	zzt_init(argc > 1 ? argv[1] : "");
 
 	window = initscr();
 	cbreak();
