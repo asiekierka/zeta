@@ -256,6 +256,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x10: cpu_func_intr_0x10(cpu); break;
 		case 0x13: cpu_func_intr_0x13(cpu); break;
 		case 0x16: cpu_func_intr_0x16(cpu); break;
+		case 0x20: cpu->terminated = 1; break;
 		case 0x21: cpu_func_intr_0x21(cpu); break;
 		case 0x33: cpu_func_intr_0x33(cpu); break;
 		case 0x15:
@@ -521,6 +522,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				return;
 			}
 			break;
+		case 0x00:
 		case 0x4C:
 			cpu->terminated = 1;
 			break;

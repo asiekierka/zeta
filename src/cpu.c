@@ -1574,7 +1574,7 @@ cpu->seg[2], cpu->seg[3], cpu->flags, ram_u8(cpu, SEG(SEG_CS, cpu->ip)));
 	}
 
 	if (cpu->terminated) return STATE_END;
-	return last_state;
+	else return last_state;
 }
 
 void cpu_init(cpu_state* cpu) {

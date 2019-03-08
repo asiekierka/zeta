@@ -290,7 +290,7 @@ static void init_opengl() {
 /* #define GLVX(i) (((i) * 2.0f / 80) - 1)
 #define GLVY(i) (((i) * 2.0f / 25) - 1) */
 
-#define GLVX(i) ((i)*charw)
+#define GLVX(i) ((i)*charw*(80/width))
 #define GLVY(i) ((i)*charh)
 #define GLTX(chr,i) ( ( ((chr)&0xF)+(i) )/16.0*texw )
 #define GLTY(chr,i) ( ( ((chr)>>4)+(i) )/16.0*texh )
@@ -338,6 +338,7 @@ if (kcode == '2') return '@';
 static void render_opengl(long curr_time) {
 	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
 	float texw, texh;
+	int width = (zzt_video_mode() & 2) ? 80 : 40;
 
 	// pass 1: background colors
 	glDisable(GL_ALPHA_TEST);
@@ -345,7 +346,7 @@ static void render_opengl(long curr_time) {
 	glBegin(GL_QUADS);
 	int vpos = 1;
 	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < 80; x++, vpos += 2) {
+		for (int x = 0; x < width; x++, vpos += 2) {
 			u8 col = zzt_vram_copy[vpos] >> 4;
 			if (video_blink) col &= 0x7;
 			glColor3ub(
@@ -371,7 +372,7 @@ static void render_opengl(long curr_time) {
 	glBegin(GL_QUADS);
 	vpos = 0;
 	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < 80; x++, vpos += 2) {
+		for (int x = 0; x < width; x++, vpos += 2) {
 			u8 chr = zzt_vram_copy[vpos];
 			u8 col = zzt_vram_copy[vpos+1];
 			if (blink_local && col >= 0x80) continue;
@@ -400,9 +401,10 @@ static void render_software_copy(long curr_time) {
 	rectSrc.w = rectDst.w = charw;
 	rectSrc.h = rectDst.h = charh;
 
+	int width = (zzt_video_mode() & 2) ? 80 : 40;
 	int vpos = 0;
 	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < 80; x++, vpos += 2) {
+		for (int x = 0; x < width; x++, vpos += 2) {
 			u8 chr = zzt_vram_copy[vpos];
 			u8 col = zzt_vram_copy[vpos + 1];
 			rectSrc.x = (chr & 0xF)*charw;
@@ -530,6 +532,8 @@ int main(int argc, char **argv) {
 	sdl_timer_init();
 
 	while (cont_loop) {
+		if (!zzt_thread_running) { cont_loop = 0; break; }
+
 		atomic_fetch_add(&zzt_renderer_waiting, 1);
 		SDL_LockMutex(zzt_thread_lock);
 		atomic_fetch_sub(&zzt_renderer_waiting, 1);
