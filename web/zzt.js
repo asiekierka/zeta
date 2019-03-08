@@ -453,14 +453,23 @@ document.addEventListener('keydown', function(event) {
 }, false);
 
 document.addEventListener('keyup', function(event) {
+	var ret = true;
 	if (event.target != canvas) return false;
 
 	if (event.key == "Shift") emu._zzt_kmod_clear(0x01);
 	else if (event.key == "Control") emu._zzt_kmod_clear(0x04);
 	else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_clear(0x08);
-	else return false;
+	else ret = false;
 
-	event.preventDefault();
+	var key = zzt_kbdmap[event.key] || 0;
+	if (key > 0) {
+		emu._zzt_keyup(key);
+		ret = true;
+	}
+
+	if (ret) {
+		event.preventDefault();
+	}
 	return false;
 }, false);
 

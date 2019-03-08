@@ -17,6 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,34 +91,182 @@ void cpu_ext_log(const char *s) {
 
 void init_posix_vfs(const char *path);
 
-void speaker_on(double freq) {}
-void speaker_off() {}
-
 int zeta_has_feature(int feature) {
 	return 1;
 }
 
+static SDL_AudioDeviceID audio_device;
+static SDL_AudioSpec audio_spec;
+static double audio_prev_time;
+
+typedef struct {
+	u8 enabled;
+	double freq;
+	long ms;
+} speaker_entry;
+
+#define AUDIO_VOLUME_MAX 127
+#define SPEAKER_ENTRY_LEN 64
+static int speaker_entry_pos = 0;
+static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
+static long speaker_freq_ctr = 0;
+static u8 audio_volume = AUDIO_VOLUME_MAX;
+static SDL_mutex *speaker_mutex;
+
+static void audio_callback(void *userdata, Uint8 *stream, int len) {
+	int i, k; long j;
+	float freq_samples;
+//	double audio_curr_time = audio_prev_time + (len / (double) audio_spec.freq * 1000);
+	double audio_curr_time = zeta_time_ms();
+	long audio_res = (audio_curr_time - audio_prev_time);
+	float res_to_samples = len / (float) audio_res;
+	long audio_from, audio_to;
+
+	SDL_LockMutex(speaker_mutex);
+	if (speaker_entry_pos == 0) {
+		memset(stream, 128, len);
+	} else for (i = 0; i < speaker_entry_pos; i++) {
+		audio_from = speaker_entries[i].ms - audio_prev_time;
+
+		if (i == speaker_entry_pos - 1) audio_to = audio_res;
+		else audio_to = speaker_entries[i+1].ms - audio_prev_time;
+
+		// convert
+		audio_from = (long) (audio_from * res_to_samples);
+		audio_to = (long) (audio_to * res_to_samples);
+
+		if (audio_from < 0) audio_from = 0;
+		else if (audio_from >= len) break;
+		if (audio_to < 0) audio_to = 0;
+		else if (audio_to > len) audio_to = len;
+
+		// emit
+		if (audio_to > audio_from) {
+			if (speaker_entries[i].enabled) {
+				freq_samples = (float) (audio_spec.freq / (speaker_entries[i].freq * 2));
+				for (j = audio_from; j < audio_to; j++) {
+					stream[j] = (((long) ((speaker_freq_ctr + j - audio_from) / freq_samples)) & 1) ? (128-audio_volume) : (128+audio_volume);
+				}
+				speaker_freq_ctr += audio_to - audio_from;
+			} else {
+				speaker_freq_ctr = 0;
+				memset(stream + audio_from, 128, audio_to - audio_from);
+			}
+		}
+
+		if (audio_to >= len) break;
+	}
+
+	/* if (speaker_entry_pos > 0) {
+		if (i >= speaker_entry_pos) i = speaker_entry_pos - 1;
+		k = i;
+		for (; i < speaker_entry_pos; i++) {
+			speaker_entries[i - k] = speaker_entries[i];
+		}
+		speaker_entry_pos = i - k;
+	} */
+	if (speaker_entry_pos > 0) {
+		speaker_entries[0] = speaker_entries[speaker_entry_pos - 1];
+		speaker_entry_pos = 1;
+	}
+
+	audio_prev_time = audio_curr_time;
+	SDL_UnlockMutex(speaker_mutex);
+}
+
+void speaker_on(double freq) {
+	SDL_LockMutex(speaker_mutex);
+	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
+		cpu_ext_log("speaker buffer overrun");
+		SDL_UnlockMutex(speaker_mutex);
+		return;
+	}
+	speaker_entries[speaker_entry_pos].ms = zeta_time_ms();
+	speaker_entries[speaker_entry_pos].freq = freq;
+	speaker_entries[speaker_entry_pos++].enabled = 1;
+	SDL_UnlockMutex(speaker_mutex);
+}
+void speaker_off() {
+	SDL_LockMutex(speaker_mutex);
+	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
+		cpu_ext_log("speaker buffer overrun");
+		SDL_UnlockMutex(speaker_mutex);
+		return;
+	}
+	speaker_entries[speaker_entry_pos].ms = zeta_time_ms();
+	speaker_entries[speaker_entry_pos++].enabled = 0;
+	SDL_UnlockMutex(speaker_mutex);
+}
+
 static SDL_mutex *zzt_thread_lock;
+static SDL_cond *zzt_thread_cond;
 static u8 zzt_vram_copy[80*25*2];
 static u8 zzt_thread_running;
+static atomic_int zzt_renderer_waiting = 0;
 static u8 video_blink = 1;
 
+#define SDL_TIMER_MS 55
+static long last_timer_tick;
+static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
+	long curr_timer_tick = zeta_time_ms();
+	long duration = curr_timer_tick - last_timer_tick;
+	last_timer_tick = curr_timer_tick;
+	if (!zzt_thread_running) return 0;
+
+	atomic_fetch_add(&zzt_renderer_waiting, 1);
+	SDL_LockMutex(zzt_thread_lock);
+	atomic_fetch_sub(&zzt_renderer_waiting, 1);
+	zzt_mark_timer();
+	SDL_CondBroadcast(zzt_thread_cond);
+	SDL_UnlockMutex(zzt_thread_lock);
+	return (SDL_TIMER_MS * 2) - duration;
+}
+
+static void sdl_timer_init() {
+	last_timer_tick = zeta_time_ms();
+	SDL_AddTimer(SDL_TIMER_MS, sdl_timer_thread, (void*)NULL);
+}
+
+// try to keep a budget of ~5ms per call
+
 static int zzt_thread_func(void *ptr) {
+	int opcodes = 1000;
 	while (zzt_thread_running) {
 		if (SDL_LockMutex(zzt_thread_lock) == 0) {
-			if (!zzt_execute(40000)) zzt_thread_running = 0;
+			while (zzt_renderer_waiting > 0) {
+				SDL_CondWait(zzt_thread_cond, zzt_thread_lock);
+			}
+			long duration = zeta_time_ms();
+			if (!zzt_execute(opcodes)) zzt_thread_running = 0;
+			duration = zeta_time_ms() - duration;
+			if (duration < 3) {
+				opcodes = (opcodes * 20 / 19);
+			} else if (duration > 5) {
+				opcodes = (opcodes * 19 / 20);
+			}
+			SDL_CondBroadcast(zzt_thread_cond);
 			SDL_UnlockMutex(zzt_thread_lock);
 		}
-		SDL_Delay(1);
 	}
 
 	return 0;
 }
 
+static void update_keymod(SDL_Keymod keymod) {
+	if (keymod & (KMOD_LSHIFT | KMOD_RSHIFT)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
+	if (keymod & (KMOD_LCTRL | KMOD_RCTRL)) zzt_kmod_set(0x04); else zzt_kmod_clear(0x04);
+	if (keymod & (KMOD_LALT | KMOD_RALT)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
+}
+
 int main(int argc, char **argv) {
+	int scancodes_lifted[128];
+	int slc = 0;
+
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	SDL_Rect rectSrc, rectDst;
+
+	SDL_AudioSpec requested_audio_spec;
 
 	SDL_Texture *chartex;
 	int charw, charh;
@@ -127,9 +276,21 @@ int main(int argc, char **argv) {
 
 	SDL_Thread* zzt_thread;
 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		return 1;
+	}
+
+	SDL_zero(requested_audio_spec);
+	requested_audio_spec.freq = 48000;
+	requested_audio_spec.format = AUDIO_U8;
+	requested_audio_spec.channels = 1;
+	requested_audio_spec.samples = 4096;
+	requested_audio_spec.callback = audio_callback;
+
+	audio_device = SDL_OpenAudioDevice(NULL, 0, &requested_audio_spec, &audio_spec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+	if (audio_device == 0) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open audio device! %s", SDL_GetError());
 	}
 
 	charw = 8;
@@ -138,7 +299,8 @@ int main(int argc, char **argv) {
 	window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		80*charw, 25*charh, 0);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, 0);
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
 	chartex = create_texture_from_array(renderer, res_8x14_bin, charh);
 	rectSrc.w = rectDst.w = charw;
@@ -150,12 +312,10 @@ int main(int argc, char **argv) {
 	zzt_init();
 
 	zzt_thread_lock = SDL_CreateMutex();
-	if (!zzt_thread_lock) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not create ZZT thread mutex! %s", SDL_GetError());
-		return 1;
-	}
+	zzt_thread_cond = SDL_CreateCond();
+	speaker_mutex = SDL_CreateMutex();
 
-	long last_timer_call = zeta_time_ms();
+	long curr_time;
 	u8 cont_loop = 1;
 
 	zzt_thread_running = 1;
@@ -165,20 +325,30 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	while (cont_loop) {
-		if (SDL_LockMutex(zzt_thread_lock) != 0) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not lock ZZT thread mutex! %s", SDL_GetError());
-			cont_loop = 0;
-			break;
-		}
+	if (audio_device != 0) {
+		audio_prev_time = zeta_time_ms();
+		SDL_PauseAudioDevice(audio_device, 0);
+	}
 
+	sdl_timer_init();
+
+	while (cont_loop) {
+		atomic_fetch_add(&zzt_renderer_waiting, 1);
+		SDL_LockMutex(zzt_thread_lock);
+		atomic_fetch_sub(&zzt_renderer_waiting, 1);
 		u8* ram = zzt_get_ram();
 		memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
 		zzt_mark_frame();
 
+		// do KEYUPs before KEYDOWNS - fixes key loss issues w/ Windows
+		while (slc > 0) {
+			zzt_keyup(scancodes_lifted[--slc]);
+		}
+
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_KEYDOWN:
+					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
@@ -187,9 +357,10 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_KEYUP:
+					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
-						zzt_keyup(sdl_to_pc_scancode[scode]);
+						scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
 					}
 					break;
 				case SDL_QUIT:
@@ -198,13 +369,10 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		long curr_timer_call = zeta_time_ms();
-		if ((curr_timer_call - last_timer_call) >= 55) {
-			zzt_mark_timer();
-			last_timer_call = curr_timer_call;
-		}
+		SDL_CondBroadcast(zzt_thread_cond);
 		SDL_UnlockMutex(zzt_thread_lock);
 
+		curr_time = zeta_time_ms();
 		int vpos = 0;
 		for (int y = 0; y < 25; y++) {
 			for (int x = 0; x < 80; x++, vpos += 2) {
@@ -217,7 +385,7 @@ int main(int argc, char **argv) {
 
 				if (video_blink && col >= 0x80) {
 					col &= 0x7f;
-					if ((curr_timer_call % 466) >= 233) {
+					if ((curr_time % 466) >= 233) {
 						col = (col >> 4) * 0x11;
 					}
 				}
@@ -248,5 +416,9 @@ int main(int argc, char **argv) {
 	zzt_thread_running = 0;
 
 	SDL_DestroyRenderer(renderer);
+	if (audio_device != 0) {
+		SDL_CloseAudioDevice(audio_device);
+	}
 	SDL_Quit();
+	return 0;
 }
