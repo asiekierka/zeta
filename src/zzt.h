@@ -39,6 +39,8 @@ int zzt_video_mode(void);
 USER_FUNCTION
 void zzt_key(int ch, int key);
 USER_FUNCTION
+void zzt_keyup(int key);
+USER_FUNCTION
 void zzt_kmod_set(int mod);
 USER_FUNCTION
 void zzt_kmod_clear(int mod);
@@ -66,7 +68,7 @@ USER_FUNCTION
 void zzt_mark_timer(void);
 
 IMPLEMENT_FUNCTION
-long vfs_time_ms(void);
+long zeta_time_ms(void);
 
 #define VFS_SEEK_SET 0
 #define VFS_SEEK_CUR 1
@@ -94,7 +96,7 @@ int vfs_findnext(u8* ptr);
 #define FEATURE_JOY_CONNECTED 1
 #define FEATURE_MOUSE_CONNECTED 2
 IMPLEMENT_FUNCTION
-int vfs_has_feature(int feature);
+int zeta_has_feature(int feature);
 
 IMPLEMENT_FUNCTION
 void speaker_on(double freq);

@@ -26,7 +26,7 @@
 
 long vfs_time_ms() {
 	clock_t c = clock();
-	return c / 1000;
+	return c / (CLOCKS_PER_SEC/1000);
 }
 
 #define MAX_FNLEN 259
@@ -38,14 +38,12 @@ static int vfs_fnprefsize;
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) { return -1; }
 int vfs_findnext(u8* ptr) { return -1; }
 
-void init_posix_glue() {
-	vfs_fnbuf[0] = 'v';
-	vfs_fnbuf[1] = 'f';
-	vfs_fnbuf[2] = 's';
-	vfs_fnbuf[3] = '/';
-	vfs_fnprefsize = 4;
-	for (int i = 0; i < MAX_FILES; i++)
+void init_posix_vfs(const char* path) {
+	strncpy(vfs_fnbuf, path, MAX_FNLEN);
+	vfs_fnprefsize = strlen(vfs_fnbuf);
+	for (int i = 0; i < MAX_FILES; i++) {
 		file_pointers[i] = NULL;
+	}
 }
 
 int vfs_open(const char* filename, int mode) {
@@ -98,8 +96,4 @@ int vfs_close(int handle) {
 	if (handle <= 0 || handle > MAX_FILES) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	return fclose(fptr);
-}
-
-void cpu_ext_log(const char* s) {
-	fprintf(stderr, "%s\n", s);
 }

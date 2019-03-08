@@ -2,7 +2,7 @@ mergeInto(LibraryManager.library, {
 	cpu_ext_log: function(s) {
 		console.log(Pointer_stringify(s));
 	},
-	vfs_time_ms: function() {
+	zeta_time_ms: function() {
 		return vfsg_time_ms();
 	},
 	vfs_open: function(fn, mode) {
@@ -26,7 +26,7 @@ mergeInto(LibraryManager.library, {
 	vfs_findnext: function(ptr) {
 		return vfsg_findnext(ptr);
 	},
-	vfs_has_feature: function(id) {
+	zeta_has_feature: function(id) {
 		return vfsg_has_feature(id);
 	},
 	speaker_on: function(freq) {

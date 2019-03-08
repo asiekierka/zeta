@@ -68,6 +68,13 @@ void zzt_key(int c, int k) {
 	fprintf(stderr, "kbget %d %d\n", zzt.qch, zzt.qke);
 }
 
+void zzt_keyup(int k) {
+	if (zzt.qke == k) {
+		zzt.qch = -1;
+		zzt.qke = -1;
+	}
+}
+
 static void cpu_func_intr_0x10(cpu_state* cpu);
 static void cpu_func_intr_0x13(cpu_state* cpu);
 static void cpu_func_intr_0x16(cpu_state* cpu);
@@ -139,7 +146,7 @@ static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
 		case 0x61:
 			return zzt->port_61;
 		case 0x201:
-			if (!vfs_has_feature(FEATURE_JOY_CONNECTED))
+			if (!zeta_has_feature(FEATURE_JOY_CONNECTED))
 				return 0xF0;
 			zzt->port_201 &= 0xF0;
 			if (zzt->joy_xstrobes > 0) {
@@ -203,7 +210,7 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 
 	switch (cpu->ax) {
 		case 0:
-			if (vfs_has_feature(FEATURE_MOUSE_CONNECTED)) {
+			if (zeta_has_feature(FEATURE_MOUSE_CONNECTED)) {
 				cpu->ax = 0xFFFF;
 				cpu->bx = 0xFFFF;
 			}
@@ -424,7 +431,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->ram[cpu->al * 4 + 3] = cpu->seg[SEG_DS] >> 8;
 			return;
 		case 0x2C: { // systime
-			long ms = vfs_time_ms();
+			long ms = zeta_time_ms();
 			cpu->ch = (ms / 3600000) % 24;
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;

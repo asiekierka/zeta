@@ -24,7 +24,16 @@
 #include <ncurses.h>
 #include "zzt.h"
 
-void init_posix_glue();
+long zeta_time_ms() {
+	clock_t c = clock();
+	return c / (CLOCKS_PER_SEC/1000);
+}
+
+void cpu_ext_log(const char* s) {
+	fprintf(stderr, "%s\n", s);
+}
+
+void init_posix_vfs(const char* path);
 
 void speaker_on(double freq) {}
 void speaker_off() {}
@@ -32,7 +41,7 @@ void speaker_off() {}
 static int map_char_to_key[512];
 static WINDOW* window;
 
-int vfs_has_feature(int feature) {
+int zeta_has_feature(int feature) {
 	return 1;
 }
 
@@ -89,8 +98,8 @@ static void init_map_char_to_key() {
 	map_char_to_key[32] = 57; // space
 }
 
-int main() {
-	init_posix_glue();
+int main(int argc, char** argv) {
+	init_posix_vfs("vfs/");
 	init_map_char_to_key();
 	zzt_init();
 
