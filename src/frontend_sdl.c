@@ -17,11 +17,13 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include "zzt.h"
 
 static int def_palette[] = {
@@ -114,7 +116,7 @@ static u8 audio_volume = AUDIO_VOLUME_MAX;
 static SDL_mutex *speaker_mutex;
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
-	int i, k; long j;
+	int i; long j;
 	float freq_samples;
 //	double audio_curr_time = audio_prev_time + (len / (double) audio_spec.freq * 1000);
 	double audio_curr_time = zeta_time_ms();
@@ -268,18 +270,180 @@ static void update_keymod(SDL_Keymod keymod) {
 	if (keymod & (KMOD_LALT | KMOD_RALT)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
 }
 
+#define is_shift(kmod) ((kmod) & (KMOD_LSHIFT | KMOD_RSHIFT))
+
+static SDL_Window *window;
+static SDL_Renderer *renderer;
+static SDL_Texture *chartex;
+static SDL_GLContext gl_context;
+static int charw, charh;
+
+static void init_opengl() {
+	glViewport(0, 0, 80 * charw, 25 * charh);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, 80 * charw, 0, 25 * charh, -1, 1);
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+/* #define GLVX(i) (((i) * 2.0f / 80) - 1)
+#define GLVY(i) (((i) * 2.0f / 25) - 1) */
+
+#define GLVX(i) ((i)*charw)
+#define GLVY(i) ((i)*charh)
+#define GLTX(chr,i) ( ( ((chr)&0xF)+(i) )/16.0*texw )
+#define GLTY(chr,i) ( ( ((chr)>>4)+(i) )/16.0*texh )
+
+static void oglguard() {
+	GLenum err;
+
+	if ((err = glGetError()) != GL_NO_ERROR) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "OpenGL error: %d", err);
+	}
+}
+
+static char as_shifted(char kcode) {
+	if (kcode >= 'a' && kcode <= 'z') {
+		return kcode - 32;
+	} else switch(kcode) {
+		case '1': return '!';
+		case '2': return '@';
+		case '3': return '#';
+		case '4': return '$';
+		case '5': return '%';
+		case '6': return '^';
+		case '7': return '&';
+		case '8': return '*';
+		case '9': return '(';
+		case '0': return ')';
+		case '-': return '_';
+		case '=': return '+';
+		case '[': return '{';
+		case ']': return '}';
+		case ';': return ':';
+		case '\'': return '"';
+		case '\\': return '|';
+		case ',': return '<';
+		case '.': return '>';
+		case '/': return '?';
+		case '`': return '~';
+		default: return kcode;
+	}
+
+if (kcode == '2') return '@';
+	else if (kcode == '6') return '^';
+}
+
+static void render_opengl(long curr_time) {
+	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
+	float texw, texh;
+
+	// pass 1: background colors
+	glDisable(GL_ALPHA_TEST);
+	glDisable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
+	int vpos = 1;
+	for (int y = 0; y < 25; y++) {
+		for (int x = 0; x < 80; x++, vpos += 2) {
+			u8 col = zzt_vram_copy[vpos] >> 4;
+			if (video_blink) col &= 0x7;
+			glColor3ub(
+				(def_palette[col] >> 16) & 0xFF,
+				(def_palette[col] >> 8) & 0xFF,
+				(def_palette[col] >> 0) & 0xFF
+			);
+			glVertex2i(GLVX(x), GLVY(y));
+			glVertex2i(GLVX(x+1), GLVY(y));
+			glVertex2i(GLVX(x+1), GLVY(y+1));
+			glVertex2i(GLVX(x), GLVY(y+1));
+		}
+	}
+	glEnd();
+
+	// pass 2: foreground colors
+	if (SDL_GL_BindTexture(chartex, &texw, &texh)) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not bind OpenGL texture! %s", SDL_GetError());
+	}
+	glAlphaFunc(GL_GREATER, 0.5);
+	glEnable(GL_ALPHA_TEST);
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
+	vpos = 0;
+	for (int y = 0; y < 25; y++) {
+		for (int x = 0; x < 80; x++, vpos += 2) {
+			u8 chr = zzt_vram_copy[vpos];
+			u8 col = zzt_vram_copy[vpos+1];
+			if (blink_local && col >= 0x80) continue;
+			else col = col & 0xF;
+			glColor3ub(
+				(def_palette[col] >> 16) & 0xFF,
+				(def_palette[col] >> 8) & 0xFF,
+				(def_palette[col] >> 0) & 0xFF
+			);
+			glTexCoord2f(GLTX(chr,0), GLTY(chr,0));
+			glVertex2i(GLVX(x), GLVY(y));
+			glTexCoord2f(GLTX(chr,1), GLTY(chr,0));
+			glVertex2i(GLVX(x+1), GLVY(y));
+			glTexCoord2f(GLTX(chr,1), GLTY(chr,1));
+			glVertex2i(GLVX(x+1), GLVY(y+1));
+			glTexCoord2f(GLTX(chr,0), GLTY(chr,1));
+			glVertex2i(GLVX(x), GLVY(y+1));
+		}
+	}
+	glEnd();
+	SDL_GL_UnbindTexture(chartex);
+}
+
+static void render_software_copy(long curr_time) {
+	SDL_Rect rectSrc, rectDst;
+	rectSrc.w = rectDst.w = charw;
+	rectSrc.h = rectDst.h = charh;
+
+	int vpos = 0;
+	for (int y = 0; y < 25; y++) {
+		for (int x = 0; x < 80; x++, vpos += 2) {
+			u8 chr = zzt_vram_copy[vpos];
+			u8 col = zzt_vram_copy[vpos + 1];
+			rectSrc.x = (chr & 0xF)*charw;
+			rectSrc.y = (chr >> 4)*charh;
+			rectDst.x = x*charw;
+			rectDst.y = y*charh;
+
+			if (video_blink && col >= 0x80) {
+				col &= 0x7f;
+				if ((curr_time % 466) >= 233) {
+					col = (col >> 4) * 0x11;
+				}
+			}
+
+			u8 render_fg = ((col >> 4) ^ (col & 0xF));
+
+			SDL_SetRenderDrawColor(renderer,
+				(def_palette[col >> 4] >> 16) & 0xFF,
+				(def_palette[col >> 4] >> 8) & 0xFF,
+				(def_palette[col >> 4] >> 0) & 0xFF,
+				255);
+
+			SDL_RenderFillRect(renderer, &rectDst);
+
+			if (render_fg) {
+				SDL_SetTextureColorMod(chartex,
+					(def_palette[col & 0xF] >> 16) & 0xFF,
+					(def_palette[col & 0xF] >> 8) & 0xFF,
+					(def_palette[col & 0xF] >> 0) & 0xFF);
+				SDL_RenderCopy(renderer, chartex, &rectSrc, &rectDst);
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	int scancodes_lifted[128];
 	int slc = 0;
-
-	SDL_Window *window;
-	SDL_Renderer *renderer;
-	SDL_Rect rectSrc, rectDst;
+	int use_opengl = 0;
 
 	SDL_AudioSpec requested_audio_spec;
-
-	SDL_Texture *chartex;
-	int charw, charh;
 
 	SDL_Event event;
 	int scode, kcode;
@@ -306,16 +470,39 @@ int main(int argc, char **argv) {
 	charw = 8;
 	charh = 14;
 
-	window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		80*charw, 25*charh, 0);
+	use_opengl = 1;
+	if (use_opengl) {
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+
+		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+			80*charw, 25*charh, SDL_WINDOW_OPENGL);
+		if (window == NULL) {
+			use_opengl = 0;
+		} else if ((gl_context = SDL_GL_CreateContext(window)) == NULL) {
+			SDL_DestroyWindow(window);
+			use_opengl = 0;
+		} else {
+			SDL_GL_SetSwapInterval(1);
+		}
+	}
+
+	if (!use_opengl) {
+		fprintf(stderr, "Could not initialize OpenGL (%s), using fallback renderer...", SDL_GetError());
+		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+			80*charw, 25*charh, 0);
+		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+	} else {
+		init_opengl();
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+	}
+
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
 	chartex = create_texture_from_array(renderer, res_8x14_bin, charh);
-	rectSrc.w = rectDst.w = charw;
-	rectSrc.h = rectDst.h = charh;
-
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
 
 	init_posix_vfs("");
@@ -363,6 +550,7 @@ int main(int argc, char **argv) {
 					kcode = event.key.keysym.sym;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
+						if (is_shift(event.key.keysym.mod)) kcode = as_shifted(kcode);
 						zzt_key(kcode, sdl_to_pc_scancode[scode]);
 					}
 					break;
@@ -383,44 +571,13 @@ int main(int argc, char **argv) {
 		SDL_UnlockMutex(zzt_thread_lock);
 
 		curr_time = zeta_time_ms();
-		int vpos = 0;
-		for (int y = 0; y < 25; y++) {
-			for (int x = 0; x < 80; x++, vpos += 2) {
-				u8 chr = zzt_vram_copy[vpos];
-				u8 col = zzt_vram_copy[vpos + 1];
-				rectSrc.x = (chr & 0xF)*charw;
-				rectSrc.y = (chr >> 4)*charh;
-				rectDst.x = x*charw;
-				rectDst.y = y*charh;
-
-				if (video_blink && col >= 0x80) {
-					col &= 0x7f;
-					if ((curr_time % 466) >= 233) {
-						col = (col >> 4) * 0x11;
-					}
-				}
-
-				u8 render_fg = ((col >> 4) ^ (col & 0xF));
-
-				SDL_SetRenderDrawColor(renderer,
-					(def_palette[col >> 4] >> 16) & 0xFF,
-					(def_palette[col >> 4] >> 8) & 0xFF,
-					(def_palette[col >> 4] >> 0) & 0xFF,
-					255);
-
-				SDL_RenderFillRect(renderer, &rectDst);
-
-				if (render_fg) {
-					SDL_SetTextureColorMod(chartex,
-						(def_palette[col & 0xF] >> 16) & 0xFF,
-						(def_palette[col & 0xF] >> 8) & 0xFF,
-						(def_palette[col & 0xF] >> 0) & 0xFF);
-					SDL_RenderCopy(renderer, chartex, &rectSrc, &rectDst);
-				}
-			}
+		if (use_opengl) {
+			render_opengl(curr_time);
+			SDL_GL_SwapWindow(window);
+		} else {
+			render_software_copy(curr_time);
+			SDL_RenderPresent(renderer);
 		}
-
-		SDL_RenderPresent(renderer);
 	}
 
 	zzt_thread_running = 0;
