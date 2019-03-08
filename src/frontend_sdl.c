@@ -199,13 +199,29 @@ static SDL_Texture *chartex;
 static SDL_GLContext gl_context;
 static int charw, charh;
 
-static void init_opengl() {
-	glViewport(0, 0, 80 * charw, 25 * charh);
+static void prepare_render_opengl() {
+	int iw = 80*charw;
+	int ih = 25*charh;
+	int w, h;
+	SDL_GL_GetDrawableSize(window, &w, &h);
+
+	int scale = 1;
+	while (((scale+1)*iw <= w) && ((scale+1)*ih <= h)) scale++;
+
+	w /= scale;
+	h /= scale;
+
+	int xdif = (w - iw) / 2;
+	int ydif = (h - ih) / 2;
+	glViewport(0, 0, w*scale, h*scale);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0, 80 * charw, 0, 25 * charh, -1, 1);
-	glClearColor(0, 0, 0, 1);
+	glOrtho(-xdif, w - xdif, h - ydif, -ydif, -1, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+static void init_opengl() {
+	glClearColor(0, 0, 0, 1);
 }
 
 /* #define GLVX(i) (((i) * 2.0f / 80) - 1)
@@ -260,6 +276,8 @@ static void render_opengl(long curr_time) {
 	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
 	float texw, texh;
 	int width = (zzt_video_mode() & 2) ? 80 : 40;
+
+	prepare_render_opengl();
 
 	// pass 1: background colors
 	glDisable(GL_ALPHA_TEST);
@@ -401,7 +419,7 @@ int main(int argc, char **argv) {
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
 		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-			80*charw, 25*charh, SDL_WINDOW_OPENGL);
+			80*charw, 25*charh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 		if (window == NULL) {
 			use_opengl = 0;
 		} else if ((gl_context = SDL_GL_CreateContext(window)) == NULL) {
