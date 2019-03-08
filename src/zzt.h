@@ -20,15 +20,6 @@
 #ifndef __ZZT_H__
 #define __ZZT_H__
 
-#ifdef EMSCRIPTEN
-#define USER_FUNCTION EMSCRIPTEN_KEEPALIVE
-#define IMPLEMENT_FUNCTION
-#include <emscripten.h>
-#else
-#define USER_FUNCTION
-#define IMPLEMENT_FUNCTION
-#endif
-
 #include "cpu.h"
 
 #define MAX_FILES 16

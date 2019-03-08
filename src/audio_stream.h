@@ -17,23 +17,22 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __TYPES_H__
-#define __TYPES_H__
+#ifndef __AUDIO_STREAM_H__
+#define __AUDIO_STREAM_H__
 
-#ifdef EMSCRIPTEN
-#define USER_FUNCTION EMSCRIPTEN_KEEPALIVE
-#define IMPLEMENT_FUNCTION
-#include <emscripten.h>
-#else
-#define USER_FUNCTION
-#define IMPLEMENT_FUNCTION
+#include "types.h"
+
+USER_FUNCTION
+void audio_stream_init(long time, int freq);
+USER_FUNCTION
+u8 audio_stream_get_max_volume();
+USER_FUNCTION
+void audio_stream_set_volume(u8 volume);
+USER_FUNCTION
+void audio_stream_generate_u8(long time, u8 *stream, int len);
+USER_FUNCTION
+void audio_stream_append_on(long time, double freq);
+USER_FUNCTION
+void audio_stream_append_off(long time);
+
 #endif
-
-typedef char s8;
-typedef short s16;
-typedef int s32;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-
-#endif /* __TYPES_H__ */

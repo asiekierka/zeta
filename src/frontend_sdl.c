@@ -25,6 +25,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #include "zzt.h"
+#include "audio_stream.h"
 
 static int def_palette[] = {
 	0x000000, 0x0000aa, 0x00aa00, 0x00aaaa,
@@ -99,103 +100,24 @@ int zeta_has_feature(int feature) {
 
 static SDL_AudioDeviceID audio_device;
 static SDL_AudioSpec audio_spec;
-static double audio_prev_time;
-
-typedef struct {
-	u8 enabled;
-	double freq;
-	long ms;
-} speaker_entry;
-
-#define AUDIO_VOLUME_MAX 127
-#define SPEAKER_ENTRY_LEN 64
-static int speaker_entry_pos = 0;
-static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
-static long speaker_freq_ctr = 0;
-static u8 audio_volume = AUDIO_VOLUME_MAX;
-static SDL_mutex *speaker_mutex;
+static SDL_mutex *audio_mutex;
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
-	int i; long j;
-	float freq_samples;
-//	double audio_curr_time = audio_prev_time + (len / (double) audio_spec.freq * 1000);
-	double audio_curr_time = zeta_time_ms();
-	long audio_res = (audio_curr_time - audio_prev_time);
-	float res_to_samples = len / (float) audio_res;
-	long audio_from, audio_to;
-
-	SDL_LockMutex(speaker_mutex);
-	if (speaker_entry_pos == 0) {
-		memset(stream, 128, len);
-	} else for (i = 0; i < speaker_entry_pos; i++) {
-		audio_from = speaker_entries[i].ms - audio_prev_time;
-
-		if (i == speaker_entry_pos - 1) audio_to = audio_res;
-		else audio_to = speaker_entries[i+1].ms - audio_prev_time;
-
-		// convert
-		audio_from = (long) (audio_from * res_to_samples);
-		audio_to = (long) (audio_to * res_to_samples);
-
-		if (audio_from < 0) audio_from = 0;
-		else if (audio_from >= len) continue;
-		if (audio_to < 0) audio_to = 0;
-		else if (audio_to > len) audio_to = len;
-
-		// emit
-		if (audio_to > audio_from) {
-			if (speaker_entries[i].enabled) {
-				freq_samples = (float) (audio_spec.freq / (speaker_entries[i].freq * 2));
-				for (j = audio_from; j < audio_to; j++) {
-					stream[j] = (((long) ((speaker_freq_ctr + j - audio_from) / freq_samples)) & 1) ? (128-audio_volume) : (128+audio_volume);
-				}
-				speaker_freq_ctr += audio_to - audio_from;
-			} else {
-				speaker_freq_ctr = 0;
-				memset(stream + audio_from, 128, audio_to - audio_from);
-			}
-		}
-	}
-
-	/* if (speaker_entry_pos > 0) {
-		if (i >= speaker_entry_pos) i = speaker_entry_pos - 1;
-		k = i;
-		for (; i < speaker_entry_pos; i++) {
-			speaker_entries[i - k] = speaker_entries[i];
-		}
-		speaker_entry_pos = i - k;
-	} */
-	if (speaker_entry_pos > 0) {
-		speaker_entries[0] = speaker_entries[speaker_entry_pos - 1];
-		speaker_entry_pos = 1;
-	}
-
-	audio_prev_time = audio_curr_time;
-	SDL_UnlockMutex(speaker_mutex);
+	SDL_LockMutex(audio_mutex);
+	audio_stream_generate_u8(zeta_time_ms(), stream, len);
+	SDL_UnlockMutex(audio_mutex);
 }
 
 void speaker_on(double freq) {
-	SDL_LockMutex(speaker_mutex);
-	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
-		cpu_ext_log("speaker buffer overrun");
-		SDL_UnlockMutex(speaker_mutex);
-		return;
-	}
-	speaker_entries[speaker_entry_pos].ms = zeta_time_ms();
-	speaker_entries[speaker_entry_pos].freq = freq;
-	speaker_entries[speaker_entry_pos++].enabled = 1;
-	SDL_UnlockMutex(speaker_mutex);
+	SDL_LockMutex(audio_mutex);
+	audio_stream_append_on(zeta_time_ms(), freq);
+	SDL_UnlockMutex(audio_mutex);
 }
+
 void speaker_off() {
-	SDL_LockMutex(speaker_mutex);
-	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
-		cpu_ext_log("speaker buffer overrun");
-		SDL_UnlockMutex(speaker_mutex);
-		return;
-	}
-	speaker_entries[speaker_entry_pos].ms = zeta_time_ms();
-	speaker_entries[speaker_entry_pos++].enabled = 0;
-	SDL_UnlockMutex(speaker_mutex);
+	SDL_LockMutex(audio_mutex);
+	audio_stream_append_off(zeta_time_ms());
+	SDL_UnlockMutex(audio_mutex);
 }
 
 static SDL_mutex *zzt_thread_lock;
@@ -512,7 +434,7 @@ int main(int argc, char **argv) {
 
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();
-	speaker_mutex = SDL_CreateMutex();
+	audio_mutex = SDL_CreateMutex();
 
 	long curr_time;
 	u8 cont_loop = 1;
@@ -525,7 +447,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (audio_device != 0) {
-		audio_prev_time = zeta_time_ms();
+		audio_stream_init(zeta_time_ms(), audio_spec.freq);
 		SDL_PauseAudioDevice(audio_device, 0);
 	}
 
