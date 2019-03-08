@@ -295,13 +295,13 @@ static void init_opengl() {
 #define GLTX(chr,i) ( ( ((chr)&0xF)+(i) )/16.0*texw )
 #define GLTY(chr,i) ( ( ((chr)>>4)+(i) )/16.0*texh )
 
-static void oglguard() {
+/* static void oglguard() {
 	GLenum err;
 
 	if ((err = glGetError()) != GL_NO_ERROR) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "OpenGL error: %d", err);
 	}
-}
+} */
 
 static char as_shifted(char kcode) {
 	if (kcode >= 'a' && kcode <= 'z') {
@@ -550,6 +550,11 @@ int main(int argc, char **argv) {
 			switch (event.type) {
 				case SDL_KEYDOWN:
 					update_keymod(event.key.keysym.mod);
+					if (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+						if (SDL_GetRelativeMouseMode() != 0) {
+							SDL_SetRelativeMouseMode(0);
+						}
+					}
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
@@ -563,6 +568,24 @@ int main(int argc, char **argv) {
 					scode = event.key.keysym.scancode;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
 						scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
+					}
+					break;
+				case SDL_MOUSEBUTTONDOWN:
+					if (SDL_GetRelativeMouseMode() == 0) {
+						if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) {
+							SDL_SetRelativeMouseMode(1);
+						}
+					} else {
+						zzt_mouse_set(event.button.button);
+					}
+					break;
+				case SDL_MOUSEBUTTONUP:
+					zzt_mouse_clear(event.button.button);
+					break;
+				case SDL_MOUSEMOTION:
+					if (SDL_GetRelativeMouseMode() != 0) {
+						zzt_mouse_axis(0, event.motion.xrel);
+						zzt_mouse_axis(1, event.motion.yrel);
 					}
 					break;
 				case SDL_QUIT:

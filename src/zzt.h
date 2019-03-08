@@ -53,7 +53,7 @@ void zzt_joy_clear(int button);
 USER_FUNCTION
 void zzt_mouse_set(int button);
 USER_FUNCTION
-void zzt_mouse_axis(int axis, int value /* 0..639, 0..349 */);
+void zzt_mouse_axis(int axis, int value /* delta, in pixels */);
 USER_FUNCTION
 void zzt_mouse_clear(int button);
 USER_FUNCTION
