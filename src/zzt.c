@@ -42,6 +42,7 @@ typedef struct {
 
 typedef struct {
 	cpu_state cpu;
+	double timer_time;
 
 	// keyboard
 	int key_delay, key_repeat_delay;
@@ -78,6 +79,10 @@ void zzt_kmod_set(int mod) {
 
 void zzt_kmod_clear(int mod) {
 	zzt.kmod &= ~mod;
+}
+
+static long zzt_internal_time() {
+	return (long) (zzt.timer_time);
 }
 
 static int zzt_key_append(int qch, int qke) {
@@ -404,7 +409,10 @@ int zzt_video_mode(void) {
 }
 
 static void cpu_func_intr_0x10(cpu_state* cpu) {
-	if (cpu->ah == 0x02) {
+	if (cpu->ah == 0x01) {
+		// cursor shape
+		fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
+	} else if (cpu->ah == 0x02) {
 		cpu->ram[0x451] = cpu->dh;
 		cpu->ram[0x450] = cpu->dl;
 	} else if (cpu->ah == 0x03) {
@@ -504,7 +512,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->ram[cpu->al * 4 + 3] = cpu->seg[SEG_DS] >> 8;
 			return;
 		case 0x2C: { // systime
-			long ms = zeta_time_ms();
+			long ms = zzt_internal_time();
 			cpu->ch = (ms / 3600000) % 24;
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
@@ -616,6 +624,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			} else {
 				cpu->flags &= ~FLAG_CARRY;
 			}
+			break;
 		};
 		default:
 			fprintf(stderr, "int 0x21 AX=%04X\n", cpu->ax);
@@ -693,6 +702,7 @@ u32 zzt_init(const char *arg) {
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 50;
 
+	zzt.timer_time = 0;
 	zzt.joy_xstrobe_val = -1;
 	zzt.joy_ystrobe_val = -1;
 	zzt.joy_xstrobes = 0;
@@ -793,6 +803,7 @@ static void zzt_update_keys() {
 }
 
 void zzt_mark_timer(void) {
+	zzt.timer_time += SYS_TIMER_TIME;
 	zzt_update_keys();
 	cpu_emit_interrupt(&(zzt.cpu), 0x08);
 }

@@ -55,11 +55,18 @@ void audio_stream_set_volume(u8 volume) {
 void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	int i; long j;
 	float freq_samples;
-//	double audio_curr_time = audio_prev_time + (len / (double) audio_freq * 1000);
-	double audio_curr_time = time;
+	int k;
+	double audio_curr_time = audio_prev_time + (len / (double) audio_freq * 1000);
+//	double audio_curr_time = time;
 	long audio_res = (audio_curr_time - audio_prev_time);
 	float res_to_samples = len / (float) audio_res;
 	long audio_from, audio_to;
+
+	if (audio_curr_time < time) {
+		audio_curr_time = time;
+	}
+
+//	fprintf(stderr, "audiogen time %.2f realtime %ld drift %.2f\n", audio_curr_time, time, time - audio_curr_time);
 
 	if (speaker_entry_pos == 0) {
 		memset(stream, 128, len);
@@ -74,7 +81,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 		audio_to = (long) (audio_to * res_to_samples);
 
 		if (audio_from < 0) audio_from = 0;
-		else if (audio_from >= len) continue;
+		else if (audio_from >= len) break;
 		if (audio_to < 0) audio_to = 0;
 		else if (audio_to > len) audio_to = len;
 
@@ -93,17 +100,14 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 		}
 	}
 
-	/* if (speaker_entry_pos > 0) {
-		if (i >= speaker_entry_pos) i = speaker_entry_pos - 1;
+	if (speaker_entry_pos > 0) {
 		k = i;
-		for (; i < speaker_entry_pos; i++) {
+		if (k >= speaker_entry_pos) k = speaker_entry_pos - 1;
+		for (i = k; i < speaker_entry_pos; i++) {
 			speaker_entries[i - k] = speaker_entries[i];
 		}
-		speaker_entry_pos = i - k;
-	} */
-	if (speaker_entry_pos > 0) {
-		speaker_entries[0] = speaker_entries[speaker_entry_pos - 1];
-		speaker_entry_pos = 1;
+		speaker_entry_pos -= k;
+		speaker_entries[0].ms = audio_curr_time;
 	}
 
 	audio_prev_time = audio_curr_time;

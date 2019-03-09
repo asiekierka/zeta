@@ -24,6 +24,7 @@
 
 #define MAX_FILES 16
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
+#define SYS_TIMER_TIME 54.9451
 
 USER_FUNCTION
 int zzt_video_mode(void);

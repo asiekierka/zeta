@@ -126,7 +126,6 @@ static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 video_blink = 1;
 
-#define SDL_TIMER_MS 54.9451
 static long first_timer_tick;
 static double timer_time;
 
@@ -139,14 +138,14 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	atomic_fetch_sub(&zzt_renderer_waiting, 1);
 	zzt_mark_timer();
 
-	timer_time += SDL_TIMER_MS;
+	timer_time += SYS_TIMER_TIME;
 	long duration = curr_timer_tick - first_timer_tick;
-	long tick_time = ((long) (timer_time + SDL_TIMER_MS)) - duration;
+	long tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
 
 	while (tick_time <= 0) {
 		zzt_mark_timer();
-		timer_time += SDL_TIMER_MS;
-		tick_time = ((long) (timer_time + SDL_TIMER_MS)) - duration;
+		timer_time += SYS_TIMER_TIME;
+		tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
 	}
 
 	SDL_CondBroadcast(zzt_thread_cond);
@@ -157,7 +156,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 static void sdl_timer_init() {
 	first_timer_tick = zeta_time_ms();
 	timer_time = 0;
-	SDL_AddTimer((int) SDL_TIMER_MS, sdl_timer_thread, (void*)NULL);
+	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
 }
 
 // try to keep a budget of ~5ms per call
@@ -411,8 +410,8 @@ int main(int argc, char **argv) {
 
 	use_opengl = 1;
 	if (use_opengl) {
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
