@@ -38,7 +38,7 @@ static double audio_prev_time;
 static int audio_freq;
 
 void audio_stream_init(long time, int freq) {
-	audio_prev_time = time;
+	audio_prev_time = -1;
 	audio_freq = freq;
 }
 
@@ -62,6 +62,14 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	double res_to_samples = len / audio_res;
 	double audio_dfrom, audio_dto;
 	long audio_from, audio_to;
+
+	// handle the first
+	if (audio_prev_time < 0) {
+		audio_prev_time = time;
+		memset(stream, 128, len);
+		speaker_entry_pos = 0;
+		return;
+	}
 
 	if (audio_curr_time < time) {
 		audio_curr_time = time;
