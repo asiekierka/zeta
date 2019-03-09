@@ -488,7 +488,7 @@ static void cpu_rotate(cpu_state* cpu, mrm_entry e, u8 opcode, u8 mode) {
 static void cpu_mul(cpu_state* cpu, mrm_entry e, u8 opcode) {
 	u16 v1 = cpu_read_rm(cpu, &e, e.src);
 	u16 v2 = cpu_read_rm(cpu, &e, e.dst);
-	u32 vr = v1 * v2;
+	u32 vr = (u32)(v1) * (u32)(v2);
 	u16 vrf;
 	if (opcode & 0x01) {
 		cpu->dx = (u16) (vr >> 16);
