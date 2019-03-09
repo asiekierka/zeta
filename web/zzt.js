@@ -35,7 +35,8 @@ var palette = [
 var asciiFg = [];
 var chrBuf = [];
 
-function time_ms() { return new Date().getTime(); }
+var date_s = Date.now();
+function time_ms() { return Date.now() - date_s; }
 
 var video_blink = false;
 var video_mode = 3;
@@ -166,8 +167,9 @@ function vfsg_read(h, ptr, amount) {
 	h = handles[h];
 	var maxlen = Math.min(amount, h.array.length - h.pos);
 	console.log("reading " + maxlen + " bytes from " + h.pos + " to " + ptr);
+	var heap = new Uint8Array(emu.HEAPU8.buffer, ptr, maxlen);
 	for (var pos = 0; pos < maxlen; pos++) {
-		emu.setValue(ptr+pos, h.array[h.pos+pos], "i8");
+		heap[pos] = h.array[h.pos + pos];
 	}
 	console.log("read " + maxlen + " bytes");
 	h.pos += maxlen;
@@ -186,8 +188,9 @@ function vfsg_write(h, ptr, amount) {
 		h.array = newA;
 		len = newlen;
 	}
+	var heap = new Uint8Array(emu.HEAPU8.buffer, ptr, amount);
 	for (var pos = 0; pos < amount; pos++) {
-		h.array[h.pos + pos] = emu.getValue(ptr+pos, "i8");
+		h.array[h.pos + pos] = heap[pos];
 	}
 	console.log("wrote " + amount + " bytes");
 	h.pos += amount;
@@ -231,24 +234,25 @@ function vfsg_findfirst(ptr, mask, spec) {
 
 function vfsg_findnext(ptr) {
 	if (ff_pos >= ff_list.length) return -1;
+	var finddata = new Uint8Array(emu.HEAPU8.buffer, ptr, 0x100);
 
 	// write documented fields
-	emu.setValue(ptr + 0x15, 0, "i8");
-	emu.setValue(ptr + 0x16, 0, "i8");
-	emu.setValue(ptr + 0x17, 0, "i8");
-	emu.setValue(ptr + 0x18, 0, "i8");
-	emu.setValue(ptr + 0x19, 0, "i8");
+	finddata[0x15] = 0;
+	finddata[0x16] = 0;
+	finddata[0x17] = 0;
+	finddata[0x18] = 0;
+	finddata[0x19] = 0;
 
 	var size = vfs[ff_list[ff_pos]].buffer.length;
-	emu.setValue(ptr + 0x1A, size & 0xFF, "i8");
-	emu.setValue(ptr + 0x1B, (size >> 8) & 0xFF, "i8");
-	emu.setValue(ptr + 0x1C, (size >> 16) & 0xFF, "i8");
-	emu.setValue(ptr + 0x1D, (size >> 24) & 0xFF, "i8");
+	finddata[0x1A] = size & 0xFF;
+	finddata[0x1B] = (size >> 8) & 0xFF;
+	finddata[0x1C] = (size >> 16) & 0xFF;
+	finddata[0x1D] = (size >> 24) & 0xFF;
 
 	var fn = ff_list[ff_pos];
 	for (var i = 0; i < fn.length; i++)
-		emu.setValue(ptr + 0x1E + i, fn.charCodeAt(i), "i8");
-	emu.setValue(ptr + 0x1E + fn.length, 0, "i8");
+		finddata[0x1E + i] = fn.charCodeAt(i);
+	finddata[0x1E + fn.length] = 0;
 
 	ff_pos = ff_pos + 1;
 	return 0;
@@ -261,18 +265,14 @@ function zzt_frame() {
 
 	video_mode = emu._zzt_video_mode();
 	var ptr = emu._zzt_get_ram();
+	var heap = new Uint8Array(emu.HEAPU8.buffer, ptr + 0xB8000, 80*25*2);
 	var width = 40;
+	var pos = 0;
 	if ((video_mode & 0x02) == 2) width = 80;
 
 	for (var y = 0; y < 25; y++) {
-		for (var x = 0; x < width; x+=2) {
-			var chc = emu.getValue(ptr + 0xB8000 + (y*width+x)*2, "i32");
-			var chr1 = chc & 0xFF;
-			var col1 = (chc >> 8) & 0xFF;
-			var chr2 = (chc >> 16) & 0xFF;
-			var col2 = (chc >> 24) & 0xFF;
-			drawChar(x, y, chr1, col1);
-			drawChar(x+1, y, chr2, col2);
+		for (var x = 0; x < width; x++, pos+=2) {
+			drawChar(x, y, heap[pos], heap[pos+1]);
 		}
 	}
 
@@ -291,17 +291,19 @@ function vfsg_time_ms() {
 
 function zzt_tick() {
 	vfsg_time_ms_val = time_ms();
+
+	var tms = vfsg_time_ms();
+	while ((tms - last_timer_time) >= timer_dur) {
+		last_timer_time += timer_dur;
+		emu._zzt_mark_timer();
+	}
+
 	if (emu._zzt_execute(40000)) {
 		if (!queuedFrame) {
 			queuedFrame = true;
 			window.requestAnimationFrame(zzt_frame);
 		}
 
-		var tms = time_ms();
-		while ((tms - last_timer_time) >= timer_dur) {
-			last_timer_time += timer_dur;
-			emu._zzt_mark_timer();
-		}
 		if (document.hasFocus())
 			window.postMessage("zzt_tick", "*");
 		else
@@ -356,13 +358,55 @@ function vfs_done() {
 }
 
 var audioCtx = undefined;
-var audioGain = undefined;
 var pc_speaker = undefined;
+
+function initAudioCtx() {
+	if (emu == undefined) return;
+
+	audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
+/*	pc_speaker = audioCtx.createScriptProcessor();
+
+	var bufferSize = pc_speaker.bufferSize;
+	var buffer = emu._malloc(bufferSize);
+	var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, bufferSize);
+
+	emu._audio_stream_init(time_ms(), Math.floor(audioCtx.sampleRate));
+	emu._audio_stream_set_volume(Math.floor(0.2 * emu._audio_stream_get_max_volume()));
+
+	pc_speaker.onaudioprocess = function(event) {
+		var out = event.outputBuffer.getChannelData(0);
+		emu._audio_stream_generate_u8(time_ms() - (bufferSize * 1000 / audioCtx.sampleRate), buffer, bufferSize);
+		for (var i = 0; i < bufferSize; i++) {
+			out[i] = (heap[i] - 127) / 127.0;
+		}
+		console.log("audio " + bufferSize);
+	};
+
+	pc_speaker.connect(audioCtx.destination); */
+}
+
+/* function speakerg_on(freq) {
+	if (!document.hasFocus()) {
+		speakerg_off();
+		return;
+	}
+
+	if (audioCtx == undefined)
+		return;
+
+	emu._audio_stream_append_on(time_ms(), freq);
+}
+
+function speakerg_off() {
+	if (audioCtx == undefined)
+		return;
+
+	emu._audio_stream_append_off(time_ms());
+} */
 
 document.addEventListener('mousedown', function(event) {
 	if (audioCtx == undefined) {
-		audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
-		audioGain = audioCtx.createGain();
+		initAudioCtx();
 	}
 });
 
@@ -370,6 +414,7 @@ document.addEventListener('mousedown', function(event) {
 var lastCurrTime = 0;
 var lastTimeMs = 0;
 var timeSpeakerOn = 0;
+var audioGain = undefined;
 
 function speakerg_on(freq) {
 	if (!document.hasFocus()) {
@@ -390,6 +435,7 @@ function speakerg_on(freq) {
 
 //	console.log("pc speaker " + freq + " " + (audioCtx.currentTime + lastADelay));
 	if (pc_speaker == undefined) {
+		audioGain = audioCtx.createGain();
 		pc_speaker = audioCtx.createOscillator();
 		pc_speaker.type = 'square';
 		pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);
@@ -425,7 +471,7 @@ document.addEventListener('keydown', function(event) {
 	var ret = true;
 
 	if (audioCtx == undefined)
-		audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
+		initAudioCtx();
 
 	if (event.key == "Shift") emu._zzt_kmod_set(0x01);
 	else if (event.key == "Control") emu._zzt_kmod_set(0x04);
@@ -519,6 +565,8 @@ var mouseSensitivity = 4;
 
 function attach_mouse_handler(o) {
 	o.addEventListener("mousemove", function(e) {
+		if (emu == undefined) return;
+
 		var mx = e.movementX * mouseSensitivity;
 		var my = e.movementY * mouseSensitivity;
 		emu._zzt_mouse_axis(0, mx);
@@ -533,10 +581,13 @@ function attach_mouse_handler(o) {
 
 	o.addEventListener("mousedown", function(e) {
 		o.requestPointerLock();
+
+		if (emu == undefined) return;
 		emu._zzt_mouse_set(e.button);
 	});
 
 	o.addEventListener("mouseup", function(e) {
+		if (emu == undefined) return;
 		emu._zzt_mouse_clear(e.button);
 	});
 }
