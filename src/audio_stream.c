@@ -34,7 +34,7 @@ static int speaker_entry_pos = 0;
 static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
 static long speaker_freq_ctr = 0;
 static u8 audio_volume = AUDIO_VOLUME_MAX;
-static long audio_prev_time;
+static double audio_prev_time;
 static int audio_freq;
 
 void audio_stream_init(long time, int freq) {
@@ -127,9 +127,8 @@ void audio_stream_append_on(long time, double freq) {
 	if (speaker_entry_pos > 0) {
 		int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
 		double last_ms = speaker_entries[speaker_entry_pos - 1].ms;
-		double last_freq = speaker_entries[speaker_entry_pos - 1].freq;
-		if (last_en && last_ms >= time) {
-			speaker_entries[speaker_entry_pos].ms = last_ms + 0.05;
+		if (last_ms >= time) {
+			speaker_entries[speaker_entry_pos].ms = last_ms + (last_en ? 0.05 : 0);
 		}
 	}
 
@@ -144,13 +143,11 @@ void audio_stream_append_off(long time) {
 
 	speaker_entries[speaker_entry_pos].ms = time;
 
-	// prevent very short notes from being culled
 	if (speaker_entry_pos > 0) {
-		int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
+		// int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
 		double last_ms = speaker_entries[speaker_entry_pos - 1].ms;
-		double last_freq = speaker_entries[speaker_entry_pos - 1].freq;
-		if (last_en && last_ms >= time) {
-			speaker_entries[speaker_entry_pos].ms = last_ms + 0.25;
+		if (last_ms >= time) {
+			speaker_entries[speaker_entry_pos].ms = last_ms;
 		}
 	}
 
