@@ -162,5 +162,6 @@ int vfs_seek(int handle, int amount, int type) {
 int vfs_close(int handle) {
 	if (handle <= 0 || handle > MAX_FILES) return -1;
 	FILE* fptr = file_pointers[handle-1];
+	file_pointers[handle-1] = NULL;
 	return fclose(fptr);
 }

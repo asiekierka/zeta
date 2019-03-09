@@ -213,6 +213,7 @@ static void prepare_render_opengl() {
 
 	int xdif = (w - iw) / 2;
 	int ydif = (h - ih) / 2;
+
 	glViewport(0, 0, w*scale, h*scale);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -223,9 +224,6 @@ static void prepare_render_opengl() {
 static void init_opengl() {
 	glClearColor(0, 0, 0, 1);
 }
-
-/* #define GLVX(i) (((i) * 2.0f / 80) - 1)
-#define GLVY(i) (((i) * 2.0f / 25) - 1) */
 
 #define GLVX(i) ((i)*charw*(80/width))
 #define GLVY(i) ((i)*charh)
@@ -465,6 +463,7 @@ int main(int argc, char **argv) {
 
 	if (audio_device != 0) {
 		audio_stream_init(zeta_time_ms(), audio_spec.freq);
+		audio_stream_set_volume(audio_stream_get_max_volume() >> 1);
 		SDL_PauseAudioDevice(audio_device, 0);
 	}
 
@@ -492,6 +491,7 @@ int main(int argc, char **argv) {
 					if (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
 						if (SDL_GetRelativeMouseMode() != 0) {
 							SDL_SetRelativeMouseMode(0);
+							break;
 						}
 					}
 					scode = event.key.keysym.scancode;

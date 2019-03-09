@@ -27,10 +27,16 @@
 #endif
 
 typedef struct {
+	int qch;
+	int qke;
+} zzt_keyentry;
+
+typedef struct {
 	cpu_state cpu;
 
 	// keyboard
-	int qch, qke, kmod;
+	zzt_keyentry key;
+	int kmod;
 
 	// joystick
 	u8 joy_xstrobe_val, joy_ystrobe_val;
@@ -64,15 +70,15 @@ void zzt_kmod_clear(int mod) {
 }
 
 void zzt_key(int c, int k) {
-	zzt.qch = c >= 0 && c < 128 ? c : 0;
-	zzt.qke = k;
-	fprintf(stderr, "kbget %d %d\n", zzt.qch, zzt.qke);
+	zzt.key.qch = c >= 0 && c < 128 ? c : 0;
+	zzt.key.qke = k;
+	fprintf(stderr, "kbget %d %d\n", zzt.key.qch, zzt.key.qke);
 }
 
 void zzt_keyup(int k) {
-	if (zzt.qke == k) {
-		zzt.qch = -1;
-		zzt.qke = -1;
+	if (zzt.key.qke == k) {
+		zzt.key.qch = -1;
+		zzt.key.qke = -1;
 	}
 }
 
@@ -380,23 +386,27 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 
 static void cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
+	zzt_keyentry *key = NULL;
+	if (zzt->key.qke >= 0) {
+		key = &(zzt->key);
+	}
 
 	if (cpu->ah == 0x00) {
-		if (zzt->qke >= 0) {
+		if (key != NULL) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = zzt->qke;
-			cpu->al = zzt->qch;
-			zzt->qch = -1;
-			zzt->qke = -1;
+			cpu->ah = key->qke;
+			cpu->al = key->qch;
+			key->qke = -1;
+			key->qch = -1;
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
 		return;
 	} else if (cpu->ah == 0x01) {
-		if (zzt->qke >= 0) {
+		if (key != NULL) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = zzt->qke;
-			cpu->al = zzt->qch;
+			cpu->ah = key->qke;
+			cpu->al = key->qch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
@@ -610,14 +620,12 @@ static u16 vfs_read16(int handle, int pos) {
 	return v1 | (v2 << 8);
 }
 
-
-
 u32 zzt_init(const char *arg) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
-	zzt.qch = -1;
-	zzt.qke = -1;
+	zzt.key.qch = -1;
+	zzt.key.qke = -1;
 	zzt.joy_xstrobe_val = -1;
 	zzt.joy_ystrobe_val = -1;
 	zzt.joy_xstrobes = 0;
