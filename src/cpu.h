@@ -21,7 +21,6 @@
 #define __CPU_H__
 #define MAX_INTQUEUE_SIZE 256
 
-
 #include "config.h"
 #include "types.h"
 
@@ -126,6 +125,6 @@ void cpu_set_ip(cpu_state* cpu, u16 cs, u16 ip);
 
 // external
 
-void cpu_ext_log(const char* msg);
+IMPLEMENT_FUNCTION void cpu_ext_log(const char* msg);
 
 #endif /* __CPU_H__ */

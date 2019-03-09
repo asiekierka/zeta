@@ -25,8 +25,13 @@
 #define IMPLEMENT_FUNCTION
 #include <emscripten.h>
 #else
+# ifdef __cplusplus
+#define USER_FUNCTION extern "C"
+#define IMPLEMENT_FUNCTION extern "C"
+# else
 #define USER_FUNCTION
 #define IMPLEMENT_FUNCTION
+# endif
 #endif
 
 typedef char s8;

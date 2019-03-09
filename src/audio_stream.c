@@ -47,8 +47,7 @@ u8 audio_stream_get_max_volume() {
 }
 
 void audio_stream_set_volume(u8 volume) {
-	if (volume < 0) volume = 0;
-	else if (volume > AUDIO_VOLUME_MAX) volume = AUDIO_VOLUME_MAX;
+	if (volume > AUDIO_VOLUME_MAX) volume = AUDIO_VOLUME_MAX;
 	audio_volume = volume;
 }
 
