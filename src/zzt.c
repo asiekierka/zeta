@@ -29,13 +29,24 @@
 typedef struct {
 	int qch;
 	int qke;
-} zzt_keyentry;
+} zzt_keybuf_entry;
+
+typedef struct {
+	int qch;
+	int qke;
+	long time;
+	u8 repeat;
+} zzt_key_entry;
+
+#define KEYBUF_SIZE 4
 
 typedef struct {
 	cpu_state cpu;
 
 	// keyboard
-	zzt_keyentry key;
+	int key_delay, key_repeat_delay;
+	zzt_key_entry key;
+	zzt_keybuf_entry keybuf[KEYBUF_SIZE];
 	int kmod;
 
 	// joystick
@@ -69,16 +80,66 @@ void zzt_kmod_clear(int mod) {
 	zzt.kmod &= ~mod;
 }
 
+static int zzt_key_append(int qch, int qke) {
+	for (int j = 0; j < KEYBUF_SIZE; j++) {
+		if (zzt.keybuf[j].qke == -1 || zzt.keybuf[j].qke == qke) {
+			fprintf(stderr, "key appended %d @ %d\n", qke, j);
+			zzt.keybuf[j].qch = qch;
+			zzt.keybuf[j].qke = qke;
+			return 1;
+		}
+	}
+	fprintf(stderr, "key not appended %d\n", qke);
+	return 0;
+}
+
+int zzt_key_get_delay() {
+	return zzt.key_delay;
+}
+
+int zzt_key_get_repeat_delay() {
+	return zzt.key_repeat_delay;
+}
+
+void zzt_key_set_delay(int ms, int repeat_ms) {
+	zzt.key_delay = ms;
+	zzt.key_repeat_delay = repeat_ms;
+}
+
 void zzt_key(int c, int k) {
-	zzt.key.qch = c >= 0 && c < 128 ? c : 0;
+	// cull repeat presses
+	if (zzt.key.qke == k) {
+		return;
+	}
+
+	zzt.key.qch = ((c & 0x7F) == c) ? c : 0;
 	zzt.key.qke = k;
-	fprintf(stderr, "kbget %d %d\n", zzt.key.qch, zzt.key.qke);
+	zzt.key.time = zeta_time_ms();
+	zzt.key.repeat = 0;
+	fprintf(stderr, "key down %d %d\n", zzt.key.qch, zzt.key.qke);
+	zzt_key_append(zzt.key.qch, zzt.key.qke);
 }
 
 void zzt_keyup(int k) {
+	int changed = 0;
+
 	if (zzt.key.qke == k) {
-		zzt.key.qch = -1;
+		fprintf(stderr, "key up %d %d\n", zzt.key.qch, zzt.key.qke);
 		zzt.key.qke = -1;
+		changed |= zzt.key.repeat;
+	}
+
+	if (changed) {
+		// if the key was in repeat mode, cull existing occurences to clear up the queue
+		for (int i = 0; i < KEYBUF_SIZE; i++) {
+			if (zzt.keybuf[i].qke == k) {
+				for (int j = i+1; j < KEYBUF_SIZE; j++) {
+					zzt.keybuf[j-1] = zzt.keybuf[j];
+				}
+				zzt.keybuf[KEYBUF_SIZE-1].qke = -1;
+				i--;
+			}
+		}
 	}
 }
 
@@ -386,27 +447,27 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 
 static void cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
-	zzt_keyentry *key = NULL;
-	if (zzt->key.qke >= 0) {
-		key = &(zzt->key);
-	}
 
 	if (cpu->ah == 0x00) {
-		if (key != NULL) {
+		if (zzt->keybuf[0].qke >= 0) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = key->qke;
-			cpu->al = key->qch;
-			key->qke = -1;
-			key->qch = -1;
+			cpu->ah = zzt->keybuf[0].qke;
+			cpu->al = zzt->keybuf[0].qch;
+
+			// rotate keybuf
+			for (int i = 1; i < KEYBUF_SIZE; i++) {
+				zzt->keybuf[i-1] = zzt->keybuf[i];
+			}
+			zzt->keybuf[KEYBUF_SIZE-1].qke = -1;
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
 		return;
 	} else if (cpu->ah == 0x01) {
-		if (key != NULL) {
+		if (zzt->keybuf[0].qke >= 0) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = key->qke;
-			cpu->al = key->qch;
+			cpu->ah = zzt->keybuf[0].qke;
+			cpu->al = zzt->keybuf[0].qch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
@@ -624,8 +685,14 @@ u32 zzt_init(const char *arg) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
-	zzt.key.qch = -1;
 	zzt.key.qke = -1;
+	for (int i = 0; i < KEYBUF_SIZE; i++) {
+		zzt.keybuf[i].qke = -1;
+	}
+
+	zzt.key_delay = 500;
+	zzt.key_repeat_delay = 50;
+
 	zzt.joy_xstrobe_val = -1;
 	zzt.joy_ystrobe_val = -1;
 	zzt.joy_xstrobes = 0;
@@ -711,7 +778,22 @@ int zzt_execute(int opcodes) {
 	return cpu_execute(&(zzt.cpu), opcodes);
 }
 
+static void zzt_update_keys() {
+	long ctime = zeta_time_ms();
+	zzt_key_entry* key = &(zzt.key);
+
+	if (key->qke == -1) return;
+	long dtime = ctime - key->time;
+	if (dtime >= (key->repeat ? zzt.key_repeat_delay : zzt.key_delay)) {
+		if (zzt_key_append(key->qch, key->qke)) {
+			key->time = dtime;
+			key->repeat = 1;
+		}
+	}
+}
+
 void zzt_mark_timer(void) {
+	zzt_update_keys();
 	cpu_emit_interrupt(&(zzt.cpu), 0x08);
 }
 

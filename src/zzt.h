@@ -57,6 +57,12 @@ USER_FUNCTION
 void zzt_mark_frame(void);
 USER_FUNCTION
 void zzt_mark_timer(void);
+USER_FUNCTION
+int zzt_key_get_delay();
+USER_FUNCTION
+int zzt_key_get_repeat_delay();
+USER_FUNCTION
+void zzt_key_set_delay(int ms, int repeat_ms);
 
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);
