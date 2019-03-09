@@ -128,6 +128,16 @@ void audio_stream_append_off(long time) {
 		fprintf(stderr, "speaker buffer overrun");
 		return;
 	}
+
+	// prevent very short notes from being culled
+	if (speaker_entry_pos > 0) {
+		int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
+		long last_ms = speaker_entries[speaker_entry_pos - 1].ms;
+		if (last_en && last_ms == time) {
+			time++;
+		}
+	}
+
 	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos++].enabled = 0;
 }
