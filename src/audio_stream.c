@@ -25,7 +25,7 @@
 typedef struct {
 	u8 enabled;
 	double freq;
-	long ms;
+	double ms;
 } speaker_entry;
 
 #define AUDIO_VOLUME_MAX 127
@@ -58,8 +58,9 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	int k;
 	double audio_curr_time = audio_prev_time + (len / (double) audio_freq * 1000);
 //	double audio_curr_time = time;
-	long audio_res = (audio_curr_time - audio_prev_time);
-	float res_to_samples = len / (float) audio_res;
+	double audio_res = (audio_curr_time - audio_prev_time);
+	double res_to_samples = len / audio_res;
+	double audio_dfrom, audio_dto;
 	long audio_from, audio_to;
 
 	if (audio_curr_time < time) {
@@ -71,14 +72,14 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	if (speaker_entry_pos == 0) {
 		memset(stream, 128, len);
 	} else for (i = 0; i < speaker_entry_pos; i++) {
-		audio_from = speaker_entries[i].ms - audio_prev_time;
+		audio_dfrom = speaker_entries[i].ms - audio_prev_time;
 
-		if (i == speaker_entry_pos - 1) audio_to = audio_res;
-		else audio_to = speaker_entries[i+1].ms - audio_prev_time;
+		if (i == speaker_entry_pos - 1) audio_dto = audio_res;
+		else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
 
 		// convert
-		audio_from = (long) (audio_from * res_to_samples);
-		audio_to = (long) (audio_to * res_to_samples);
+		audio_from = (long) (audio_dfrom * res_to_samples);
+		audio_to = (long) (audio_dto * res_to_samples);
 
 		if (audio_from < 0) audio_from = 0;
 		else if (audio_from >= len) break;
@@ -118,8 +119,20 @@ void audio_stream_append_on(long time, double freq) {
 		fprintf(stderr, "speaker buffer overrun");
 		return;
 	}
+
 	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos].freq = freq;
+
+	// prevent very short notes from being culled
+	if (speaker_entry_pos > 0) {
+		int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
+		double last_ms = speaker_entries[speaker_entry_pos - 1].ms;
+		double last_freq = speaker_entries[speaker_entry_pos - 1].freq;
+		if (last_en && last_ms >= time) {
+			speaker_entries[speaker_entry_pos].ms = last_ms + 0.05;
+		}
+	}
+
 	speaker_entries[speaker_entry_pos++].enabled = 1;
 }
 
@@ -129,15 +142,17 @@ void audio_stream_append_off(long time) {
 		return;
 	}
 
+	speaker_entries[speaker_entry_pos].ms = time;
+
 	// prevent very short notes from being culled
 	if (speaker_entry_pos > 0) {
 		int last_en = speaker_entries[speaker_entry_pos - 1].enabled;
-		long last_ms = speaker_entries[speaker_entry_pos - 1].ms;
-		if (last_en && last_ms == time) {
-			time++;
+		double last_ms = speaker_entries[speaker_entry_pos - 1].ms;
+		double last_freq = speaker_entries[speaker_entry_pos - 1].freq;
+		if (last_en && last_ms >= time) {
+			speaker_entries[speaker_entry_pos].ms = last_ms + 0.25;
 		}
 	}
 
-	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos++].enabled = 0;
 }
