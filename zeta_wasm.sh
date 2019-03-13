@@ -9,6 +9,7 @@ rm build/zeta86.wasm.map
 rm build/zeta86.wast
 
 WASM_BACKEND=1 emcc -O3 --js-library src/emscripten_glue.js \
+  -s 'EXPORTED_FUNCTIONS=["_malloc"]' \
   -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["Pointer_stringify"]' \
   -s WASM=1 -s MODULARIZE=1 -s 'EXPORT_NAME="Zeta"' \
   -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
@@ -17,7 +18,6 @@ WASM_BACKEND=1 emcc -O3 --js-library src/emscripten_glue.js \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
   src/cpu.c src/zzt.c
 
-#  -s 'EXPORTED_FUNCTIONS=["_malloc"]' \
 
 mv a.out.js build/zeta86.js
 mv a.out.js.mem build/zeta86.js.mem

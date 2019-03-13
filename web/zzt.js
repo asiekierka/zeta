@@ -93,6 +93,12 @@ var vfs_progress = {};
 var vfs = {};
 
 function vfs_append(fn, then) {
+	var fnfilter = function(f) { return true; }
+	if (Array.isArray(fn)) {
+		fnfilter = fn[1];
+		fn = fn[0];
+	}
+
 	var loader = new ZipLoader(fn);
 	loader.on("progress", function(event) {
 		vfs_progress[fn] = (event.loaded / event.total);
@@ -102,8 +108,11 @@ function vfs_append(fn, then) {
 	loader.load().then(function() {
 		vfs_progress[fn] = 0;
 		for (let key in loader.files) {
-			vfs[key.toUpperCase()] = loader.files[key];
-			vfs[key.toUpperCase()].readonly = true;
+			if (fnfilter(key)) {
+				let ku = key.toUpperCase();
+				vfs[ku] = loader.files[key];
+				vfs[ku].readonly = true;
+			}
 		}
 
 		then();
@@ -321,21 +330,13 @@ window.addEventListener("message", function(event) {
 var vfs_arg = null;
 
 function vfs_done() {
-	if (vfs_arg == null && ("ZZT.EXE" in vfs)) {
-		if ("TOWN.ZZT" in vfs) {
-			vfs_arg = "";
-		} else {
+	if (vfs_arg == null || vfs_arg == "") {
+		if (("ZZT.EXE" in vfs) && !("TOWN.ZZT" in vfs)) {
 			var zlist = vfs_list("*.ZZT");
 			if (zlist.length > 0) {
 				vfs_arg = zlist[0];
 			}
-		}
-	}
-
-	if (vfs_arg == null && ("SUPERZ.EXE" in vfs)) {
-		if ("MONSTER.SZT" in vfs) {
-			vfs_arg = "";
-		} else {
+		} else if (("SUPERZ.EXE" in vfs) && !("MONSTER.SZT" in vfs)) {
 			var zlist = vfs_list("*.SZT");
 			if (zlist.length > 0) {
 				vfs_arg = zlist[0];
@@ -350,7 +351,15 @@ function vfs_done() {
 	draw_progress(1.0);
 	Zeta().then(function(c) {
 		emu = c;
-		var psp_loc = emu._zzt_init(vfs_arg);
+
+		var buffer = emu._malloc(vfs_arg.length + 1);
+		var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, vfs_arg.length + 1);
+		for (var i=0; i < vfs_arg.length; i++) {
+			heap[i] = vfs_arg.charCodeAt(i);
+		}
+		heap[vfs_arg.length] = 0;
+
+		var psp_loc = emu._zzt_init(buffer);
 		var ram = emu._zzt_get_ram();
 		last_timer_time = time_ms();
 		zzt_tick();
