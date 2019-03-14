@@ -227,14 +227,82 @@ static void prepare_render_opengl() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+#define GLVX(i,width) ((i)*charw*(80/width))
+#define GLVY(i) ((i)*charh)
+#define GLTX(chr,i) ( ( ((chr)&0xF)+(i) )/16.0*1.0 )
+#define GLTY(chr,i) ( ( ((chr)>>4)+(i) )/16.0*1.0 )
+
+static unsigned short *ogl_buf_pos;
+static unsigned short *ogl_buf_pos40;
+static unsigned char *ogl_buf_col;
+static float *ogl_buf_tex;
+static unsigned char *ogl_buf_colcache;
+static float *ogl_buf_texcache;
+
 static void init_opengl() {
 	glClearColor(0, 0, 0, 1);
+	ogl_buf_pos = malloc((80 * 25) * 4 * 2 * sizeof(short));
+	ogl_buf_pos40 = malloc((40 * 25) * 4 * 2 * sizeof(short));
+	ogl_buf_col = malloc(2 * (80 * 25) * 4 * 4 * sizeof(char));
+	ogl_buf_tex = malloc((80 * 25) * 4 * 2 * sizeof(float));
+	ogl_buf_colcache = malloc(16 * 16 * sizeof(char));
+	ogl_buf_texcache = malloc(256 * 8 * sizeof(float));
+
+	for (int i = 0; i < 16; i++) {
+		for (int bpos = i*16; bpos < (i+1)*16; bpos+=4) {
+			ogl_buf_colcache[bpos] = (def_palette[i] >> 16) & 0xFF;
+			ogl_buf_colcache[bpos + 1] = (def_palette[i] >> 8) & 0xFF;
+			ogl_buf_colcache[bpos + 2] = (def_palette[i] >> 0) & 0xFF;
+			ogl_buf_colcache[bpos + 3] = 0xFF;
+		}
+	}
+
+	for (int tpos = 0; tpos < 256 * 8; tpos += 8) {
+		u8 chr = tpos >> 3;
+		ogl_buf_texcache[tpos] = GLTX(chr,0);
+		ogl_buf_texcache[tpos+1] = GLTY(chr,0);
+		ogl_buf_texcache[tpos+2] = GLTX(chr,1);
+		ogl_buf_texcache[tpos+3] = GLTY(chr,0);
+		ogl_buf_texcache[tpos+4] = GLTX(chr,1);
+		ogl_buf_texcache[tpos+5] = GLTY(chr,1);
+		ogl_buf_texcache[tpos+6] = GLTX(chr,0);
+		ogl_buf_texcache[tpos+7] = GLTY(chr,1);
+	}
+
+	for (int i = 0; i < 2000; i++) {
+		int x = i % 80;
+		int y = i / 80;
+		ogl_buf_pos[i * 8 + 0] = GLVX(x,80);
+		ogl_buf_pos[i * 8 + 1] = GLVY(y);
+		ogl_buf_pos[i * 8 + 2] = GLVX(x+1,80);
+		ogl_buf_pos[i * 8 + 3] = GLVY(y);
+		ogl_buf_pos[i * 8 + 4] = GLVX(x+1,80);
+		ogl_buf_pos[i * 8 + 5] = GLVY(y+1);
+		ogl_buf_pos[i * 8 + 6] = GLVX(x,80);
+		ogl_buf_pos[i * 8 + 7] = GLVY(y+1);
+	}
+	for (int i = 0; i < 1000; i++) {
+		int x = i % 40;
+		int y = i / 40;
+		ogl_buf_pos40[i * 8 + 0] = GLVX(x,40);
+		ogl_buf_pos40[i * 8 + 1] = GLVY(y);
+		ogl_buf_pos40[i * 8 + 2] = GLVX(x+1,40);
+		ogl_buf_pos40[i * 8 + 3] = GLVY(y);
+		ogl_buf_pos40[i * 8 + 4] = GLVX(x+1,40);
+		ogl_buf_pos40[i * 8 + 5] = GLVY(y+1);
+		ogl_buf_pos40[i * 8 + 6] = GLVX(x,40);
+		ogl_buf_pos40[i * 8 + 7] = GLVY(y+1);
+	}
 }
 
-#define GLVX(i) ((i)*charw*(80/width))
-#define GLVY(i) ((i)*charh)
-#define GLTX(chr,i) ( ( ((chr)&0xF)+(i) )/16.0*texw )
-#define GLTY(chr,i) ( ( ((chr)>>4)+(i) )/16.0*texh )
+static void deinit_opengl() {
+	free(ogl_buf_texcache);
+	free(ogl_buf_colcache);
+	free(ogl_buf_tex);
+	free(ogl_buf_col);
+	free(ogl_buf_pos40);
+	free(ogl_buf_pos);
+}
 
 /* static void oglguard() {
 	GLenum err;
@@ -271,39 +339,53 @@ static char as_shifted(char kcode) {
 		case '`': return '~';
 		default: return kcode;
 	}
-
-if (kcode == '2') return '@';
-	else if (kcode == '6') return '^';
 }
 
-static void render_opengl(long curr_time) {
+static void render_opengl(long curr_time, int regen_visuals) {
 	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
 	float texw, texh;
 	int width = (zzt_video_mode() & 2) ? 80 : 40;
 
 	prepare_render_opengl();
 
-	// pass 1: background colors
-	glDisable(GL_ALPHA_TEST);
-	glDisable(GL_TEXTURE_2D);
-	glBegin(GL_QUADS);
-	int vpos = 1;
-	for (int y = 0; y < 25; y++) {
+	// generate visual data
+	int vpos = 0;
+	if (regen_visuals) for (int y = 0; y < 25; y++) {
 		for (int x = 0; x < width; x++, vpos += 2) {
-			u8 col = zzt_vram_copy[vpos] >> 4;
-			if (video_blink) col &= 0x7;
-			glColor3ub(
-				(def_palette[col] >> 16) & 0xFF,
-				(def_palette[col] >> 8) & 0xFF,
-				(def_palette[col] >> 0) & 0xFF
-			);
-			glVertex2i(GLVX(x), GLVY(y));
-			glVertex2i(GLVX(x+1), GLVY(y));
-			glVertex2i(GLVX(x+1), GLVY(y+1));
-			glVertex2i(GLVX(x), GLVY(y+1));
+			u8 chr = zzt_vram_copy[vpos];
+			u8 col = zzt_vram_copy[vpos+1];
+			u8 bgcol = col >> 4;
+			u8 fgcol = col & 0xF;
+
+			if (video_blink) {
+				if (bgcol >= 0x8) {
+					bgcol &= 0x7;
+					if (blink_local) fgcol = bgcol;
+				}
+			}
+
+			int bpos_s = vpos * 8;
+			memcpy(ogl_buf_col + bpos_s, ogl_buf_colcache + (16*bgcol), 16*sizeof(char));
+			memcpy(ogl_buf_col + bpos_s + 32000, ogl_buf_colcache + (16*fgcol), 16*sizeof(char));
+
+			int tpos_s = bpos_s >> 1;
+			memcpy(ogl_buf_tex + tpos_s, ogl_buf_texcache + chr*8, 8*sizeof(float));
 		}
 	}
-	glEnd();
+
+	// pass 1: background colors
+	glDisable(GL_ALPHA_TEST);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_CULL_FACE);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	glVertexPointer(2, GL_SHORT, 0, width == 40 ? ogl_buf_pos40 : ogl_buf_pos);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col);
+
+	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
 
 	// pass 2: foreground colors
 	if (SDL_GL_BindTexture(chartex, &texw, &texh)) {
@@ -312,30 +394,18 @@ static void render_opengl(long curr_time) {
 	glAlphaFunc(GL_GREATER, 0.5);
 	glEnable(GL_ALPHA_TEST);
 	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_QUADS);
-	vpos = 0;
-	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < width; x++, vpos += 2) {
-			u8 chr = zzt_vram_copy[vpos];
-			u8 col = zzt_vram_copy[vpos+1];
-			if (blink_local && col >= 0x80) continue;
-			else col = col & 0xF;
-			glColor3ub(
-				(def_palette[col] >> 16) & 0xFF,
-				(def_palette[col] >> 8) & 0xFF,
-				(def_palette[col] >> 0) & 0xFF
-			);
-			glTexCoord2f(GLTX(chr,0), GLTY(chr,0));
-			glVertex2i(GLVX(x), GLVY(y));
-			glTexCoord2f(GLTX(chr,1), GLTY(chr,0));
-			glVertex2i(GLVX(x+1), GLVY(y));
-			glTexCoord2f(GLTX(chr,1), GLTY(chr,1));
-			glVertex2i(GLVX(x+1), GLVY(y+1));
-			glTexCoord2f(GLTX(chr,0), GLTY(chr,1));
-			glVertex2i(GLVX(x), GLVY(y+1));
-		}
-	}
-	glEnd();
+
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * 4 * sizeof(char)));
+	glTexCoordPointer(2, GL_FLOAT, 0, ogl_buf_tex);
+
+	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+
 	SDL_GL_UnbindTexture(chartex);
 }
 
@@ -475,8 +545,7 @@ int main(int argc, char **argv) {
 
 	sdl_timer_init();
 
-	int last_should_render = 1;
-	int should_render = 1;
+	int should_render;
 
 	while (cont_loop) {
 		if (!zzt_thread_running) { cont_loop = 0; break; }
@@ -485,11 +554,8 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(zzt_thread_lock);
 		atomic_fetch_sub(&zzt_renderer_waiting, 1);
 		u8* ram = zzt_get_ram();
-		last_should_render = should_render;
-		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2) != 0;
-		if (should_render) {
-			memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
-		}
+		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2);
+		if (should_render) memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
 		zzt_mark_frame();
 
 		// do KEYUPs before KEYDOWNS - fixes key loss issues w/ Windows
@@ -499,10 +565,6 @@ int main(int argc, char **argv) {
 
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
-				case SDL_WINDOWEVENT:
-					last_should_render = 1;
-					should_render = 1;
-					break;
 				case SDL_KEYDOWN:
 					update_keymod(event.key.keysym.mod);
 					if (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
@@ -555,19 +617,18 @@ int main(int argc, char **argv) {
 
 		curr_time = zeta_time_ms();
 		if (use_opengl) {
-			if (should_render || last_should_render) {
-				render_opengl(curr_time);
-			}
+			render_opengl(curr_time, should_render);
 			SDL_GL_SwapWindow(window);
 		} else {
-			if (should_render) {
-				render_software_copy(curr_time);
-			}
+			render_software_copy(curr_time);
 			SDL_RenderPresent(renderer);
 		}
 	}
 
 	zzt_thread_running = 0;
+	if (use_opengl) {
+		deinit_opengl();
+	}
 
 	SDL_DestroyRenderer(renderer);
 	if (audio_device != 0) {

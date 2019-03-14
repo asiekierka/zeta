@@ -37,7 +37,7 @@
 #define KEYBUF_SIZE 4
 #endif
 
-#define DEBUG_INTERRUPTS
+// #define DEBUG_INTERRUPTS
 
 typedef struct {
 	int qch;
