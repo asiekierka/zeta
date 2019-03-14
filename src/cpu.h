@@ -96,9 +96,6 @@ struct s_cpu_state {
 	u8 segmod, halted, terminated;
 	u32 keep_going;
 
-	void* port_obj;
-	void* intr_obj;
-
 	u16 (*func_port_in)(struct s_cpu_state* cpu, u16 port);
 	void (*func_port_out)(struct s_cpu_state* cpu, u16 port, u16 val);
 	int /* state */ (*func_interrupt)(struct s_cpu_state* cpu, u8 intr);

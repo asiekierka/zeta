@@ -23,7 +23,18 @@
 #ifdef EMSCRIPTEN
 #define fprintf(...)
 #else
+# ifdef ANDROID
+#include <android/log.h>
+#define fprintf(f, ...) __android_log_print(ANDROID_LOG_INFO, "ZetaNative", __VA_ARGS__)
+# else
 #include <stdio.h>
+# endif
+#endif
+
+#ifdef ANDROID
+#define KEYBUF_SIZE 64
+#else
+#define KEYBUF_SIZE 4
 #endif
 
 typedef struct {
@@ -37,8 +48,6 @@ typedef struct {
 	long time;
 	u8 repeat;
 } zzt_key_entry;
-
-#define KEYBUF_SIZE 4
 
 typedef struct {
 	cpu_state cpu;
@@ -609,7 +618,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 		case 0x00:
 		case 0x4C:
 			cpu->terminated = 1;
-			break;
+			return STATE_END;
 		case 0x4E: { // findfirst
 			int res = vfs_findfirst(cpu->ram + zzt->dos_dta, cpu->cx, STR_DS_DX);
 			if (res < 0) {

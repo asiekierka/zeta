@@ -16,6 +16,7 @@ WASM_BACKEND=1 emcc -O3 --js-library src/emscripten_glue.js \
   -s 'MALLOC="emmalloc"' \
   -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
+  -DNO_MEMSET \
   src/cpu.c src/zzt.c
 
 

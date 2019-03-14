@@ -17,6 +17,9 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef NO_MEMSET
+#include <string.h>
+#endif
 #include "cpu.h"
 //#define DBG1
 
@@ -1600,8 +1603,12 @@ void cpu_init(cpu_state* cpu) {
 	cpu->func_interrupt = cpu_func_interrupt_default;
 
 	// clear
+#ifdef NO_MEMSET
 	for (i = 1024; i < 1048576; i++)
 		cpu->ram[i] = 0;
+#else
+	memset(cpu->ram + 1024, 0, 1048576 - 1024);
+#endif
 
 	// ivt
 	for (i = 0; i < 256; i++) {

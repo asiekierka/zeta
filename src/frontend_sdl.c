@@ -182,6 +182,9 @@ static int zzt_thread_func(void *ptr) {
 			SDL_UnlockMutex(zzt_thread_lock);
 			if (rcode == STATE_WAIT) {
 				SDL_Delay(20);
+			} else if (rcode == STATE_END) {
+				zzt_thread_running = 0;
+				break;
 			}
 		}
 	}
