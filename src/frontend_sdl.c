@@ -169,15 +169,20 @@ static int zzt_thread_func(void *ptr) {
 				SDL_CondWait(zzt_thread_cond, zzt_thread_lock);
 			}
 			long duration = zeta_time_ms();
-			if (!zzt_execute(opcodes)) zzt_thread_running = 0;
+			int rcode = zzt_execute(opcodes);
 			duration = zeta_time_ms() - duration;
-			if (duration < 2) {
-				opcodes = (opcodes * 20 / 19);
-			} else if (duration > 4) {
-				opcodes = (opcodes * 19 / 20);
+			if (rcode == STATE_CONTINUE) {
+				if (duration < 2) {
+					opcodes = (opcodes * 20 / 19);
+				} else if (duration > 4) {
+					opcodes = (opcodes * 19 / 20);
+				}
 			}
 			SDL_CondBroadcast(zzt_thread_cond);
 			SDL_UnlockMutex(zzt_thread_lock);
+			if (rcode == STATE_WAIT) {
+				SDL_Delay(20);
+			}
 		}
 	}
 

@@ -152,8 +152,8 @@ void zzt_keyup(int k) {
 
 static void cpu_func_intr_0x10(cpu_state* cpu);
 static void cpu_func_intr_0x13(cpu_state* cpu);
-static void cpu_func_intr_0x16(cpu_state* cpu);
-static void cpu_func_intr_0x21(cpu_state* cpu);
+static int cpu_func_intr_0x16(cpu_state* cpu);
+static int cpu_func_intr_0x21(cpu_state* cpu);
 
 void zzt_mark_frame(void) {
 	zzt.cga_status |= 0x8;
@@ -330,9 +330,9 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x1C: break;
 		case 0x10: cpu_func_intr_0x10(cpu); break;
 		case 0x13: cpu_func_intr_0x13(cpu); break;
-		case 0x16: cpu_func_intr_0x16(cpu); break;
+		case 0x16: return cpu_func_intr_0x16(cpu);
 		case 0x20: cpu->terminated = 1; break;
-		case 0x21: cpu_func_intr_0x21(cpu); break;
+		case 0x21: return cpu_func_intr_0x21(cpu);
 		case 0x33: cpu_func_intr_0x33(cpu); break;
 		case 0x15:
 			fprintf(stderr, "sysconf %04X\n", cpu->ax);
@@ -343,6 +343,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 			fprintf(stderr, "interrupt %02X\n", intr);
 			break;
 	}
+
 	return STATE_CONTINUE;
 }
 
@@ -455,7 +456,7 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 	fprintf(stderr, "int 0x13 AX=%04X\n", cpu->ax);
 }
 
-static void cpu_func_intr_0x16(cpu_state* cpu) {
+static int cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	if (cpu->ah == 0x00) {
@@ -472,7 +473,7 @@ static void cpu_func_intr_0x16(cpu_state* cpu) {
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
-		return;
+		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x01) {
 		if (zzt->keybuf[0].qke >= 0) {
 			cpu->flags &= ~FLAG_ZERO;
@@ -481,17 +482,18 @@ static void cpu_func_intr_0x16(cpu_state* cpu) {
 		} else {
 			cpu->flags |= FLAG_ZERO;
 		}
-		return;
+		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x02) {
 		cpu->al = zzt->kmod;
-		return;
+		return STATE_CONTINUE;
 	}
 	fprintf(stderr, "int 0x16 AX=%04X\n", cpu->ax);
+	return STATE_CONTINUE;
 }
 
 #define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
 
-static void cpu_func_intr_0x21(cpu_state* cpu) {
+static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	switch (cpu->ah) {
@@ -499,33 +501,33 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->al = 3;
 			cpu->ah = 0;
 			cpu->bh = 0;
-			return;
+			return STATE_CONTINUE;
 		case 0x06: // d.c.output
 			cpu_0x10_output(cpu, cpu->dl);
 			cpu->al = cpu->dl;
-			return;
+			return STATE_CONTINUE;
 		case 0x1A: // set dta
 			zzt->dos_dta = (cpu->seg[SEG_DS]*16 + cpu->dx);
-			return;
+			return STATE_CONTINUE;
 		case 0x25: // set ivt
 			cpu->ram[cpu->al * 4] = cpu->dl;
 			cpu->ram[cpu->al * 4 + 1] = cpu->dh;
 			cpu->ram[cpu->al * 4 + 2] = cpu->seg[SEG_DS] & 0xFF;
 			cpu->ram[cpu->al * 4 + 3] = cpu->seg[SEG_DS] >> 8;
-			return;
+			return STATE_CONTINUE;
 		case 0x2C: { // systime
 			long ms = zzt_internal_time();
 			cpu->ch = (ms / 3600000) % 24;
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
-		} return;
+		} return STATE_WAIT;
 		case 0x35: // get ivt
 			cpu->bl = cpu->ram[cpu->al * 4];
 			cpu->bh = cpu->ram[cpu->al * 4 + 1];
 			cpu->seg[SEG_ES] = cpu->ram[cpu->al * 4 + 2]
 				| (cpu->ram[cpu->al * 4 + 3] << 8);
-			return;
+			return STATE_CONTINUE;
 		case 0x3C: { // creat
 			int handle = vfs_open(STR_DS_DX, 0x10001);
 			if (handle < 0) {
@@ -536,7 +538,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->ax = handle;
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x3D: { // open
 			fprintf(stderr, "open %02X %s\n", cpu->al, STR_DS_DX);
 			int handle = vfs_open(STR_DS_DX, cpu->al);
@@ -548,7 +550,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->ax = handle;
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x3E: { // close
 			int res = vfs_close(cpu->bx);
 			if (res < 0) {
@@ -557,7 +559,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			} else {
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x3F: { // read
 			fprintf(stderr, "read %04X\n", cpu->cx);
 			int res = vfs_read(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
@@ -568,14 +570,14 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->ax = res;
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x40: { // write
 			fprintf(stderr, "write %04X\n", cpu->cx);
 			if (cpu->cx == 0) {
 				// we don't implement the special case
 				cpu->ax = 0x05;
 				cpu->flags |= FLAG_CARRY;
-				return;
+				return STATE_CONTINUE;
 			}
 
 			int res = vfs_write(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
@@ -586,7 +588,7 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->ax = res;
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x42: { // lseek
 			int res = vfs_seek(cpu->bx, (cpu->cx << 16) | cpu->dx, cpu->al);
 			if (res < 0) {
@@ -596,12 +598,12 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->ax = res;
 				cpu->flags &= ~FLAG_CARRY;
 			}
-		} return;
+		} return STATE_CONTINUE;
 		case 0x44: // 0x4400
 			if (cpu->ax == 0x4400) {
 				cpu->ax = 0x01;
 				cpu->flags |= FLAG_CARRY;
-				return;
+				return STATE_CONTINUE;
 			}
 			break;
 		case 0x00:
@@ -632,6 +634,8 @@ static void cpu_func_intr_0x21(cpu_state* cpu) {
 			fprintf(stderr, "int 0x21 AX=%04X\n", cpu->ax);
 			break;
 	}
+
+	return STATE_CONTINUE;
 }
 
 /* #define MAX_ALLOC (639*64)

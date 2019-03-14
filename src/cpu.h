@@ -112,6 +112,7 @@ typedef struct s_cpu_state cpu_state;
 #define STATE_END 0
 #define STATE_CONTINUE 1
 #define STATE_BLOCK 2
+#define STATE_WAIT 3
 
 void cpu_init_globals();
 void cpu_init(cpu_state* cpu);

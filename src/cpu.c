@@ -663,10 +663,6 @@ static int cpu_pop_interrupt(cpu_state* cpu) {
 	return intr;
 }
 
-#define STATE_END 0
-#define STATE_CONTINUE 1
-#define STATE_BLOCK 2
-
 #define REP_COND_NZ 0
 #define REP_COND_Z 1
 
@@ -1044,7 +1040,7 @@ static int cpu_run_one(cpu_state* cpu, u8 no_interrupting, u8 pr_state) {
 			u16 old_flag_mask = FLAG_INTERRUPT;
 			cpu->flags &= ~(old_flag_mask);
 			cpu->flags |= (old_flags & old_flag_mask);
-			return STATE_CONTINUE;
+			return res;
 		} else {
 			return STATE_BLOCK;
 		}

@@ -298,6 +298,8 @@ function vfsg_time_ms() {
 	return vfsg_time_ms_val;
 }
 
+var opcodes = 1000;
+
 function zzt_tick() {
 	vfsg_time_ms_val = time_ms();
 
@@ -307,13 +309,23 @@ function zzt_tick() {
 		emu._zzt_mark_timer();
 	}
 
-	if (emu._zzt_execute(40000)) {
+	var rcode = emu._zzt_execute(opcodes);
+	var duration = time_ms() - tms;
+	if (rcode) {
+		if (rcode == 1) {
+			if (duration < 3) {
+				opcodes = (opcodes * 20 / 19);
+			} else if (duration > 6) {
+				opcodes = (opcodes * 19 / 20);
+			}
+		}
+
 		if (!queuedFrame) {
 			queuedFrame = true;
 			window.requestAnimationFrame(zzt_frame);
 		}
 
-		if (document.hasFocus())
+		if (document.hasFocus() && rcode != 3)
 			window.postMessage("zzt_tick", "*");
 		else
 			setTimeout(zzt_tick, 20);
