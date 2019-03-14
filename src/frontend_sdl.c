@@ -475,6 +475,9 @@ int main(int argc, char **argv) {
 
 	sdl_timer_init();
 
+	int last_should_render = 1;
+	int should_render = 1;
+
 	while (cont_loop) {
 		if (!zzt_thread_running) { cont_loop = 0; break; }
 
@@ -482,7 +485,11 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(zzt_thread_lock);
 		atomic_fetch_sub(&zzt_renderer_waiting, 1);
 		u8* ram = zzt_get_ram();
-		memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
+		last_should_render = should_render;
+		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2) != 0;
+		if (should_render) {
+			memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
+		}
 		zzt_mark_frame();
 
 		// do KEYUPs before KEYDOWNS - fixes key loss issues w/ Windows
@@ -492,6 +499,10 @@ int main(int argc, char **argv) {
 
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
+				case SDL_WINDOWEVENT:
+					last_should_render = 1;
+					should_render = 1;
+					break;
 				case SDL_KEYDOWN:
 					update_keymod(event.key.keysym.mod);
 					if (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
@@ -544,10 +555,14 @@ int main(int argc, char **argv) {
 
 		curr_time = zeta_time_ms();
 		if (use_opengl) {
-			render_opengl(curr_time);
+			if (should_render || last_should_render) {
+				render_opengl(curr_time);
+			}
 			SDL_GL_SwapWindow(window);
 		} else {
-			render_software_copy(curr_time);
+			if (should_render) {
+				render_software_copy(curr_time);
+			}
 			SDL_RenderPresent(renderer);
 		}
 	}

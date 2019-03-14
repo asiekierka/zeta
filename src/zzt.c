@@ -37,6 +37,8 @@
 #define KEYBUF_SIZE 4
 #endif
 
+#define DEBUG_INTERRUPTS
+
 typedef struct {
 	int qch;
 	int qke;
@@ -317,6 +319,9 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 }
 
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
+#ifdef DEBUG_INTERRUPTS
+	fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
+#endif
 	switch (intr) {
 		case 0x11:
 			cpu->al = cpu->ram[0x410];
@@ -465,6 +470,11 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 	fprintf(stderr, "int 0x13 AX=%04X\n", cpu->ax);
 }
 
+// ZZT calls this once a "frame". But let's give it a bit of a buffer,
+// in case this doesn't always hold true.
+static long kbd_call_time = 0;
+static int kbd_call_count = 0;
+
 static int cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
@@ -490,6 +500,14 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 			cpu->al = zzt->keybuf[0].qch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
+			if (kbd_call_time != zzt_internal_time()) {
+				kbd_call_time = zzt_internal_time();
+				kbd_call_count = 0;
+			}
+			if ((++kbd_call_count) >= 4) {
+				kbd_call_count = 0;
+				return STATE_WAIT;
+			}
 		}
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x02) {
