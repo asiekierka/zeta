@@ -499,7 +499,7 @@ document.addEventListener('keydown', function(event) {
 	else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_set(0x08);
 	else ret = false;
 
-	var chr = (event.key.length == 1) ? event.key.charCodeAt(0) : event.keyCode;
+	var chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (event.keyCode < 32 ? event.keyCode : 0);
 	var key = zzt_kbdmap[event.key] || 0;
 	if (key >= 0x46 && key <= 0x53) chr = 0;
 	if (chr > 0 || key > 0) {

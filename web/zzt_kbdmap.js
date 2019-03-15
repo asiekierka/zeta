@@ -60,3 +60,7 @@ zzt_kbdmap["\\"] = 43;
 zzt_kbdmap["|"] = 43;
 zzt_kbdmap["*"] = 55;
 zzt_kbdmap[" "] = 57;
+
+for(var i = 1; i <= 10; i++) {
+	zzt_kbdmap["F" + i] = 0x3A + i;
+}
