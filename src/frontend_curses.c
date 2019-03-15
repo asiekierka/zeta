@@ -100,7 +100,7 @@ static void init_map_char_to_key() {
 int main(int argc, char** argv) {
 	init_posix_vfs("vfs/");
 	init_map_char_to_key();
-	zzt_init(argc > 1 ? argv[1] : "");
+	zzt_init(NULL, argc > 1 ? argv[1] : "");
 
 	window = initscr();
 	cbreak();

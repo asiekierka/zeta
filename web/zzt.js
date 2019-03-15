@@ -371,7 +371,7 @@ function vfs_done() {
 		}
 		heap[vfs_arg.length] = 0;
 
-		var psp_loc = emu._zzt_init(buffer);
+		var psp_loc = emu._zzt_init(0, buffer);
 		var ram = emu._zzt_get_ram();
 		last_timer_time = time_ms();
 		zzt_tick();

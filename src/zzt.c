@@ -723,7 +723,7 @@ static u16 vfs_read16(int handle, int pos) {
 	return v1 | (v2 << 8);
 }
 
-u32 zzt_init(const char *arg) {
+u32 zzt_init(const char *exe, const char *arg) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
@@ -771,7 +771,11 @@ u32 zzt_init(const char *arg) {
 	// NOTE: relocation items are not handled, as the ZZT
 	// .EXE does not need them
 
-	int handle = vfs_open("zzt.exe", 0);
+	int handle = -1;
+	if (exe != NULL)
+		handle = vfs_open(exe, 0);
+	if (handle < 0)
+		handle = vfs_open("zzt.exe", 0);
 	if (handle < 0)
 		handle = vfs_open("superz.exe", 0);
 

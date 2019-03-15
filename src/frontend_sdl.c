@@ -453,6 +453,37 @@ static void render_software_copy(long curr_time) {
 	}
 }
 
+static int sdl_vfs_exists(const char *filename) {
+	int h = vfs_open(filename, 0);
+	if (h >= 0) { vfs_close(h); return 1; }
+	else { return 0; }
+}
+
+static void sdl_zzt_init(int argc, char **argv) {
+	static char arg_name[257];
+
+	if (argc > 1 && sdl_vfs_exists(argv[1])) {
+		strncpy(arg_name, argv[1], 256);
+	} else if (argc > 0) {
+		char *sl_ptr = strrchr(argv[0], '/');
+		if (sl_ptr == NULL)
+			sl_ptr = strrchr(argv[0], '\\');
+		if (sl_ptr == NULL)
+			sl_ptr = argv[0] - 1;
+
+		strncpy(arg_name, sl_ptr + 1, 256);
+		char *dot_ptr = strrchr(arg_name, '.');
+		if (dot_ptr == NULL) dot_ptr = arg_name + strlen(arg_name);
+		strncpy(dot_ptr, ".zzt", 256 - (dot_ptr - arg_name));
+
+		if (!sdl_vfs_exists(arg_name)) {
+			arg_name[0] = 0;
+		}
+	}
+
+	zzt_init(NULL, arg_name);
+}
+
 int main(int argc, char **argv) {
 	int scancodes_lifted[128];
 	int slc = 0;
@@ -521,7 +552,7 @@ int main(int argc, char **argv) {
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
 
 	init_posix_vfs("");
-	zzt_init(argc > 1 ? argv[1] : "");
+	sdl_zzt_init(argc, argv);
 
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();
