@@ -459,7 +459,7 @@ static int sdl_vfs_exists(const char *filename) {
 	else { return 0; }
 }
 
-static void sdl_zzt_init(int argc, char **argv) {
+static int sdl_zzt_init(int argc, char **argv) {
 	static char arg_name[257];
 
 	if (argc > 1 && sdl_vfs_exists(argv[1])) {
@@ -481,7 +481,15 @@ static void sdl_zzt_init(int argc, char **argv) {
 		}
 	}
 
-	zzt_init(NULL, arg_name);
+	zzt_init();
+	int exeh = vfs_open("zzt.exe", 0);
+	if (exeh < 0)
+		exeh = vfs_open("superz.exe", 0);
+	if (exeh < 0)
+		return -1;
+	zzt_load_binary(exeh, arg_name);
+	vfs_close(exeh);
+	return 0;
 }
 
 int main(int argc, char **argv) {
@@ -495,6 +503,12 @@ int main(int argc, char **argv) {
 	int scode, kcode;
 
 	SDL_Thread* zzt_thread;
+
+	init_posix_vfs("");
+	if (sdl_zzt_init(argc, argv) < 0) {
+		fprintf(stderr, "Could not load ZZT!\n");
+		return 1;
+	}
 
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
@@ -550,9 +564,6 @@ int main(int argc, char **argv) {
 
 	chartex = create_texture_from_array(renderer, res_8x14_bin, charh);
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
-
-	init_posix_vfs("");
-	sdl_zzt_init(argc, argv);
 
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();

@@ -723,7 +723,97 @@ static u16 vfs_read16(int handle, int pos) {
 	return v1 | (v2 << 8);
 }
 
-u32 zzt_init(const char *exe, const char *arg) {
+static void zzt_load_build_psp(int first_seg, int last_seg, const char *arg) {
+	int psp = first_seg * 16;
+	int arglen = strlen(arg);
+	if (arglen > 126) arglen = 126;
+	fprintf(stderr, "last_seg %04X\n", last_seg);
+	zzt.cpu.ram[psp + 0x02] = last_seg & 0xFF;
+	zzt.cpu.ram[psp + 0x03] = last_seg >> 8;
+	zzt.cpu.ram[psp + 0x80] = 1+arglen;
+	strncpy((char*) (zzt.cpu.ram + psp + 0x81), arg, arglen);
+	zzt.cpu.ram[psp + 0x81 + arglen] = 0x0D;
+}
+
+static void zzt_load_exe(int handle, const char *arg) {
+	int last_page_size = vfs_read16(handle, 2);
+	int pages = vfs_read16(handle, 4);
+	int hdr_offset = vfs_read16(handle, 8);
+//	int minalloc = vfs_read16(handle, 0xA);
+//	int maxalloc = vfs_read16(handle, 0xC);
+
+	int filesize = (pages * 512) - ((last_page_size > 0) ? (512 - last_page_size) : 0) - (hdr_offset * 16);
+/*	int size_pars = (filesize + 15) / 16;
+	size_pars += 16; // PSP */
+//	int size_pars = 40400;
+//	int offset_pars = mem_alloc(size_pars, 0);
+	int offset_pars = 0x100;
+	int size_pars = 0xA000 - 0x100;
+
+	// location
+	zzt.cpu.seg[SEG_CS] = vfs_read16(handle, 0x16) + offset_pars + 0x10;
+	zzt.cpu.seg[SEG_SS] = vfs_read16(handle, 0xE) + offset_pars + 0x10;
+	zzt.cpu.seg[SEG_DS] = offset_pars;
+	zzt.cpu.seg[SEG_ES] = offset_pars;
+	zzt.cpu.ip = vfs_read16(handle, 0x14);
+	zzt.cpu.sp = vfs_read16(handle, 0x10);
+
+	zzt_load_build_psp(offset_pars, offset_pars + size_pars, arg);
+
+	// load file into memory
+	vfs_seek(handle, hdr_offset * 16, VFS_SEEK_SET);
+	vfs_read(handle, &(zzt.cpu.ram[(offset_pars * 16) + 256]), filesize);
+	fprintf(stderr, "wrote %d bytes to %d\n", filesize, (offset_pars * 16 + 256));
+
+	// relocation
+	int pos_reloc = vfs_read16(handle, 0x18);
+	int size_reloc = vfs_read16(handle, 0x06);
+	if (size_reloc > 0) {
+		for (int i = 0; i < size_reloc; i++) {
+			int offset_seg = vfs_read16(handle, pos_reloc + i*4 + 2);
+			int offset = (offset_seg + offset_pars + 16) * 16 + vfs_read16(handle, pos_reloc + i*4);
+
+			// read word at offset
+			u16 word = zzt.cpu.ram[offset] | (zzt.cpu.ram[offset + 1] << 8);
+			word += (offset_pars + 16);
+			zzt.cpu.ram[offset] = (word & 0xFF);
+			zzt.cpu.ram[offset + 1] = ((word >> 8) & 0xFF);
+		}
+		fprintf(stderr, "relocated %d exe entries\n", size_reloc);
+	}
+}
+
+void zzt_load_binary(int handle, const char *arg) {
+	if (vfs_read8(handle, 0) == 0x4D && vfs_read8(handle, 1) == 0x5A) {
+		// MZ, is exe file
+		zzt_load_exe(handle, arg);
+		return;
+	}
+
+	// assume com file
+	int offset_pars = 0x100;
+	int size_pars = 0xA000 - 0x100;
+	zzt_load_build_psp(offset_pars, offset_pars + size_pars, arg);
+
+	zzt.cpu.seg[SEG_CS] = offset_pars;
+	zzt.cpu.seg[SEG_SS] = offset_pars;
+	zzt.cpu.seg[SEG_DS] = offset_pars;
+	zzt.cpu.seg[SEG_ES] = offset_pars;
+	zzt.cpu.ip = 0x100;
+	zzt.cpu.sp = 0xFFFE;
+
+	// TODO: this could be faster
+	vfs_seek(handle, 0, VFS_SEEK_SET);
+	u8 data;
+	u8 *data_ptr = &(zzt.cpu.ram[(offset_pars * 16) + 256]);
+	u8 *data_ptr_start = data_ptr;
+	while (vfs_read(handle, &data, 1) > 0) {
+		*(data_ptr++) = data;
+	}
+	fprintf(stderr, "wrote %d bytes to %d\n", (int) (data_ptr - data_ptr_start), (offset_pars * 16 + 256));
+}
+
+void zzt_init() {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
@@ -766,60 +856,6 @@ u32 zzt_init(const char *exe, const char *arg) {
 	zzt.cpu.func_port_in = cpu_func_port_in_main;
 	zzt.cpu.func_port_out = cpu_func_port_out_main;
 	zzt.cpu.func_interrupt = cpu_func_interrupt_main;
-
-	// load exe
-	// NOTE: relocation items are not handled, as the ZZT
-	// .EXE does not need them
-
-	int handle = -1;
-	if (exe != NULL)
-		handle = vfs_open(exe, 0);
-	if (handle < 0)
-		handle = vfs_open("zzt.exe", 0);
-	if (handle < 0)
-		handle = vfs_open("superz.exe", 0);
-
-	int last_page_size = vfs_read16(handle, 2);
-	int pages = vfs_read16(handle, 4);
-	int hdr_offset = vfs_read16(handle, 8);
-//	int minalloc = vfs_read16(handle, 0xA);
-//	int maxalloc = vfs_read16(handle, 0xC);
-
-	int filesize = (pages * 512) - ((last_page_size > 0) ? (512 - last_page_size) : 0) - (hdr_offset * 16);
-/*	int size_pars = (filesize + 15) / 16;
-	size_pars += 16; // PSP */
-//	int size_pars = 40400;
-//	int offset_pars = mem_alloc(size_pars, 0);
-	int offset_pars = 0x100;
-	int size_pars = 0xA000 - 0x100;
-
-	// location
-	zzt.cpu.seg[SEG_CS] = vfs_read16(handle, 0x16) + offset_pars + 0x10;
-	zzt.cpu.seg[SEG_SS] = vfs_read16(handle, 0xE) + offset_pars + 0x10;
-	zzt.cpu.seg[SEG_DS] = offset_pars;
-	zzt.cpu.seg[SEG_ES] = offset_pars;
-	zzt.cpu.ip = vfs_read16(handle, 0x14);
-	zzt.cpu.sp = vfs_read16(handle, 0x10);
-
-	// build faux psp
-	int psp = offset_pars * 16;
-	int seg_first = offset_pars + size_pars;
-	int arglen = strlen(arg);
-	if (arglen > 126) arglen = 126;
-	fprintf(stderr, "seg_first %04X\n", seg_first);
-	zzt.cpu.ram[psp + 0x02] = seg_first & 0xFF;
-	zzt.cpu.ram[psp + 0x03] = seg_first >> 8;
-	zzt.cpu.ram[psp + 0x80] = 1+arglen;
-	strncpy((char*) (zzt.cpu.ram + psp + 0x81), arg, arglen);
-	zzt.cpu.ram[psp + 0x81 + arglen] = 0x0D;
-
-	// load file into memory
-	vfs_seek(handle, hdr_offset * 16, VFS_SEEK_SET);
-	vfs_read(handle, &(zzt.cpu.ram[(offset_pars * 16) + 256]), filesize);
-	fprintf(stderr, "wrote %d bytes to %d\n", filesize, (offset_pars * 16 + 256));
-
-	vfs_close(handle);
-	return psp;
 }
 
 int zzt_execute(int opcodes) {

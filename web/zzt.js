@@ -128,7 +128,10 @@ function vfsg_has_feature(id) {
 }
 
 function vfsg_open(fn, mode) {
-	fn = emu.Pointer_stringify(fn).toUpperCase();
+	if (typeof fn !== "string") {
+		fn = emu.Pointer_stringify(fn);
+	}
+	fn = fn.toUpperCase();
 	var is_write = (mode & 0x3) == 1;
 	if (is_write) {
 		if (fn in vfs && vfs[fn].readonly) return -1;
@@ -371,7 +374,16 @@ function vfs_done() {
 		}
 		heap[vfs_arg.length] = 0;
 
-		var psp_loc = emu._zzt_init(0, buffer);
+		emu._zzt_init();
+
+		var handle = vfsg_open("zzt.exe", 0);
+		if (handle < 0)
+			handle = vfsg_open("superz.exe", 0);
+		if (handle < 0)
+			throw "Could not find ZZT executable!";
+		emu._zzt_load_binary(handle, buffer);
+		vfsg_close(handle);
+
 		var ram = emu._zzt_get_ram();
 		last_timer_time = time_ms();
 		zzt_tick();
