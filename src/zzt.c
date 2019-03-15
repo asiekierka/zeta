@@ -802,15 +802,10 @@ void zzt_load_binary(int handle, const char *arg) {
 	zzt.cpu.ip = 0x100;
 	zzt.cpu.sp = 0xFFFE;
 
-	// TODO: this could be faster
 	vfs_seek(handle, 0, VFS_SEEK_SET);
-	u8 data;
 	u8 *data_ptr = &(zzt.cpu.ram[(offset_pars * 16) + 256]);
-	u8 *data_ptr_start = data_ptr;
-	while (vfs_read(handle, &data, 1) > 0) {
-		*(data_ptr++) = data;
-	}
-	fprintf(stderr, "wrote %d bytes to %d\n", (int) (data_ptr - data_ptr_start), (offset_pars * 16 + 256));
+	int bytes_read = vfs_read(handle, data_ptr, 65536 - 256);
+	fprintf(stderr, "wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
 }
 
 void zzt_init() {
