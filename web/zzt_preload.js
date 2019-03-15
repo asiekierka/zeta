@@ -56,7 +56,7 @@ function zzt_emu_load(path, options) {
 	};
 	imgload.src = path+"loading.png";
 	scripts_array = [
-		path+"ZipLoader.min.js",
+		path+"zip-loader.min.js",
 		path+"zeta86.js",
 		path+"zzt_kbdmap.js",
 		path+"zzt.js"
