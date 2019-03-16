@@ -767,7 +767,6 @@ static void zzt_load_build_psp(int first_seg, int last_seg, const char *arg) {
 	int psp = first_seg * 16;
 	int arglen = strlen(arg);
 	if (arglen > 126) arglen = 126;
-	fprintf(stderr, "last_seg %04X\n", last_seg);
 	zzt.cpu.ram[psp + 0x02] = last_seg & 0xFF;
 	zzt.cpu.ram[psp + 0x03] = last_seg >> 8;
 	zzt.cpu.ram[psp + 0x80] = 1+arglen;
@@ -803,7 +802,9 @@ static void zzt_load_exe(int handle, const char *arg) {
 	// load file into memory
 	vfs_seek(handle, hdr_offset * 16, VFS_SEEK_SET);
 	vfs_read(handle, &(zzt.cpu.ram[(offset_pars * 16) + 256]), filesize);
-	fprintf(stderr, "wrote %d bytes to %d\n", filesize, (offset_pars * 16 + 256));
+#ifdef DEBUG_FS_ACCESS
+	fprintf(stderr, "wrote %d bytes to %05X\n", filesize, (offset_pars * 16 + 256));
+#endif
 
 	// relocation
 	int pos_reloc = vfs_read16(handle, 0x18);
