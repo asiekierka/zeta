@@ -640,7 +640,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
-		} return STATE_CONTINUE;
+		} return STATE_WAIT;
 		case 0x35: // get ivt
 			cpu->bl = cpu->ram[cpu->al * 4];
 			cpu->bh = cpu->ram[cpu->al * 4 + 1];
