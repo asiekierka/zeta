@@ -93,7 +93,7 @@ struct s_cpu_state {
 	u16 sp, bp, si, di;
 	u16 seg[4];
 	u16 ip, flags;
-	u8 segmod, halted, terminated;
+	u8 segmod, halted;
 	u32 keep_going;
 
 	u16 (*func_port_in)(struct s_cpu_state* cpu, u16 port);

@@ -41,6 +41,9 @@
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
 
+#define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
+#define U8_ES_BP (u8*)(&cpu->ram[cpu->seg[SEG_ES]*16 + cpu->bp])
+
 typedef struct {
 	int qch;
 	int qke;
@@ -52,6 +55,8 @@ typedef struct {
 	long time;
 	u8 repeat;
 } zzt_key_entry;
+
+extern unsigned char res_8x14_bin[];
 
 typedef struct {
 	cpu_state cpu;
@@ -83,6 +88,8 @@ typedef struct {
 
 	// DOS
 	u32 dos_dta;
+
+	u8 charset[256*14];
 } zzt_state;
 
 zzt_state zzt;
@@ -370,7 +377,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x10: cpu_func_intr_0x10(cpu); break;
 		case 0x13: cpu_func_intr_0x13(cpu); break;
 		case 0x16: return cpu_func_intr_0x16(cpu);
-		case 0x20: cpu->terminated = 1; break;
+		case 0x20: return STATE_END;
 		case 0x21: return cpu_func_intr_0x21(cpu);
 		case 0x33: cpu_func_intr_0x33(cpu); break;
 		case 0x15:
@@ -379,7 +386,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 			cpu->flags |= FLAG_CARRY;
 			break;
 		default:
-			fprintf(stderr, "interrupt %02X\n", intr);
+			fprintf(stderr, "unknown interrupt %02X %04X\n", intr, cpu->ax);
 			break;
 	}
 
@@ -451,43 +458,90 @@ int zzt_video_mode(void) {
 }
 
 static void cpu_func_intr_0x10(cpu_state* cpu) {
-	if (cpu->ah == 0x01) {
-		// cursor shape
-		// fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
-	} else if (cpu->ah == 0x02) {
-		cpu->ram[0x451] = cpu->dh;
-		cpu->ram[0x450] = cpu->dl;
-	} else if (cpu->ah == 0x03) {
-		cpu->dh = cpu->ram[0x451];
-		cpu->dl = cpu->ram[0x450];
-	} else if (cpu->ah == 0x04) {
-		cpu->ah = 0;
-	} else if (cpu->ah == 0x06) {
-		video_scroll_up(cpu, cpu->al, cpu->bh, cpu->ch, cpu->cl, cpu->dh, cpu->dl);
-	} else if (cpu->ah == 0x08) {
-		u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
-		cpu->ah = 0x08;
-		cpu->al = cpu->ram[addr];
-		cpu->bh = cpu->ram[addr+1];
-	} else if (cpu->ah == 0x09 || cpu->ah == 0x0A) {
-		u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
-		for (int i = 0; i < cpu->cx && addr < 160*25; i++, addr+=2) {
-			cpu->ram[addr] = cpu->al;
-			if (cpu->ah == 0x09) cpu->ram[addr + 1] = cpu->bl;
-		}
-	} else if (cpu->ah == 0x0E) {
-		cpu_0x10_output(cpu, cpu->al);
-	} else if (cpu->ah == 0x00) {
-		video_mode = cpu->al & 0x7F;
-	} else if (cpu->ah == 0x0F) {
-		cpu->ah = cpu->ram[0x44A];
-		cpu->al = video_mode;
-		cpu->bh = 0;
-	} else {
-		fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BL=%02X\n",
-			cpu->ax, cpu->ah, cpu->al, cpu->bl);
-		cpu->flags |= FLAG_CARRY;
+	switch (cpu->ah) {
+		case 0x00: // set video mode
+			video_mode = cpu->al & 0x7F;
+			return;
+		case 0x01: // cursor shape
+			// fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
+			return;
+		case 0x02:
+			cpu->ram[0x451] = cpu->dh;
+			cpu->ram[0x450] = cpu->dl;
+			return;
+		case 0x03:
+			cpu->dh = cpu->ram[0x451];
+			cpu->dl = cpu->ram[0x450];
+			return;
+		case 0x04: // light pen position
+			cpu->ah = 0;
+			return;
+		case 0x05: // set active page
+			// BQ installer changes the active page to zero.
+			// In general, we only support zero. So ignore.
+			return;
+		case 0x06: // scroll up
+			video_scroll_up(cpu, cpu->al, cpu->bh, cpu->ch, cpu->cl, cpu->dh, cpu->dl);
+			return;
+		case 0x08: {
+			u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
+			cpu->ah = 0x08;
+			cpu->al = cpu->ram[addr];
+			cpu->bh = cpu->ram[addr+1];
+		} return;
+		case 0x09:
+		case 0x0A: {
+			u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
+			for (int i = 0; i < cpu->cx && addr < 160*25; i++, addr+=2) {
+				cpu->ram[addr] = cpu->al;
+				if (cpu->ah == 0x09) cpu->ram[addr + 1] = cpu->bl;
+			}
+		} return;
+		case 0x0E:
+			cpu_0x10_output(cpu, cpu->al);
+			return;
+		case 0x0F: // query
+			cpu->ah = cpu->ram[0x44A];
+			cpu->al = video_mode;
+			cpu->bh = 0; // active page
+			return;
+		case 0x11:
+			switch (cpu->al) {
+				case 0x00:
+				case 0x10: {
+					if (cpu->bh != 14) {
+						fprintf(stderr, "int 0x10: character loading failed - non-8x14 character sizes unsupported!\n");
+						return;
+					}
+#ifdef DEBUG_INTERRUPTS
+					fprintf(stderr, "int 0x10: load %d characters from %d (%d bytes each), block %d\n", cpu->cx, cpu->dx, cpu->bh, cpu->bl);
+#endif
+					int size = cpu->bh * cpu->cx;
+					int outpos = cpu->dx * cpu->bh;
+					u8* buffer = U8_ES_BP;
+					for (int i = 0; i < size; i++) {
+						if ((outpos + i) >= (256*14)) break;
+						zzt.charset[outpos + i] = buffer[i];
+					}
+
+					zeta_update_charset(8, 14, zzt.charset);
+				} return;
+			}
+			break;
+		case 0x12:
+			switch (cpu->bl) {
+				case 0x30: {
+					// set vertical resolution
+					// some font installers like to change it, but ZZT always changes it back to 1.
+					fprintf(stderr, "int 0x10: set vertical resolution = %d (ignored)\n", cpu->al);
+				} return;
+			}
+			break;
 	}
+
+	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BL=%02X\n",
+		cpu->ax, cpu->ah, cpu->al, cpu->bl);
+	cpu->flags |= FLAG_CARRY;
 }
 
 static void cpu_func_intr_0x13(cpu_state* cpu) {
@@ -542,12 +596,16 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 	return STATE_CONTINUE;
 }
 
-#define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
-
 static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	switch (cpu->ah) {
+		case 0x48: { // allocation (unsupported)
+			fprintf(stderr, "DOS allocation not implemented!\n");
+		} return STATE_END;
+		case 0x49: { // freeing (faked; Banana Quest installer)
+			cpu->flags &= ~FLAG_CARRY;
+		} return STATE_CONTINUE;
 		case 0x33: { // ext break checking (ZZT init)
 			cpu->dl = 0x00;
 		} return STATE_CONTINUE;
@@ -675,7 +733,6 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			break;
 		case 0x00:
 		case 0x4C:
-			cpu->terminated = 1;
 			return STATE_END;
 		case 0x4E: { // findfirst
 			int res = vfs_findfirst(cpu->ram + zzt->dos_dta, cpu->cx, STR_DS_DX);
@@ -765,13 +822,20 @@ static u16 vfs_read16(int handle, int pos) {
 
 static void zzt_load_build_psp(int first_seg, int last_seg, const char *arg) {
 	int psp = first_seg * 16;
-	int arglen = strlen(arg);
-	if (arglen > 126) arglen = 126;
+
 	zzt.cpu.ram[psp + 0x02] = last_seg & 0xFF;
 	zzt.cpu.ram[psp + 0x03] = last_seg >> 8;
-	zzt.cpu.ram[psp + 0x80] = 1+arglen;
-	strncpy((char*) (zzt.cpu.ram + psp + 0x81), arg, arglen);
-	zzt.cpu.ram[psp + 0x81 + arglen] = 0x0D;
+
+	if (arg != NULL) {
+		int arglen = strlen(arg);
+		if (arglen > 126) arglen = 126;
+		zzt.cpu.ram[psp + 0x80] = 1+arglen;
+		strncpy((char*) (zzt.cpu.ram + psp + 0x81), arg, arglen);
+		zzt.cpu.ram[psp + 0x81 + arglen] = 0x0D;
+	} else {
+		zzt.cpu.ram[psp + 0x80] = 1;
+		zzt.cpu.ram[psp + 0x81] = 0x0D;
+	}
 }
 
 static void zzt_load_exe(int handle, const char *arg) {
@@ -892,6 +956,11 @@ void zzt_init() {
 	zzt.cpu.func_port_in = cpu_func_port_in_main;
 	zzt.cpu.func_port_out = cpu_func_port_out_main;
 	zzt.cpu.func_interrupt = cpu_func_interrupt_main;
+
+	for (int i = 0; i < 256*14; i++) {
+		zzt.charset[i] = res_8x14_bin[i];
+	}
+	zeta_update_charset(8, 14, zzt.charset);
 }
 
 int zzt_execute(int opcodes) {

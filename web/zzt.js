@@ -121,6 +121,10 @@ function vfs_append(fn, then) {
 
 var handles = {};
 
+function zetag_update_charset(width, height, char_ptr) {
+	// TODO
+}
+
 function vfsg_has_feature(id) {
 	if (id == 1 /* joy connected */) return true;
 	else if (id == 2 /* mouse connected */) return true;

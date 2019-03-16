@@ -29,6 +29,9 @@ mergeInto(LibraryManager.library, {
 	zeta_has_feature: function(id) {
 		return vfsg_has_feature(id);
 	},
+	zeta_update_charset: function(width, height, char_ptr) {
+		return zetag_update_charset(width, height, char_ptr);
+	},
 	speaker_on: function(freq) {
 		speakerg_on(freq);
 	},

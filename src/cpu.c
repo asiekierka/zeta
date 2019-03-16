@@ -1572,8 +1572,7 @@ cpu->seg[2], cpu->seg[3], cpu->flags, ram_u8(cpu, SEG(SEG_CS, cpu->ip)));
 		last_state = cpu_run_one(cpu, 0, 1);
 	}
 
-	if (cpu->terminated) return STATE_END;
-	else return last_state;
+	return last_state;
 }
 
 void cpu_init(cpu_state* cpu) {
@@ -1595,7 +1594,6 @@ void cpu_init(cpu_state* cpu) {
 	cpu->halted = 0;
 	cpu->segmod = 0;
 	cpu->intq_pos = 0;
-	cpu->terminated = 0;
         cpu->keep_going = 0;
 
 	cpu->func_port_in = cpu_func_port_in_default;

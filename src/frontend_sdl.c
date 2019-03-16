@@ -58,8 +58,6 @@ static const u8 sdl_to_pc_scancode[] = {
 
 static const int sdl_to_pc_scancode_max = sizeof(sdl_to_pc_scancode) - 1;
 
-extern unsigned char res_8x14_bin[];
-
 static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, unsigned char *data, int height) {
 	SDL_Texture *texture;
 	SDL_Rect rect;
@@ -206,7 +204,7 @@ static void update_keymod(SDL_Keymod keymod) {
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
-static SDL_Texture *chartex;
+static SDL_Texture *chartex = NULL;
 static SDL_GLContext gl_context;
 static int charw, charh;
 
@@ -393,25 +391,27 @@ static void render_opengl(long curr_time, int regen_visuals) {
 	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
 
 	// pass 2: foreground colors
-	if (SDL_GL_BindTexture(chartex, &texw, &texh)) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not bind OpenGL texture! %s", SDL_GetError());
+	if (chartex != NULL) {
+		if (SDL_GL_BindTexture(chartex, &texw, &texh)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not bind OpenGL texture! %s", SDL_GetError());
+		}
+		glAlphaFunc(GL_GREATER, 0.5);
+		glEnable(GL_ALPHA_TEST);
+		glEnable(GL_TEXTURE_2D);
+
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * 4 * sizeof(char)));
+		glTexCoordPointer(2, GL_FLOAT, 0, ogl_buf_tex);
+
+		glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+
+		SDL_GL_UnbindTexture(chartex);
 	}
-	glAlphaFunc(GL_GREATER, 0.5);
-	glEnable(GL_ALPHA_TEST);
-	glEnable(GL_TEXTURE_2D);
-
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-	glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * 4 * sizeof(char)));
-	glTexCoordPointer(2, GL_FLOAT, 0, ogl_buf_tex);
-
-	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
-
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-
-	SDL_GL_UnbindTexture(chartex);
 }
 
 static void render_software_copy(long curr_time) {
@@ -447,7 +447,7 @@ static void render_software_copy(long curr_time) {
 
 			SDL_RenderFillRect(renderer, &rectDst);
 
-			if (render_fg) {
+			if (render_fg && chartex != NULL) {
 				SDL_SetTextureColorMod(chartex,
 					(def_palette[col & 0xF] >> 16) & 0xFF,
 					(def_palette[col & 0xF] >> 8) & 0xFF,
@@ -458,6 +458,12 @@ static void render_software_copy(long curr_time) {
 	}
 }
 
+void zeta_update_charset(int width, int height, u8* data) {
+	if (chartex != NULL) SDL_DestroyTexture(chartex);
+	chartex = create_texture_from_array(renderer, data, height);
+	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+}
+
 static int sdl_vfs_exists(const char *filename) {
 	int h = vfs_open(filename, 0);
 	if (h >= 0) { vfs_close(h); return 1; }
@@ -465,8 +471,11 @@ static int sdl_vfs_exists(const char *filename) {
 }
 
 static void sdl_zzt_help(int argc, char **argv) {
-	fprintf(stderr, "Usage: %s [-t] [world file]\n", argv > 0 ? argv[0] : "zeta");
+	fprintf(stderr, "Usage: %s [-e command] [-t] [world file]\n", argv > 0 ? argv[0] : "zeta");
 	fprintf(stderr, "\n");
+	fprintf(stderr, "  -e []  execute command - repeat to run multiple commands\n");
+	fprintf(stderr, "         by default, runs either ZZT.EXE or SUPERZ.EXE\n");
+	fprintf(stderr, "         using -e overrides it + ignores [world file] arg\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
@@ -474,13 +483,21 @@ static void sdl_zzt_help(int argc, char **argv) {
 
 static int sdl_zzt_init(int argc, char **argv) {
 	char arg_name[257];
-	char *exe_name = NULL;
+	char *execs[16];
+	int exec_count = 0;
 	int c;
 	int skip_kc = 0;
 
 #ifndef NO_GETOPT
-	while ((c = getopt(argc, argv, "ht")) >= 0) {
+	while ((c = getopt(argc, argv, "e:ht")) >= 0) {
 		switch(c) {
+			case 'e':
+				if (exec_count > 16) {
+					fprintf(stderr, "Too many -e commands!\n");
+					return -1;
+				}
+				execs[exec_count++] = optarg;
+				break;
 			case 'h':
 				sdl_zzt_help(argc, argv);
 				exit(0);
@@ -489,7 +506,7 @@ static int sdl_zzt_init(int argc, char **argv) {
 				skip_kc = 1;
 				break;
 			case '?':
-				fprintf(stderr, "Could not parse options! Try %s -h for help.", argv > 0 ? argv[0] : "running with");
+				fprintf(stderr, "Could not parse options! Try %s -h for help.\n", argv > 0 ? argv[0] : "running with");
 				exit(0);
 				return -1;
 		}
@@ -522,17 +539,45 @@ static int sdl_zzt_init(int argc, char **argv) {
 		}
 	}
 
-	int exeh = -1;
-	if (exe_name != NULL)
-		exeh = vfs_open(exe_name, 0);
-	if (exeh < 0)
-		exeh = vfs_open("zzt.exe", 0);
-	if (exeh < 0)
-		exeh = vfs_open("superz.exe", 0);
-	if (exeh < 0)
-		return -1;
-	zzt_load_binary(exeh, arg_name);
-	vfs_close(exeh);
+	if (exec_count > 0) {
+		int exeh = 0;
+		for (int i = 0; i < exec_count; i++) {
+			char *space_ptr = strchr(execs[i], ' ');
+			if (space_ptr != NULL) {
+				space_ptr[0] = '\0';
+				exeh = vfs_open(execs[i], 0);
+				if (exeh < 0) {
+					fprintf(stderr, "Could not load %s!\n", execs[i]);
+					space_ptr[0] = ' ';
+					return -1;
+				}
+				space_ptr[0] = ' ';
+				fprintf(stderr, "'%s'\n", space_ptr + 1);
+				zzt_load_binary(exeh, space_ptr + 1);
+				vfs_close(exeh);
+			} else {
+				exeh = vfs_open(execs[i], 0);
+				if (exeh < 0) {
+					fprintf(stderr, "Could not load %s!\n", execs[i]);
+					return -1;
+				}
+				zzt_load_binary(exeh, NULL);
+				vfs_close(exeh);
+			}
+
+			// last binary is engine
+			if (i == exec_count - 1) break;
+			while (zzt_execute(10000) != STATE_END) { }
+		}
+	} else {
+		int exeh = vfs_open("zzt.exe", 0);
+		if (exeh < 0)
+			exeh = vfs_open("superz.exe", 0);
+		if (exeh < 0)
+			return -1;
+		zzt_load_binary(exeh, arg_name);
+		vfs_close(exeh);
+	}
 
 	if (skip_kc) {
 		zzt_key('k', 0x25);
@@ -555,10 +600,6 @@ int main(int argc, char **argv) {
 	SDL_Thread* zzt_thread;
 
 	init_posix_vfs("");
-	if (sdl_zzt_init(argc, argv) < 0) {
-		fprintf(stderr, "Could not load ZZT!\n");
-		return 1;
-	}
 
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
@@ -612,8 +653,16 @@ int main(int argc, char **argv) {
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-	chartex = create_texture_from_array(renderer, res_8x14_bin, charh);
-	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+	if (sdl_zzt_init(argc, argv) < 0) {
+		fprintf(stderr, "Could not load ZZT!\n");
+		if (chartex != NULL) SDL_DestroyTexture(chartex);
+		SDL_DestroyRenderer(renderer);
+		if (audio_device != 0) {
+			SDL_CloseAudioDevice(audio_device);
+		}
+		SDL_Quit();
+		return 1;
+	}
 
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();
@@ -722,6 +771,7 @@ int main(int argc, char **argv) {
 		deinit_opengl();
 	}
 
+	if (chartex != NULL) SDL_DestroyTexture(chartex);
 	SDL_DestroyRenderer(renderer);
 	if (audio_device != 0) {
 		SDL_CloseAudioDevice(audio_device);
