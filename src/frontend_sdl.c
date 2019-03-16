@@ -17,6 +17,11 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef NO_GETOPT
+#define _POSIX_C_SOURCE 2
+#include <unistd.h>
+#endif
+
 #include <ctype.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -459,11 +464,47 @@ static int sdl_vfs_exists(const char *filename) {
 	else { return 0; }
 }
 
-static int sdl_zzt_init(int argc, char **argv) {
-	static char arg_name[257];
+static void sdl_zzt_help(int argc, char **argv) {
+	fprintf(stderr, "Usage: %s [-t] [world file]\n", argv > 0 ? argv[0] : "zeta");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
+}
 
+static int sdl_zzt_init(int argc, char **argv) {
+	char arg_name[257];
+	char *exe_name = NULL;
+	int c;
+	int skip_kc = 0;
+
+#ifndef NO_GETOPT
+	while ((c = getopt(argc, argv, "ht")) >= 0) {
+		switch(c) {
+			case 'h':
+				sdl_zzt_help(argc, argv);
+				exit(0);
+				return -1;
+			case 't':
+				skip_kc = 1;
+				break;
+			case '?':
+				fprintf(stderr, "Could not parse options! Try %s -h for help.", argv > 0 ? argv[0] : "running with");
+				exit(0);
+				return -1;
+		}
+	}
+#endif
+
+	zzt_init();
+
+#ifdef NO_GETOPT
 	if (argc > 1 && sdl_vfs_exists(argv[1])) {
 		strncpy(arg_name, argv[1], 256);
+#else
+	if (argc > optind && sdl_vfs_exists(argv[optind])) {
+		strncpy(arg_name, argv[optind], 256);
+#endif
 	} else if (argc > 0) {
 		char *sl_ptr = strrchr(argv[0], '/');
 		if (sl_ptr == NULL)
@@ -481,19 +522,28 @@ static int sdl_zzt_init(int argc, char **argv) {
 		}
 	}
 
-	zzt_init();
-	int exeh = vfs_open("zzt.exe", 0);
+	int exeh = -1;
+	if (exe_name != NULL)
+		exeh = vfs_open(exe_name, 0);
+	if (exeh < 0)
+		exeh = vfs_open("zzt.exe", 0);
 	if (exeh < 0)
 		exeh = vfs_open("superz.exe", 0);
 	if (exeh < 0)
 		return -1;
 	zzt_load_binary(exeh, arg_name);
 	vfs_close(exeh);
+
+	if (skip_kc) {
+		zzt_key('k', 0x25);
+		zzt_key('c', 0x2E);
+		zzt_key('\r', 0x1C);
+	}
 	return 0;
 }
 
 int main(int argc, char **argv) {
-	int scancodes_lifted[128];
+	int scancodes_lifted[sdl_to_pc_scancode_max + 1];
 	int slc = 0;
 	int use_opengl = 0;
 

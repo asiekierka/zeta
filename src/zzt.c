@@ -34,10 +34,12 @@
 #ifdef ANDROID
 #define KEYBUF_SIZE 64
 #else
-#define KEYBUF_SIZE 4
+#define KEYBUF_SIZE 8
 #endif
 
+// #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
+// #define DEBUG_KEYSTROKES
 
 typedef struct {
 	int qch;
@@ -72,7 +74,7 @@ typedef struct {
 	s16 mouse_xd, mouse_yd;
 
 	// I/O
-	u8 cga_status;
+	u8 cga_status, cga_palette, cga_crt_index;
 	u8 port_42_latch;
 	u16 port_42;
 	// u8 port_43[3]; (not actually used)
@@ -101,7 +103,9 @@ static long zzt_internal_time() {
 static int zzt_key_append(int qch, int qke) {
 	for (int j = 0; j < KEYBUF_SIZE; j++) {
 		if (zzt.keybuf[j].qke == -1 || zzt.keybuf[j].qke == qke) {
+#ifdef DEBUG_KEYSTROKES
 			fprintf(stderr, "key appended %d @ %d\n", qke, j);
+#endif
 			zzt.keybuf[j].qch = qch;
 			zzt.keybuf[j].qke = qke;
 			return 1;
@@ -134,7 +138,9 @@ void zzt_key(int c, int k) {
 	zzt.key.qke = k;
 	zzt.key.time = zeta_time_ms();
 	zzt.key.repeat = 0;
+#ifdef DEBUG_KEYSTROKES
 	fprintf(stderr, "key down %d %d\n", zzt.key.qch, zzt.key.qke);
+#endif
 	zzt_key_append(zzt.key.qch, zzt.key.qke);
 }
 
@@ -142,7 +148,9 @@ void zzt_keyup(int k) {
 	int changed = 0;
 
 	if (zzt.key.qke == k) {
+#ifdef DEBUG_KEYSTROKES
 		fprintf(stderr, "key up %d %d\n", zzt.key.qch, zzt.key.qke);
+#endif
 		zzt.key.qke = -1;
 		changed |= zzt.key.repeat;
 	}
@@ -246,6 +254,11 @@ static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
 				zzt->port_201 |= 2;
 			}
 			return zzt->port_201;
+		case 0x3D4: return zzt->cga_crt_index;
+		case 0x3D5:
+			fprintf(stderr, "CRT port in %02X\n", zzt->cga_crt_index);
+			return 0;
+		case 0x3D9: return zzt->cga_palette;
 		case 0x3DA: {
 			int old_status = zzt->cga_status;
 			zzt->cga_status = (old_status & (~0x8)) ^ 0x1;
@@ -286,6 +299,18 @@ static void cpu_func_port_out_main(cpu_state* cpu, u16 addr, u16 val) {
 		case 0x201:
 			zzt_joy_strobe(zzt);
 			return;
+		case 0x3D4: zzt->cga_crt_index = val; return;
+		case 0x3D5:
+			switch (zzt->cga_crt_index) {
+				case 0x0E: case 0x0F:
+					// cursor location high, low
+					// we do not render the cursor, so we do not need those values
+					break;
+				default:
+					fprintf(stderr, "CRT port out %02X = %02X\n", zzt->cga_crt_index, val);
+			}
+			return;
+		case 0x3D9: zzt->cga_palette = val; return;
 		default:
 			fprintf(stderr, "port out %04X = %04X\n", addr, val);
 	}
@@ -428,7 +453,7 @@ int zzt_video_mode(void) {
 static void cpu_func_intr_0x10(cpu_state* cpu) {
 	if (cpu->ah == 0x01) {
 		// cursor shape
-		fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
+		// fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
 	} else if (cpu->ah == 0x02) {
 		cpu->ram[0x451] = cpu->dh;
 		cpu->ram[0x450] = cpu->dl;
@@ -454,7 +479,6 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 		cpu_0x10_output(cpu, cpu->al);
 	} else if (cpu->ah == 0x00) {
 		video_mode = cpu->al & 0x7F;
-		fprintf(stderr, "set video mode to %d\n", cpu->al);
 	} else if (cpu->ah == 0x0F) {
 		cpu->ah = cpu->ram[0x44A];
 		cpu->al = video_mode;
@@ -490,7 +514,7 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 			}
 			zzt->keybuf[KEYBUF_SIZE-1].qke = -1;
 		} else {
-			cpu->flags |= FLAG_ZERO;
+			return STATE_BLOCK;
 		}
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x01) {
@@ -524,6 +548,16 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	switch (cpu->ah) {
+		case 0x33: { // ext break checking (ZZT init)
+			cpu->dl = 0x00;
+		} return STATE_CONTINUE;
+		case 0x09: { // write string (Banana Quest installer)
+			u8* ptr = cpu->ram + (cpu->seg[SEG_DS]*16 + cpu->dx);
+			while (*(ptr) != '$') {
+				cpu_0x10_output(cpu, *(ptr++));
+			}
+			cpu->al = 0x24;
+		} return STATE_CONTINUE;
 		case 0x30: // DOS version
 			cpu->al = 3;
 			cpu->ah = 0;
@@ -548,7 +582,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
-		} return STATE_WAIT;
+		} return STATE_CONTINUE;
 		case 0x35: // get ivt
 			cpu->bl = cpu->ram[cpu->al * 4];
 			cpu->bh = cpu->ram[cpu->al * 4 + 1];
@@ -558,7 +592,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 		case 0x3C: { // creat
 			int handle = vfs_open(STR_DS_DX, 0x10001);
 			if (handle < 0) {
-				fprintf(stderr, "not found\n");
+				fprintf(stderr, "creat: file not found: %s\n", STR_DS_DX);
 				cpu->ax = 0x02;
 				cpu->flags |= FLAG_CARRY;
 			} else {
@@ -567,10 +601,12 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x3D: { // open
+#ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "open %02X %s\n", cpu->al, STR_DS_DX);
+#endif
 			int handle = vfs_open(STR_DS_DX, cpu->al);
 			if (handle < 0) {
-				fprintf(stderr, "not found\n");
+				fprintf(stderr, "open: file not found: %s\n", STR_DS_DX);
 				cpu->ax = 0x02;
 				cpu->flags |= FLAG_CARRY;
 			} else {
@@ -588,7 +624,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x3F: { // read
+#ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "read %04X\n", cpu->cx);
+#endif
 			int res = vfs_read(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
 			if (res < 0) {
 				cpu->ax = 0x05;
@@ -599,7 +637,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x40: { // write
+#ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "write %04X\n", cpu->cx);
+#endif
 			if (cpu->cx == 0) {
 				// we don't implement the special case
 				cpu->ax = 0x05;
