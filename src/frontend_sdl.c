@@ -194,13 +194,15 @@ static int zzt_thread_func(void *ptr) {
 	return 0;
 }
 
-static void update_keymod(SDL_Keymod keymod) {
-	if (keymod & (KMOD_LSHIFT | KMOD_RSHIFT)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
-	if (keymod & (KMOD_LCTRL | KMOD_RCTRL)) zzt_kmod_set(0x04); else zzt_kmod_clear(0x04);
-	if (keymod & (KMOD_LALT | KMOD_RALT)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
-}
+#define KEYMOD_ALT(keymod) ((keymod) & (KMOD_LALT | KMOD_RALT))
+#define KEYMOD_CTRL(keymod) ((keymod) & (KMOD_LCTRL | KMOD_RCTRL))
+#define KEYMOD_SHIFT(keymod) ((keymod) & (KMOD_LSHIFT | KMOD_RSHIFT))
 
-#define is_shift(kmod) ((kmod) & (KMOD_LSHIFT | KMOD_RSHIFT))
+static void update_keymod(SDL_Keymod keymod) {
+	if (KEYMOD_SHIFT(keymod)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
+	if (KEYMOD_CTRL(keymod)) zzt_kmod_set(0x04); else zzt_kmod_clear(0x04);
+	if (KEYMOD_ALT(keymod)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
+}
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -597,6 +599,7 @@ int main(int argc, char **argv) {
 	int scode, kcode;
 
 	SDL_Thread* zzt_thread;
+	u8 windowed = 1;
 
 	init_posix_vfs("");
 
@@ -706,18 +709,36 @@ int main(int argc, char **argv) {
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_KEYDOWN:
-					update_keymod(event.key.keysym.mod);
-					if (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					if (windowed && (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)) {
 						if (SDL_GetRelativeMouseMode() != 0) {
 							SDL_SetRelativeMouseMode(0);
 							break;
 						}
 					}
+					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
+						// Alt+ENTER
+						if (windowed) {
+							SDL_DisplayMode mode;
+							SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(window), &mode);
+							SDL_SetWindowSize(window, mode.w, mode.h);
+							SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+							// force focus
+							SDL_SetRelativeMouseMode(1);
+						} else {
+							SDL_SetWindowFullscreen(window, 0);
+							SDL_SetWindowSize(window, 80*charw, 25*charh);
+							// drop focus
+							SDL_SetRelativeMouseMode(0);
+						}
+						windowed = 1 - windowed;
+						break;
+					}
+					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
-						if (is_shift(event.key.keysym.mod)) kcode = as_shifted(kcode);
+						if (KEYMOD_SHIFT(event.key.keysym.mod)) kcode = as_shifted(kcode);
 						zzt_key(kcode, sdl_to_pc_scancode[scode]);
 					}
 					break;
