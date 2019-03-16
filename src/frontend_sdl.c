@@ -475,7 +475,6 @@ static void sdl_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "  -e []  execute command - repeat to run multiple commands\n");
 	fprintf(stderr, "         by default, runs either ZZT.EXE or SUPERZ.EXE\n");
-	fprintf(stderr, "         using -e overrides it + ignores [world file] arg\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
@@ -561,7 +560,7 @@ static int sdl_zzt_init(int argc, char **argv) {
 					fprintf(stderr, "Could not load %s!\n", execs[i]);
 					return -1;
 				}
-				zzt_load_binary(exeh, NULL);
+				zzt_load_binary(exeh, (i == exec_count - 1) ? arg_name : NULL);
 				vfs_close(exeh);
 			}
 
