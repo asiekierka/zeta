@@ -36,13 +36,13 @@ var asciiFg = [];
 var chrBuf = [];
 
 var date_s = Date.now();
-function time_ms() { return Date.now() - date_s; }
+var time_ms = function() { return Date.now() - date_s; }
 
 var video_blink = false;
 var video_mode = 3;
 var last_video_mode = 3;
 
-function drawChar(x, y, chr, col) {
+var drawChar = function(x, y, chr, col) {
 	if (video_mode != last_video_mode) {
 		chrBuf = [];
 		last_video_mode = video_mode;
@@ -92,7 +92,7 @@ function drawChar(x, y, chr, col) {
 var vfs_progress = {};
 var vfs = {};
 
-function vfs_append(fn, then) {
+var vfs_append = function(fn, then) {
 	var fnfilter = function(f) { return true; }
 	if (Array.isArray(fn)) {
 		fnfilter = fn[1];
@@ -220,7 +220,7 @@ function vfsg_write(h, ptr, amount) {
 var ff_list = [];
 var ff_pos = 0;
 
-function vfs_list(spec) {
+var vfs_list = function(spec) {
 	spec = spec.toUpperCase();
 	var list = [];
 	if (spec.startsWith("*.")) {
@@ -280,7 +280,7 @@ function vfsg_findnext(ptr) {
 
 var queuedFrame = false;
 
-function zzt_frame() {
+var zzt_frame = function() {
 	poll_gamepads();
 
 	video_mode = emu._zzt_video_mode();
@@ -311,7 +311,7 @@ function vfsg_time_ms() {
 
 var opcodes = 1000;
 
-function zzt_tick() {
+var zzt_tick = function() {
 	vfsg_time_ms_val = time_ms();
 
 	var tms = vfsg_time_ms();
@@ -352,7 +352,7 @@ window.addEventListener("message", function(event) {
 
 var vfs_arg = null;
 
-function vfs_done() {
+var vfs_done = function() {
 	if (vfs_arg == null || vfs_arg == "") {
 		if (("ZZT.EXE" in vfs) && !("TOWN.ZZT" in vfs)) {
 			var zlist = vfs_list("*.ZZT");
@@ -401,7 +401,7 @@ function vfs_done() {
 var audioCtx = undefined;
 var pc_speaker = undefined;
 
-function initAudioCtx() {
+var initAudioCtx = function() {
 	if (emu == undefined) return;
 
 	audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
@@ -507,12 +507,20 @@ function speakerg_off() {
 
 canvas.contentEditable = true;
 
+/* var check_modifiers = function(event) {
+	if (event.shiftKey) emu._zzt_kmod_set(0x01); else emu._zzt_kmod_clear(0x01);
+	if (event.ctrlKey) emu._zzt_kmod_set(0x04); else emu._zzt_kmod_clear(0x04);
+	if (event.altKey) emu._zzt_kmod_set(0x08); else emu._zzt_kmod_clear(0x08);
+} */
+
 document.addEventListener('keydown', function(event) {
 	if (event.target != canvas) return false;
-	var ret = true;
+	var ret = false;
 
 	if (audioCtx == undefined)
 		initAudioCtx();
+
+//	check_modifiers(event);
 
 	if (event.key == "Shift") emu._zzt_kmod_set(0x01);
 	else if (event.key == "Control") emu._zzt_kmod_set(0x04);
@@ -534,8 +542,10 @@ document.addEventListener('keydown', function(event) {
 }, false);
 
 document.addEventListener('keyup', function(event) {
-	var ret = true;
 	if (event.target != canvas) return false;
+	var ret = true;
+
+//	check_modifiers(event);
 
 	if (event.key == "Shift") emu._zzt_kmod_clear(0x01);
 	else if (event.key == "Control") emu._zzt_kmod_clear(0x04);
@@ -557,12 +567,12 @@ document.addEventListener('keyup', function(event) {
 var vfs_files = [];
 var vfs_files_pos = 0;
 
-function draw_progress(p) {
+var draw_progress = function(p) {
 	ctx.fillStyle = "#ff0000";
 	ctx.fillRect(14*2, 112*2, p * 292*2, 20);
 }
 
-function get_vfs_prog_total() {
+var get_vfs_prog_total = function() {
 	var i = vfs_files_pos;
 	for (var k in vfs_progress) {
 		i += vfs_progress[k];
@@ -570,7 +580,7 @@ function get_vfs_prog_total() {
 	return i;
 }
 
-function vfs_on_loaded() {
+var vfs_on_loaded = function() {
 	vfs_files_pos = vfs_files_pos + 1;
 	draw_progress(get_vfs_prog_total() / vfs_files.length);
 	if (vfs_files_pos == vfs_files.length) {
@@ -579,7 +589,7 @@ function vfs_on_loaded() {
 }
 
 /* gamepad logic */
-function poll_gamepads() {
+var poll_gamepads = function() {
 	var gamepads = navigator.getGamepads();
 	for (var i = 0; i < gamepads.length; i++) {
 		var gamepad = gamepads[i];
@@ -604,7 +614,7 @@ function poll_gamepads() {
 
 var mouseSensitivity = 4;
 
-function attach_mouse_handler(o) {
+var attach_mouse_handler = function(o) {
 	o.addEventListener("mousemove", function(e) {
 		if (emu == undefined) return;
 

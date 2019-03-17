@@ -473,8 +473,9 @@ static int sdl_vfs_exists(const char *filename) {
 }
 
 static void sdl_zzt_help(int argc, char **argv) {
-	fprintf(stderr, "Usage: %s [-e command] [-t] [world file]\n", argv > 0 ? argv[0] : "zeta");
+	fprintf(stderr, "Usage: %s [-e command] [-bt] [world file]\n", argv > 0 ? argv[0] : "zeta");
 	fprintf(stderr, "\n");
+	fprintf(stderr, "  -b     disable blinking, enable bright backgrounds\n");
 	fprintf(stderr, "  -e []  execute command - repeat to run multiple commands\n");
 	fprintf(stderr, "         by default, runs either ZZT.EXE or SUPERZ.EXE\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
@@ -490,8 +491,11 @@ static int sdl_zzt_init(int argc, char **argv) {
 	int skip_kc = 0;
 
 #ifndef NO_GETOPT
-	while ((c = getopt(argc, argv, "e:ht")) >= 0) {
+	while ((c = getopt(argc, argv, "be:ht")) >= 0) {
 		switch(c) {
+			case 'b':
+				video_blink = 0;
+				break;
 			case 'e':
 				if (exec_count > 16) {
 					fprintf(stderr, "Too many -e commands!\n");

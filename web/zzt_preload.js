@@ -20,11 +20,6 @@
 var canvas = null;
 var ctx = null;
 
-function drawProgess(p) {
-	ctx.fillStyle = "#ff0000";
-	ctx.fillRect(14*2, 112*2, p * 292*2, 20);
-}
-
 var scripts_array = [];
 var zzt_opts = {};
 var script_ldr = function() {
