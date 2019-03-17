@@ -81,11 +81,30 @@ var drawChar = function(x, y, chr, col) {
 	var bg = (col >> 4) & 0x0F;
 	var fg = (col & 15);
 
+	var rw = width;
+	var rh = 14;
+
+	var pw = rw*80;
+	var ph = rh*25;
+	var cw = canvas.width;
+	var ch = canvas.height;
+
+	var scale = Math.min(Math.floor(cw / pw), Math.floor(ch / ph));
+	if (scale > 1) {
+		rw *= scale;
+		rh *= scale;
+		x = (x*scale) + ((cw - pw*scale) / 2);
+		y = (y*scale) + ((ch - ph*scale) / 2);
+	} else {
+		x += ((cw - pw) / 2);
+		y += ((ch - ph) / 2);
+	}
+
 	ctx.fillStyle = palette[bg];
-	ctx.fillRect(x, y, width, 14);
+	ctx.fillRect(x, y, rw, rh);
 
 	if (bg != fg && chr != 0 && chr != 32) {
-		ctx.drawImage(asciiFg[fg], (chr & 15) * 8, ((chr & 240) >> 4) * 14, 8, 14, x, y, width, 14);
+		ctx.drawImage(asciiFg[fg], (chr & 15) * 8, ((chr & 240) >> 4) * 14, 8, 14, x, y, rw, rh);
 	}
 }
 
@@ -568,8 +587,11 @@ var vfs_files = [];
 var vfs_files_pos = 0;
 
 var draw_progress = function(p) {
+	var cx = (canvas.width - 640) / 2;
+	var cy = (canvas.height - 350) / 2;
+
 	ctx.fillStyle = "#ff0000";
-	ctx.fillRect(14*2, 112*2, p * 292*2, 20);
+	ctx.fillRect(cx + 14*2, cy + 112*2, p * 292*2, 20);
 }
 
 var get_vfs_prog_total = function() {

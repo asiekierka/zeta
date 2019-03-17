@@ -47,7 +47,7 @@ function zzt_emu_load(path, options) {
 	var imgload = new Image();
 	imgload.onload = function() {
 		ctx.imageSmoothingEnabled = false;
-		ctx.drawImage(imgload,0,0,320,175,0,0,640,350);
+		ctx.drawImage(imgload,0,0,320,175,(canvas.width - 640)/2,(canvas.height - 350)/2,640,350);
 	};
 	imgload.src = path+"loading.png";
 	scripts_array = [
