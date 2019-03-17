@@ -99,24 +99,28 @@ function vfs_append(fn, then) {
 		fn = fn[0];
 	}
 
-	var loader = new ZipLoader(fn);
-	loader.on("progress", function(event) {
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", fn, true);
+	xhr.responseType = "arraybuffer";
+
+	xhr.onprogress = function(event) {
 		vfs_progress[fn] = (event.loaded / event.total);
 		draw_progress(get_vfs_prog_total() / vfs_files.length);
-	});
+	};
 
-	loader.load().then(function() {
+	xhr.onload = function() {
 		vfs_progress[fn] = 0;
-		for (let key in loader.files) {
+		var files = UZIP.parse(this.response);
+		for (var key in files) {
 			if (fnfilter(key)) {
-				let ku = key.toUpperCase();
-				vfs[ku] = loader.files[key];
-				vfs[ku].readonly = true;
+				var ku = key.toUpperCase();
+				vfs[ku] = {readonly: true, buffer: files[key]};
 			}
 		}
 
 		then();
-	});
+	};
+	xhr.send();
 }
 
 var handles = {};
@@ -221,7 +225,7 @@ function vfs_list(spec) {
 	var list = [];
 	if (spec.startsWith("*.")) {
 		var suffix = spec.substring(1);
-		for (let key in vfs) {
+		for (var key in vfs) {
 			if (key.endsWith(suffix)) {
 				list.push(key);
 			}
