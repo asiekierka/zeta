@@ -229,6 +229,7 @@ static void prepare_render_opengl() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(-xdif, w - xdif, h - ydif, -ydif, -1, 1);
+	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -245,7 +246,6 @@ static unsigned char *ogl_buf_colcache;
 static float *ogl_buf_texcache;
 
 static void init_opengl() {
-	glClearColor(0, 0, 0, 1);
 	ogl_buf_pos = malloc((80 * 25) * 4 * 2 * sizeof(short));
 	ogl_buf_pos40 = malloc((40 * 25) * 4 * 2 * sizeof(short));
 	ogl_buf_col = malloc(2 * (80 * 25) * 4 * 4 * sizeof(char));
@@ -460,10 +460,17 @@ static void render_software_copy(long curr_time) {
 	}
 }
 
+static SDL_mutex *charset_update_mutex;
+static atomic_int charset_update_requested = 0;
+static int charset_char_height;
+static u8* charset_update_data;
+
 void zeta_update_charset(int width, int height, u8* data) {
-	if (chartex != NULL) SDL_DestroyTexture(chartex);
-	chartex = create_texture_from_array(renderer, data, height);
-	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+	SDL_LockMutex(charset_update_mutex);
+	charset_char_height = height;
+	charset_update_data = data;
+	atomic_store(&charset_update_requested, 1);
+	SDL_UnlockMutex(charset_update_mutex);
 }
 
 static int sdl_vfs_exists(const char *filename) {
@@ -612,6 +619,17 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	charset_update_mutex = SDL_CreateMutex();
+	zzt_thread_lock = SDL_CreateMutex();
+	zzt_thread_cond = SDL_CreateCond();
+	audio_mutex = SDL_CreateMutex();
+
+	if (sdl_zzt_init(argc, argv) < 0) {
+		fprintf(stderr, "Could not load ZZT!\n");
+		SDL_Quit();
+		return 1;
+	}
+
 	SDL_zero(requested_audio_spec);
 	requested_audio_spec.freq = 48000;
 	requested_audio_spec.format = AUDIO_U8;
@@ -629,6 +647,8 @@ int main(int argc, char **argv) {
 
 	use_opengl = 1;
 	if (use_opengl) {
+		init_opengl();
+
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -652,27 +672,11 @@ int main(int argc, char **argv) {
 			80*charw, 25*charh, 0);
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 	} else {
-		init_opengl();
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 	}
 
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-
-	if (sdl_zzt_init(argc, argv) < 0) {
-		fprintf(stderr, "Could not load ZZT!\n");
-		if (chartex != NULL) SDL_DestroyTexture(chartex);
-		SDL_DestroyRenderer(renderer);
-		if (audio_device != 0) {
-			SDL_CloseAudioDevice(audio_device);
-		}
-		SDL_Quit();
-		return 1;
-	}
-
-	zzt_thread_lock = SDL_CreateMutex();
-	zzt_thread_cond = SDL_CreateCond();
-	audio_mutex = SDL_CreateMutex();
 
 	long curr_time;
 	u8 cont_loop = 1;
@@ -779,6 +783,17 @@ int main(int argc, char **argv) {
 
 		SDL_CondBroadcast(zzt_thread_cond);
 		SDL_UnlockMutex(zzt_thread_lock);
+
+		if (atomic_load(&charset_update_requested)) {
+			SDL_LockMutex(charset_update_mutex);
+
+			if (chartex != NULL) SDL_DestroyTexture(chartex);
+			chartex = create_texture_from_array(renderer, charset_update_data, charset_char_height);
+			SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+
+			atomic_store(&charset_update_requested, 0);
+			SDL_UnlockMutex(charset_update_mutex);
+		}
 
 		curr_time = zeta_time_ms();
 		if (use_opengl) {

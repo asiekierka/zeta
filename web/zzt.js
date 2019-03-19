@@ -68,9 +68,6 @@ var drawChar = function(x, y, chr, col) {
 	}
 
 	var bufcmp = (chr << 8) | col;
-/*	if (chr == 0 || chr == 32) {
-		bufcmp &= 0xF0;
-	} */
 
 	if (buffered == bufcmp) {
 		return;

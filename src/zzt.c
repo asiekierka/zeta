@@ -591,6 +591,31 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 	} else if (cpu->ah == 0x02) {
 		cpu->al = zzt->kmod;
 		return STATE_CONTINUE;
+	} else if (cpu->ah == 0x03) {
+		// typematic control; not used by ZZT,
+		// but can be used by external tools
+		switch (cpu->al) {
+			case 0x00:
+				zzt->key_delay = 500;
+				zzt->key_repeat_delay = 100;
+				break;
+			case 0x04:
+				zzt->key_repeat_delay = 0;
+				break;
+			case 0x05:
+				zzt->key_delay = 250 * (cpu->bh & 0x03);
+				double krd_tmp = 1.0 / ((8 + (cpu->bl & 7)) * (1 << ((cpu->bl >> 3) & 3)) * 0.00417);
+				zzt->key_repeat_delay = (int) (1000 / krd_tmp);
+				break;
+			default:
+				fprintf(stderr, "int 0x16:0x03 subfunction=%02X\n", cpu->al);
+				break;
+		}
+		return STATE_CONTINUE;
+	} else if (cpu->ah == 0x09) {
+		// check subfunctions; see 0x03
+		cpu->al = 0x07;
+		return STATE_CONTINUE;
 	}
 	fprintf(stderr, "int 0x16 AX=%04X\n", cpu->ax);
 	return STATE_CONTINUE;
@@ -923,7 +948,7 @@ void zzt_init() {
 	}
 
 	zzt.key_delay = 500;
-	zzt.key_repeat_delay = 50;
+	zzt.key_repeat_delay = 100;
 
 	zzt.real_time = 0;
 	zzt.timer_time = 0;
@@ -974,6 +999,10 @@ static void zzt_update_keys() {
 	if (key->qke == -1) return;
 	long dtime = ctime - key->time;
 	if (dtime >= (key->repeat ? zzt.key_repeat_delay : zzt.key_delay)) {
+		if (key->repeat && zzt.key_repeat_delay <= 0) {
+			return;
+		}
+
 		if (zzt_key_append(key->qch, key->qke)) {
 			key->time = dtime;
 			key->repeat = 1;
