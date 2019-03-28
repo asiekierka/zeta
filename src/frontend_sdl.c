@@ -33,13 +33,6 @@
 #include "audio_stream.h"
 #include "posix_vfs.h"
 
-static int def_palette[] = {
-	0x000000, 0x0000aa, 0x00aa00, 0x00aaaa,
-	0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa,
-	0x555555, 0x5555ff, 0x55ff55, 0x55ffff,
-	0xff5555, 0xff55ff, 0xffff55, 0xffffff
-};
-
 static const u8 sdl_to_pc_scancode[] = {
 /*  0*/	0,
 /*  1*/	0, 0, 0,
@@ -210,6 +203,15 @@ static SDL_Texture *chartex = NULL;
 static SDL_GLContext gl_context;
 static int charw, charh;
 
+static SDL_mutex *render_data_update_mutex;
+
+static int charset_update_requested = 0;
+static int charset_char_height;
+static u8* charset_update_data = NULL;
+
+static int palette_update_requested = 0;
+static u32* palette_update_data = NULL;
+
 static void prepare_render_opengl() {
 	int iw = 80*charw;
 	int ih = 25*charh;
@@ -245,6 +247,17 @@ static float *ogl_buf_tex;
 static unsigned char *ogl_buf_colcache;
 static float *ogl_buf_texcache;
 
+static void update_opengl_colcache(u32* pal) {
+	for (int i = 0; i < 16; i++) {
+		for (int bpos = i*16; bpos < (i+1)*16; bpos+=4) {
+			ogl_buf_colcache[bpos] = (pal[i] >> 16) & 0xFF;
+			ogl_buf_colcache[bpos + 1] = (pal[i] >> 8) & 0xFF;
+			ogl_buf_colcache[bpos + 2] = (pal[i] >> 0) & 0xFF;
+			ogl_buf_colcache[bpos + 3] = 0xFF;
+		}
+	}
+}
+
 static void init_opengl() {
 	ogl_buf_pos = malloc((80 * 25) * 4 * 2 * sizeof(short));
 	ogl_buf_pos40 = malloc((40 * 25) * 4 * 2 * sizeof(short));
@@ -253,14 +266,7 @@ static void init_opengl() {
 	ogl_buf_colcache = malloc(16 * 16 * sizeof(char));
 	ogl_buf_texcache = malloc(256 * 8 * sizeof(float));
 
-	for (int i = 0; i < 16; i++) {
-		for (int bpos = i*16; bpos < (i+1)*16; bpos+=4) {
-			ogl_buf_colcache[bpos] = (def_palette[i] >> 16) & 0xFF;
-			ogl_buf_colcache[bpos + 1] = (def_palette[i] >> 8) & 0xFF;
-			ogl_buf_colcache[bpos + 2] = (def_palette[i] >> 0) & 0xFF;
-			ogl_buf_colcache[bpos + 3] = 0xFF;
-		}
-	}
+	memset(ogl_buf_colcache, 0, 16 * 16 * sizeof(char));
 
 	for (int tpos = 0; tpos < 256 * 8; tpos += 8) {
 		u8 chr = tpos >> 3;
@@ -421,6 +427,10 @@ static void render_software_copy(long curr_time) {
 	rectSrc.w = rectDst.w = charw;
 	rectSrc.h = rectDst.h = charh;
 
+	if (palette_update_data == NULL) {
+		return;
+	}
+
 	int width = (zzt_video_mode() & 2) ? 80 : 40;
 	int vpos = 0;
 	for (int y = 0; y < 25; y++) {
@@ -442,35 +452,37 @@ static void render_software_copy(long curr_time) {
 			u8 render_fg = ((col >> 4) ^ (col & 0xF));
 
 			SDL_SetRenderDrawColor(renderer,
-				(def_palette[col >> 4] >> 16) & 0xFF,
-				(def_palette[col >> 4] >> 8) & 0xFF,
-				(def_palette[col >> 4] >> 0) & 0xFF,
+				(palette_update_data[col >> 4] >> 16) & 0xFF,
+				(palette_update_data[col >> 4] >> 8) & 0xFF,
+				(palette_update_data[col >> 4] >> 0) & 0xFF,
 				255);
 
 			SDL_RenderFillRect(renderer, &rectDst);
 
 			if (render_fg && chartex != NULL) {
 				SDL_SetTextureColorMod(chartex,
-					(def_palette[col & 0xF] >> 16) & 0xFF,
-					(def_palette[col & 0xF] >> 8) & 0xFF,
-					(def_palette[col & 0xF] >> 0) & 0xFF);
+					(palette_update_data[col & 0xF] >> 16) & 0xFF,
+					(palette_update_data[col & 0xF] >> 8) & 0xFF,
+					(palette_update_data[col & 0xF] >> 0) & 0xFF);
 				SDL_RenderCopy(renderer, chartex, &rectSrc, &rectDst);
 			}
 		}
 	}
 }
 
-static SDL_mutex *charset_update_mutex;
-static atomic_int charset_update_requested = 0;
-static int charset_char_height;
-static u8* charset_update_data;
-
 void zeta_update_charset(int width, int height, u8* data) {
-	SDL_LockMutex(charset_update_mutex);
+	SDL_LockMutex(render_data_update_mutex);
 	charset_char_height = height;
 	charset_update_data = data;
-	atomic_store(&charset_update_requested, 1);
-	SDL_UnlockMutex(charset_update_mutex);
+	charset_update_requested = 1;
+	SDL_UnlockMutex(render_data_update_mutex);
+}
+
+void zeta_update_palette(u32* data) {
+	SDL_LockMutex(render_data_update_mutex);
+	palette_update_data = data;
+	palette_update_requested = 1;
+	SDL_UnlockMutex(render_data_update_mutex);
 }
 
 static int sdl_vfs_exists(const char *filename) {
@@ -619,7 +631,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	charset_update_mutex = SDL_CreateMutex();
+	render_data_update_mutex = SDL_CreateMutex();
 	zzt_thread_lock = SDL_CreateMutex();
 	zzt_thread_cond = SDL_CreateCond();
 	audio_mutex = SDL_CreateMutex();
@@ -784,16 +796,21 @@ int main(int argc, char **argv) {
 		SDL_CondBroadcast(zzt_thread_cond);
 		SDL_UnlockMutex(zzt_thread_lock);
 
-		if (atomic_load(&charset_update_requested)) {
-			SDL_LockMutex(charset_update_mutex);
+		SDL_LockMutex(render_data_update_mutex);
 
+		if (charset_update_requested) {
 			if (chartex != NULL) SDL_DestroyTexture(chartex);
 			chartex = create_texture_from_array(renderer, charset_update_data, charset_char_height);
 			SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
-
-			atomic_store(&charset_update_requested, 0);
-			SDL_UnlockMutex(charset_update_mutex);
+			charset_update_requested = 0;
 		}
+
+		if (palette_update_requested) {
+			update_opengl_colcache(palette_update_data);
+			palette_update_requested = 0;
+		}
+
+		SDL_UnlockMutex(render_data_update_mutex);
 
 		curr_time = zeta_time_ms();
 		if (use_opengl) {

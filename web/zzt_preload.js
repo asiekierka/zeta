@@ -53,7 +53,9 @@ function zzt_emu_load(path, options) {
 	scripts_array = [
 		path+"uzip.min.js",
 		path+"zeta86.js",
-		path+"zzt.min.js"
+		path+"vfs.js",
+		path+"zzt_kbdmap.js",
+		path+"zzt.js"
 	];
 	script_ldr();
 }

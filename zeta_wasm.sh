@@ -10,17 +10,17 @@ rm build/zeta86.wast
 
 xxd -i res/8x14.bin > res/8x14.c
 
-WASM_BACKEND=1 emcc -O3 --js-library src/emscripten_glue.js \
+emcc -O3 --js-library src/emscripten_glue.js \
+  -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc"]' \
-  -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["Pointer_stringify"]' \
+  -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s WASM=1 -s MODULARIZE=1 -s 'EXPORT_NAME="Zeta"' \
   -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
-  -s 'MALLOC="emmalloc"' \
+  -s 'MALLOC="emmalloc"' -s NO_FILESYSTEM=1 \
   -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
   -DNO_MEMSET \
   src/cpu.c src/zzt.c res/8x14.c
-
 
 mv a.out.js build/zeta86.js
 mv a.out.js.mem build/zeta86.js.mem

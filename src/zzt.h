@@ -100,6 +100,8 @@ int zeta_has_feature(int feature);
 
 IMPLEMENT_FUNCTION
 void zeta_update_charset(int width, int height, u8* data);
+IMPLEMENT_FUNCTION
+void zeta_update_palette(u32* colors);
 
 IMPLEMENT_FUNCTION
 void speaker_on(double freq);

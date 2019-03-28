@@ -32,6 +32,9 @@ mergeInto(LibraryManager.library, {
 	zeta_update_charset: function(width, height, char_ptr) {
 		return zetag_update_charset(width, height, char_ptr);
 	},
+	zeta_update_palette: function(data_ptr) {
+		return zetag_update_palette(data_ptr);
+	},
 	speaker_on: function(freq) {
 		speakerg_on(freq);
 	},

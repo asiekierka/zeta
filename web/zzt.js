@@ -106,42 +106,14 @@ var drawChar = function(x, y, chr, col) {
 }
 
 var vfs_progress = {};
-var vfs = {};
-
-var vfs_append = function(fn, then) {
-	var fnfilter = function(f) { return true; }
-	if (Array.isArray(fn)) {
-		fnfilter = fn[1];
-		fn = fn[0];
-	}
-
-	var xhr = new XMLHttpRequest();
-	xhr.open("GET", fn, true);
-	xhr.responseType = "arraybuffer";
-
-	xhr.onprogress = function(event) {
-		vfs_progress[fn] = (event.loaded / event.total);
-		draw_progress(get_vfs_prog_total() / vfs_files.length);
-	};
-
-	xhr.onload = function() {
-		vfs_progress[fn] = 0;
-		var files = UZIP.parse(this.response);
-		for (var key in files) {
-			if (fnfilter(key)) {
-				var ku = key.toUpperCase();
-				vfs[ku] = {readonly: true, buffer: files[key]};
-			}
-		}
-
-		then();
-	};
-	xhr.send();
-}
-
+var vfs = null;
 var handles = {};
 
 function zetag_update_charset(width, height, char_ptr) {
+	// TODO
+}
+
+function zetag_update_palette(palette_ptr) {
 	// TODO
 }
 
@@ -153,29 +125,35 @@ function vfsg_has_feature(id) {
 
 function vfsg_open(fn, mode) {
 	if (typeof fn !== "string") {
-		fn = emu.Pointer_stringify(fn);
+		fn = emu.AsciiToString(fn);
 	}
+
 	fn = fn.toUpperCase();
+	var data = vfs.get(fn);
 	var is_write = (mode & 0x3) == 1;
+
 	if (is_write) {
-		if (fn in vfs && vfs[fn].readonly) return -1;
-		if (!(fn in vfs) || ((mode & 0x10000) != 0)) {
-			vfs[fn] = {readonly: false, buffer: new Uint8Array(0)};
+		if (vfs.readonly()) return -1;
+		if (data == null || ((mode & 0x10000) != 0)) {
+			data = new Uint8Array(0);
 		}
 	} else {
-		if (!(fn in vfs)) return -1;
+		if (data == null) return -1;
 	}
 
 	console.log("opening " + fn);
 	var i = 1;
 	while (i in handles) i++;
-	handles[i] = {name: fn, pos: 0, mode: mode, array: vfs[fn].buffer, obj: vfs[fn]};
+	handles[i] = {name: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
 
 	return i;
 }
 
 function vfsg_close(h) {
 	if (h in handles) {
+		if (handles[h].write_on_close) {
+			vfs.set(handles[h].fn, handles[h].array);
+		}
 		delete handles[h];
 		return 0;
 	} else return -1;
@@ -220,7 +198,6 @@ function vfsg_write(h, ptr, amount) {
 	if (newlen > len) {
 		var newA = new Uint8Array(newlen);
 		newA.set(h.array, 0);
-		h.obj.buffer = newA;
 		h.array = newA;
 		len = newlen;
 	}
@@ -238,14 +215,9 @@ var ff_pos = 0;
 
 var vfs_list = function(spec) {
 	spec = spec.toUpperCase();
-	var list = [];
 	if (spec.startsWith("*.")) {
 		var suffix = spec.substring(1);
-		for (var key in vfs) {
-			if (key.endsWith(suffix)) {
-				list.push(key);
-			}
-		}
+		var list = vfs.list(function(key) { return key.endsWith(suffix); });
 		list.sort(function(a, b) {
 			var lenDiff = a.length - b.length;
 			if (lenDiff != 0) return lenDiff;
@@ -259,7 +231,7 @@ var vfs_list = function(spec) {
 }
 
 function vfsg_findfirst(ptr, mask, spec) {
-	spec = emu.Pointer_stringify(spec);
+	spec = emu.AsciiToString(spec);
 	ff_list = [];
 	var l = vfs_list(spec);
 	if (l == null) return -1;
@@ -279,13 +251,13 @@ function vfsg_findnext(ptr) {
 	finddata[0x18] = 0;
 	finddata[0x19] = 0;
 
-	var size = vfs[ff_list[ff_pos]].buffer.length;
+	var fn = ff_list[ff_pos];
+	var size = vfs.get(fn).byteLength;
 	finddata[0x1A] = size & 0xFF;
 	finddata[0x1B] = (size >> 8) & 0xFF;
 	finddata[0x1C] = (size >> 16) & 0xFF;
 	finddata[0x1D] = (size >> 24) & 0xFF;
 
-	var fn = ff_list[ff_pos];
 	for (var i = 0; i < fn.length; i++)
 		finddata[0x1E + i] = fn.charCodeAt(i);
 	finddata[0x1E + fn.length] = 0;
@@ -369,13 +341,15 @@ window.addEventListener("message", function(event) {
 var vfs_arg = null;
 
 var vfs_done = function() {
+	vfs = VFS.fromProviders(vfs_providers);
+
 	if (vfs_arg == null || vfs_arg == "") {
-		if (("ZZT.EXE" in vfs) && !("TOWN.ZZT" in vfs)) {
+		if (vfs.contains("ZZT.EXE") && !vfs.contains("TOWN.ZZT")) {
 			var zlist = vfs_list("*.ZZT");
 			if (zlist.length > 0) {
 				vfs_arg = zlist[0];
 			}
-		} else if (("SUPERZ.EXE" in vfs) && !("MONSTER.SZT" in vfs)) {
+		} else if (vfs.contains("SUPERZ.EXE") && !vfs.contains("MONSTER.SZT")) {
 			var zlist = vfs_list("*.SZT");
 			if (zlist.length > 0) {
 				vfs_arg = zlist[0];
@@ -383,7 +357,7 @@ var vfs_done = function() {
 		}
 	}
 
-	video_blink = !("BLINKX.COM" in vfs);
+	video_blink = !vfs.contains("BLINKX.COM");
 
 	vfs_arg = (vfs_arg || "").toUpperCase();
 
@@ -580,6 +554,7 @@ document.addEventListener('keyup', function(event) {
 	return false;
 }, false);
 
+var vfs_providers = [];
 var vfs_files = [];
 var vfs_files_pos = 0;
 
@@ -592,16 +567,22 @@ var draw_progress = function(p) {
 }
 
 var get_vfs_prog_total = function() {
-	var i = vfs_files_pos;
+	var i = 0;
 	for (var k in vfs_progress) {
 		i += vfs_progress[k];
 	}
 	return i;
 }
 
-var vfs_on_loaded = function() {
-	vfs_files_pos = vfs_files_pos + 1;
+var draw_vfs_progress = function() {
 	draw_progress(get_vfs_prog_total() / vfs_files.length);
+}
+
+var vfs_on_loaded = function(p) {
+	vfs_providers.push(p);
+	draw_vfs_progress();
+
+	vfs_files_pos = vfs_files_pos + 1;
 	if (vfs_files_pos == vfs_files.length) {
 		vfs_done();
 	}
@@ -683,8 +664,20 @@ function zzt_emu_create(options) {
 
 		vfs_files = options.files;
 		vfs_arg = options.arg;
+
 		for (var s in vfs_files) {
-			vfs_append(vfs_files[s], vfs_on_loaded);
+			vfs_progress[s] = 0;
+			if (Array.isArray(vfs_files[s])) {
+				VFS.fromZip(vfs_files[s][0], vfs_files[s][1], function(p) {
+					vfs_progress[s] = p;
+					draw_vfs_progress();
+				}, vfs_on_loaded);
+			} else {
+				VFS.fromZip(vfs_files[s], null, function(p) {
+					vfs_progress[s] = p;
+					draw_vfs_progress();
+				}, vfs_on_loaded);
+			}
 		}
 	};
 }

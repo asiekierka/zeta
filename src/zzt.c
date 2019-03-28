@@ -58,6 +58,13 @@ typedef struct {
 
 extern unsigned char res_8x14_bin[];
 
+static u32 def_palette[] = {
+	0xff000000, 0xff0000aa, 0xff00aa00, 0xff00aaaa,
+	0xffaa0000, 0xffaa00aa, 0xffaa5500, 0xffaaaaaa,
+	0xff555555, 0xff5555ff, 0xff55ff55, 0xff55ffff,
+	0xffff5555, 0xffff55ff, 0xffffff55, 0xffffffff
+};
+
 typedef struct {
 	cpu_state cpu;
 	long real_time;
@@ -90,6 +97,7 @@ typedef struct {
 	u32 dos_dta;
 
 	u8 charset[256*14];
+	u32 palette[16];
 } zzt_state;
 
 zzt_state zzt;
@@ -985,7 +993,13 @@ void zzt_init() {
 	for (int i = 0; i < 256*14; i++) {
 		zzt.charset[i] = res_8x14_bin[i];
 	}
+
+	for (int i = 0; i < 16; i++) {
+		zzt.palette[i] = def_palette[i];
+	}
+
 	zeta_update_charset(8, 14, zzt.charset);
+	zeta_update_palette(zzt.palette);
 }
 
 int zzt_execute(int opcodes) {
