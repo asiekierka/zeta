@@ -19,10 +19,15 @@
 
 AsciiRender = {};
 AsciiRender.toCanvas = function(canvas, options) {
+	var blink_duration = (options && options.blink_duration) || 466;
+
 	var ctx = canvas.getContext('2d', {alpha: false});
 	ctx.imageSmoothingEnabled = false;
 
-	var video_blink = (options && options.blink) || false;
+	var video_blink = true;
+	if (options && options.hasOwnProperty("blink")) {
+		video_blink = options.blink;
+	}
 	var video_mode = -1;
 	var chrBuf = [];
 	var drawChrWidth;
@@ -39,9 +44,10 @@ AsciiRender.toCanvas = function(canvas, options) {
 	var updVideoMode = function(val) {
 		if (val != video_mode) {
 			chrBuf = [];
-			scrWidth = 40;
-			if ((video_mode & 0x02) == 2) {
+			if ((val & 0x02) == 2) {
 				scrWidth = 80;
+			} else {
+				scrWidth = 40;
 			}
 			scrHeight = 25;
 			video_mode = val;
@@ -60,7 +66,7 @@ AsciiRender.toCanvas = function(canvas, options) {
 		if (video_blink && col >= 0x80) {
 			col = col & 0x7F;
 
-			if ((time % 466) >= 233) {
+			if ((time % blink_duration) >= (blink_duration / 2)) {
 				col = (col >> 4) * 0x11;
 			}
 		}
@@ -121,7 +127,6 @@ AsciiRender.toCanvas = function(canvas, options) {
 			for (var ch = 0; ch < 256; ch++) {
 				var rx = (ch & 0xF) * chrWidth;
 				var ry = (ch >> 4) * chrHeight;
-				console.log(rx + " " + ry + " " + ch + " " + dpos);
 				for (var cy = 0; cy < chrHeight; cy++, dpos++) {
 					var co = ((ry + cy) * 128) + rx;
 					var ctmp = charset[dpos];
