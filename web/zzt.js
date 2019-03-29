@@ -304,6 +304,7 @@ var zzt_tick = function() {
 
 	var tms = vfsg_time_ms();
 	while ((tms - last_timer_time) >= timer_dur) {
+//		console.log("timer, drift = " + (tms - last_timer_time - timer_dur) + " ms");
 		last_timer_time += timer_dur;
 		emu._zzt_mark_timer();
 	}
@@ -324,10 +325,11 @@ var zzt_tick = function() {
 			window.requestAnimationFrame(zzt_frame);
 		}
 
-		if (document.hasFocus() && rcode != 3)
+		var time_to_timer = timer_dur - ((tms + duration) - last_timer_time);
+		if (rcode != 3 || time_to_timer <= 1)
 			window.postMessage("zzt_tick", "*");
 		else
-			setTimeout(zzt_tick, 20);
+			setTimeout(zzt_tick, time_to_timer);
 	}
 }
 
