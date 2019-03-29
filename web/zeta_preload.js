@@ -17,43 +17,54 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-var canvas = null;
-var ctx = null;
+Zeta = function(options, callback) {
+	var options = options;
+	if (!options.render) throw "Missing option: render!";
+	if (!options.render.canvas) throw "Missing option: render.canvas!";
+	if (!options.path) throw "Missing option: path!";
+	if (!options.files) throw "Missing option: files!";
 
-var scripts_array = [];
-var zzt_opts = {};
-var script_ldr = function() {
-	if (scripts_array.length == 0) {
-		zzt_emu_create(zzt_opts);
-		return;
+	var scripts_array = [];
+	var script_ldr = function() {
+		if (scripts_array.length == 0) {
+			callback(zeta_emu_create(options));
+		} else {
+			var scrSrc = scripts_array.shift();
+			var scr = document.createElement("script");
+			scr.onload = script_ldr;
+			scr.src = scrSrc;
+			document.body.appendChild(scr);
+		}
 	}
 
-	var s = scripts_array.shift();
-	var scr = document.createElement("script");
-	scr.onload = script_ldr;
-	scr.src = s;
-	document.body.appendChild(scr);
-}
-
-function zzt_emu_load(path, options) {
-	var canvas = document.getElementById('zzt_canvas');
+	var canvas = options.render.canvas;
 	canvas.tabindex=1;
-
 	var ctx = canvas.getContext('2d', {alpha: false});
-
-	zzt_opts = options;
-	zzt_opts.path = path;
 
 	var imgload = new Image();
 	imgload.onload = function() {
 		ctx.imageSmoothingEnabled = false;
 		ctx.drawImage(imgload,0,0,320,175,(canvas.width - 640)/2,(canvas.height - 350)/2,640,350);
 	};
-	imgload.src = path+"loading.png";
-	scripts_array = [
-		path+"uzip.min.js",
-		path+"zeta_native.js",
-		path+"zeta.min.js"
-	];
+	imgload.src = options.path+"loading.png";
+
+	if (options.dev) {
+		scripts_array = [
+			options.path+"uzip.min.js",
+			options.path+"zeta_native.js",
+			options.path+"zeta_vfs.js",
+			options.path+"zeta_render.js",
+			options.path+"zeta_audio.js",
+			options.path+"zeta_kbdmap.js",
+			options.path+"zeta.js"
+		];
+	} else {
+		scripts_array = [
+			options.path+"uzip.min.js",
+			options.path+"zeta_native.js",
+			options.path+"zeta.min.js"
+		];
+	}
+
 	script_ldr();
 }

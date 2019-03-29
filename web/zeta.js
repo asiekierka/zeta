@@ -17,11 +17,8 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-var canvas = document.getElementById('zzt_canvas');
-var ctx = canvas.getContext('2d', {alpha: false});
-ctx.imageSmoothingEnabled = false;
-
-var audio, emu, render;
+var canvas, ctx, audio, emu, render;
+var zeta_options = {};
 
 var date_s = Date.now();
 var time_ms = function() { return Date.now() - date_s; }
@@ -273,14 +270,17 @@ var vfs_done = function() {
 		}
 	}
 
-	video_blink = !vfs.contains("BLINKX.COM");
+	if (!zeta_options.render.hasOwnProperty("blink")) {
+		zeta_options.render.blink = !vfs.contains("BLINKX.COM");
+	}
 
+	render = ZetaRender.toCanvas(zeta_options.render.canvas, zeta_options.render);
 	vfs_arg = (vfs_arg || "").toUpperCase();
 
 	draw_progress(1.0);
 	ZetaNative().then(function(c) {
 		emu = c;
-		audio = ZetaAudio.createStreamBased(emu);
+		audio = ZetaAudio.createOscillatorBased();
 
 		var buffer = emu._malloc(vfs_arg.length + 1);
 		var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, vfs_arg.length + 1);
@@ -317,8 +317,6 @@ function speakerg_on(freq) {
 function speakerg_off() {
 	if (audio != undefined) audio.off();
 }
-
-canvas.contentEditable = true;
 
 /* var check_modifiers = function(event) {
 	if (event.shiftKey) emu._zzt_kmod_set(0x01); else emu._zzt_kmod_clear(0x01);
@@ -463,9 +461,13 @@ var attach_mouse_handler = function(o) {
 	});
 }
 
-function zzt_emu_create(options) {
-	// TODO: hook blink, charset override
-	render = ZetaRender.toCanvas(canvas, {});
+function zeta_emu_create(options) {
+	zeta_options = options;
+	canvas = options.render.canvas;
+	canvas.contentEditable = true;
+	ctx = canvas.getContext('2d', {alpha: false});
+	ctx.imageSmoothingEnabled = false;
+
 	attach_mouse_handler(canvas);
 
 	vfs_files = options.files;
@@ -485,4 +487,6 @@ function zzt_emu_create(options) {
 			}, vfs_on_loaded);
 		}
 	}
+
+	return {};
 }
