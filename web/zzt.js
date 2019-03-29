@@ -21,100 +21,20 @@ var canvas = document.getElementById('zzt_canvas');
 var ctx = canvas.getContext('2d', {alpha: false});
 ctx.imageSmoothingEnabled = false;
 
-var asciiImg = new Image();
-var asciiFg = [];
+var render = undefined;
 var emu = undefined;
-
-var palette = [
-	"#000000", "#0000AA", "#00AA00", "#00AAAA",
-	"#AA0000", "#AA00AA", "#AA5500", "#AAAAAA",
-	"#555555", "#5555FF", "#55FF55", "#55FFFF",
-	"#FF5555", "#FF55FF", "#FFFF55", "#FFFFFF"
-];
-
-var asciiFg = [];
-var chrBuf = [];
 
 var date_s = Date.now();
 var time_ms = function() { return Date.now() - date_s; }
-
-var video_blink = false;
-var video_mode = 3;
-var last_video_mode = 3;
-
-var drawChar = function(x, y, chr, col) {
-	if (video_mode != last_video_mode) {
-		chrBuf = [];
-		last_video_mode = video_mode;
-	}
-
-	var width = 16;
-	if ((video_mode & 0x02) == 2) {
-		width = 8;
-	}
-
-	x = x * width;
-	y = y * 14;
-
-	var buffered = chrBuf[y * 80 + x];
-	if (video_blink && col >= 0x80) {
-		col = col & 0x7F;
-
-		var t = vfsg_time_ms();
-		var blinkcount = (t % 466);
-		if (blinkcount >= 233) {
-			col = (col >> 4) * 0x11;
-		}
-	}
-
-	var bufcmp = (chr << 8) | col;
-
-	if (buffered == bufcmp) {
-		return;
-	} else {
-		chrBuf[y * 80 + x] = bufcmp;
-	}
-
-	var bg = (col >> 4) & 0x0F;
-	var fg = (col & 15);
-
-	var rw = width;
-	var rh = 14;
-
-	var pw = rw*80;
-	var ph = rh*25;
-	var cw = canvas.width;
-	var ch = canvas.height;
-
-	var scale = Math.min(Math.floor(cw / pw), Math.floor(ch / ph));
-	if (scale > 1) {
-		rw *= scale;
-		rh *= scale;
-		x = (x*scale) + ((cw - pw*scale) / 2);
-		y = (y*scale) + ((ch - ph*scale) / 2);
-	} else {
-		x += ((cw - pw) / 2);
-		y += ((ch - ph) / 2);
-	}
-
-	ctx.fillStyle = palette[bg];
-	ctx.fillRect(x, y, rw, rh);
-
-	if (bg != fg && chr != 0 && chr != 32) {
-		ctx.drawImage(asciiFg[fg], (chr & 15) * 8, ((chr & 240) >> 4) * 14, 8, 14, x, y, rw, rh);
-	}
-}
 
 var vfs_progress = {};
 var vfs = null;
 var handles = {};
 
-function zetag_update_charset(width, height, char_ptr) {
-	// TODO
-}
+var vfsg_time_ms_val = 0;
 
-function zetag_update_palette(palette_ptr) {
-	// TODO
+function vfsg_time_ms() {
+	return vfsg_time_ms_val;
 }
 
 function vfsg_has_feature(id) {
@@ -271,32 +191,27 @@ var queuedFrame = false;
 var zzt_frame = function() {
 	poll_gamepads();
 
-	video_mode = emu._zzt_video_mode();
 	var ptr = emu._zzt_get_ram();
 	var heap = new Uint8Array(emu.HEAPU8.buffer, ptr + 0xB8000, 80*25*2);
-	var width = 40;
-	var pos = 0;
-	if ((video_mode & 0x02) == 2) width = 80;
 
-	for (var y = 0; y < 25; y++) {
-		for (var x = 0; x < width; x++, pos+=2) {
-			drawChar(x, y, heap[pos], heap[pos+1]);
-		}
-	}
+	render.render(heap, emu._zzt_video_mode(), vfsg_time_ms());
 
 	emu._zzt_mark_frame();
 	queuedFrame = false;
 }
 
-var last_timer_time = 0;
-var timer_dur = 1000 / 18.2;
-
-var vfsg_time_ms_val = 0;
-
-function vfsg_time_ms() {
-	return vfsg_time_ms_val;
+function zetag_update_charset(width, height, char_ptr) {
+	var data = new Uint8Array(emu.HEAPU8.buffer, char_ptr, 256 * height);
+	render.setCharset(width, height, data);
 }
 
+function zetag_update_palette(palette_ptr) {
+	var data = new Uint32Array(emu.HEAPU32.buffer, palette_ptr, 16);
+	render.setPalette(data);
+}
+
+var last_timer_time = 0;
+var timer_dur = 1000 / 18.2;
 var opcodes = 1000;
 
 var zzt_tick = function() {
@@ -646,40 +561,25 @@ var attach_mouse_handler = function(o) {
 }
 
 function zzt_emu_create(options) {
-	asciiImg.src = options.charset_png || (options.path + "ascii.png");
-	asciiImg.onload = function() {
-		asciiFg[15] = asciiImg;
-		for (var i = 0; i < 15; i++) {
-			var charCanvas = document.createElement('canvas');
-			charCanvas.width = 128;
-			charCanvas.height = 224;
-			var charCtx = charCanvas.getContext('2d');
-			charCtx.globalCompositeOperation = 'copy';
-			charCtx.drawImage(asciiImg, 0, 0);
-			charCtx.globalCompositeOperation = 'source-in';
-			charCtx.fillStyle = palette[i];
-			charCtx.fillRect(0, 0, 128, 224);
-			asciiFg[i] = charCanvas;
+	// TODO: hook blink, charset override
+	render = AsciiRender.toCanvas(canvas, {});
+	attach_mouse_handler(canvas);
+
+	vfs_files = options.files;
+	vfs_arg = options.arg;
+
+	for (var s in vfs_files) {
+		vfs_progress[s] = 0;
+		if (Array.isArray(vfs_files[s])) {
+			VFS.fromZip(vfs_files[s][0], vfs_files[s][1], function(p) {
+				vfs_progress[s] = p;
+				draw_vfs_progress();
+			}, vfs_on_loaded);
+		} else {
+			VFS.fromZip(vfs_files[s], null, function(p) {
+				vfs_progress[s] = p;
+				draw_vfs_progress();
+			}, vfs_on_loaded);
 		}
-
-		attach_mouse_handler(canvas);
-
-		vfs_files = options.files;
-		vfs_arg = options.arg;
-
-		for (var s in vfs_files) {
-			vfs_progress[s] = 0;
-			if (Array.isArray(vfs_files[s])) {
-				VFS.fromZip(vfs_files[s][0], vfs_files[s][1], function(p) {
-					vfs_progress[s] = p;
-					draw_vfs_progress();
-				}, vfs_on_loaded);
-			} else {
-				VFS.fromZip(vfs_files[s], null, function(p) {
-					vfs_progress[s] = p;
-					draw_vfs_progress();
-				}, vfs_on_loaded);
-			}
-		}
-	};
+	}
 }
