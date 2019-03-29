@@ -1,5 +1,5 @@
 /*!
- * Copyright (c) 2018 Adrian Siekierka
+ * Copyright (c) 2018, 2019 Adrian Siekierka
  *
  * This file is part of Zeta.
  *
@@ -17,8 +17,8 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-AsciiRender = {};
-AsciiRender.toCanvas = function(canvas, options) {
+ZetaRender = {};
+ZetaRender.toCanvas = function(canvas, options) {
 	var blink_duration = (options && options.blink_duration) || 466;
 
 	var ctx = canvas.getContext('2d', {alpha: false});

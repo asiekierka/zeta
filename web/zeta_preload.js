@@ -1,5 +1,5 @@
 /*!
- * Copyright (c) 2018 Adrian Siekierka
+ * Copyright (c) 2018, 2019 Adrian Siekierka
  *
  * This file is part of Zeta.
  *
@@ -52,10 +52,8 @@ function zzt_emu_load(path, options) {
 	imgload.src = path+"loading.png";
 	scripts_array = [
 		path+"uzip.min.js",
-		path+"zeta86.js",
-		path+"vfs.js",
-		path+"zzt_kbdmap.js",
-		path+"zzt.js"
+		path+"zeta_native.js",
+		path+"zeta.min.js"
 	];
 	script_ldr();
 }

@@ -1,5 +1,5 @@
 /*!
- * Copyright (c) 2018 Adrian Siekierka
+ * Copyright (c) 2018, 2019 Adrian Siekierka
  *
  * This file is part of Zeta.
  *
@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-zzt_kbdmap = {
+ZetaKbdmap = {
 	ArrowUp: 0x48,
 	ArrowLeft: 0x4B,
 	ArrowRight: 0x4D,
@@ -50,7 +50,7 @@ zzt_kbdmap = {
 (function() {
 	var addCharsInOrder = function(c, off) {
 		for(var i = 0; i < c.length; i++) {
-			zzt_kbdmap[c.charAt(i)]=off + i;
+			ZetaKbdmap[c.charAt(i)]=off + i;
 		}
 	}
 
@@ -63,6 +63,6 @@ zzt_kbdmap = {
 	addCharsInOrder("ZXCVBNM<>?", 44);
 
 	for (var i = 1; i <= 10; i++) {
-		zzt_kbdmap["F" + i] = 0x3A + i;
+		ZetaKbdmap["F" + i] = 0x3A + i;
 	}
 })();

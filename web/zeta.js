@@ -1,5 +1,5 @@
 /*!
- * Copyright (c) 2018 Adrian Siekierka
+ * Copyright (c) 2018, 2019 Adrian Siekierka
  *
  * This file is part of Zeta.
  *
@@ -21,8 +21,7 @@ var canvas = document.getElementById('zzt_canvas');
 var ctx = canvas.getContext('2d', {alpha: false});
 ctx.imageSmoothingEnabled = false;
 
-var render = undefined;
-var emu = undefined;
+var audio, emu, render;
 
 var date_s = Date.now();
 var time_ms = function() { return Date.now() - date_s; }
@@ -258,7 +257,7 @@ window.addEventListener("message", function(event) {
 var vfs_arg = null;
 
 var vfs_done = function() {
-	vfs = VFS.fromProviders(vfs_providers);
+	vfs = ZetaVfs.fromProviders(vfs_providers);
 
 	if (vfs_arg == null || vfs_arg == "") {
 		if (vfs.contains("ZZT.EXE") && !vfs.contains("TOWN.ZZT")) {
@@ -279,8 +278,9 @@ var vfs_done = function() {
 	vfs_arg = (vfs_arg || "").toUpperCase();
 
 	draw_progress(1.0);
-	Zeta().then(function(c) {
+	ZetaNative().then(function(c) {
 		emu = c;
+		audio = ZetaAudio.createStreamBased(emu);
 
 		var buffer = emu._malloc(vfs_arg.length + 1);
 		var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, vfs_arg.length + 1);
@@ -305,111 +305,17 @@ var vfs_done = function() {
 	});
 }
 
-var audioCtx = undefined;
-var pc_speaker = undefined;
-
-var initAudioCtx = function() {
-	if (emu == undefined) return;
-
-	audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
-/*	pc_speaker = audioCtx.createScriptProcessor();
-
-	var bufferSize = pc_speaker.bufferSize;
-	var buffer = emu._malloc(bufferSize);
-	var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, bufferSize);
-
-	emu._audio_stream_init(time_ms(), Math.floor(audioCtx.sampleRate));
-	emu._audio_stream_set_volume(Math.floor(0.2 * emu._audio_stream_get_max_volume()));
-
-	pc_speaker.onaudioprocess = function(event) {
-		var out = event.outputBuffer.getChannelData(0);
-		emu._audio_stream_generate_u8(time_ms() - (bufferSize * 1000 / audioCtx.sampleRate), buffer, bufferSize);
-		for (var i = 0; i < bufferSize; i++) {
-			out[i] = (heap[i] - 127) / 127.0;
-		}
-		console.log("audio " + bufferSize);
-	};
-
-	pc_speaker.connect(audioCtx.destination); */
-}
-
-/* function speakerg_on(freq) {
-	if (!document.hasFocus()) {
-		speakerg_off();
-		return;
-	}
-
-	if (audioCtx == undefined)
-		return;
-
-	emu._audio_stream_append_on(time_ms(), freq);
-}
-
-function speakerg_off() {
-	if (audioCtx == undefined)
-		return;
-
-	emu._audio_stream_append_off(time_ms());
-} */
-
-document.addEventListener('mousedown', function(event) {
-	if (audioCtx == undefined) {
-		initAudioCtx();
-	}
-});
-
-// var minDuration = 1;
-var lastCurrTime = 0;
-var lastTimeMs = 0;
-var timeSpeakerOn = 0;
-var audioGain = undefined;
-
 function speakerg_on(freq) {
 	if (!document.hasFocus()) {
 		speakerg_off();
 		return;
 	}
 
-	if (audioCtx == undefined)
-		return;
-
-	var cTime = audioCtx.currentTime;
-	if (cTime != lastCurrTime) {
-		lastCurrTime = cTime;
-		lastTimeMs = time_ms();
-	}
-
-	var lastADelay = (time_ms() - lastTimeMs) / 1000.0;
-
-//	console.log("pc speaker " + freq + " " + (audioCtx.currentTime + lastADelay));
-	if (pc_speaker == undefined) {
-		audioGain = audioCtx.createGain();
-		pc_speaker = audioCtx.createOscillator();
-		pc_speaker.type = 'square';
-		pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);
-		pc_speaker.connect(audioGain);
-		audioGain.connect(audioCtx.destination);
-		audioGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-		pc_speaker.start(0);
-	} else {
-		pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);
-	}
-	timeSpeakerOn = time_ms();
+	if (audio != undefined) audio.on(freq);
 }
 
 function speakerg_off() {
-	if (pc_speaker == undefined)
-		return;
-
-	var cTime = audioCtx.currentTime;
-	if (cTime != lastCurrTime) {
-		lastCurrTime = cTime;
-		lastTimeMs = time_ms();
-	}
-
-	var lastADelay = (time_ms() - lastTimeMs) / 1000.0;
-//	console.log("pc speaker off " + (audioCtx.currentTime + lastADelay));
-	pc_speaker.frequency.setValueAtTime(0, audioCtx.currentTime + lastADelay);
+	if (audio != undefined) audio.off();
 }
 
 canvas.contentEditable = true;
@@ -424,9 +330,6 @@ document.addEventListener('keydown', function(event) {
 	if (event.target != canvas) return false;
 	var ret = false;
 
-	if (audioCtx == undefined)
-		initAudioCtx();
-
 //	check_modifiers(event);
 
 	if (event.key == "Shift") emu._zzt_kmod_set(0x01);
@@ -435,7 +338,7 @@ document.addEventListener('keydown', function(event) {
 	else ret = false;
 
 	var chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (event.keyCode < 32 ? event.keyCode : 0);
-	var key = zzt_kbdmap[event.key] || 0;
+	var key = ZetaKbdmap[event.key] || 0;
 	if (key >= 0x46 && key <= 0x53) chr = 0;
 	if (chr > 0 || key > 0) {
 		emu._zzt_key(chr, key);
@@ -459,7 +362,7 @@ document.addEventListener('keyup', function(event) {
 	else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_clear(0x08);
 	else ret = false;
 
-	var key = zzt_kbdmap[event.key] || 0;
+	var key = ZetaKbdmap[event.key] || 0;
 	if (key > 0) {
 		emu._zzt_keyup(key);
 		ret = true;
@@ -562,7 +465,7 @@ var attach_mouse_handler = function(o) {
 
 function zzt_emu_create(options) {
 	// TODO: hook blink, charset override
-	render = AsciiRender.toCanvas(canvas, {});
+	render = ZetaRender.toCanvas(canvas, {});
 	attach_mouse_handler(canvas);
 
 	vfs_files = options.files;
@@ -571,12 +474,12 @@ function zzt_emu_create(options) {
 	for (var s in vfs_files) {
 		vfs_progress[s] = 0;
 		if (Array.isArray(vfs_files[s])) {
-			VFS.fromZip(vfs_files[s][0], vfs_files[s][1], function(p) {
+			ZetaVfs.fromZip(vfs_files[s][0], vfs_files[s][1], function(p) {
 				vfs_progress[s] = p;
 				draw_vfs_progress();
 			}, vfs_on_loaded);
 		} else {
-			VFS.fromZip(vfs_files[s], null, function(p) {
+			ZetaVfs.fromZip(vfs_files[s], null, function(p) {
 				vfs_progress[s] = p;
 				draw_vfs_progress();
 			}, vfs_on_loaded);

@@ -1,5 +1,5 @@
 /*!
- * Copyright (c) 2018 Adrian Siekierka
+ * Copyright (c) 2018, 2019 Adrian Siekierka
  *
  * This file is part of Zeta.
  *
@@ -17,9 +17,9 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-var VFS = {};
+var ZetaVfs = {};
 
-VFS.fromMap = function(inMap, options) {
+ZetaVfs.fromMap = function(inMap, options) {
 	var map = {};
 	for (var key in inMap) {
 		map[key.toUpperCase()] = inMap[key];
@@ -56,7 +56,7 @@ VFS.fromMap = function(inMap, options) {
 	};
 }
 
-VFS.fromZip = function(url, filenameFilter, progressCallback, finishCallback) {
+ZetaVfs.fromZip = function(url, filenameFilter, progressCallback, finishCallback) {
 	var xhr = new XMLHttpRequest();
 	xhr.open("GET", url, true);
 	xhr.responseType = "arraybuffer";
@@ -76,13 +76,13 @@ VFS.fromZip = function(url, filenameFilter, progressCallback, finishCallback) {
 				fileMap[key] = files[key];
 			}
 		}
-		finishCallback(VFS.fromMap(fileMap));
+		finishCallback(ZetaVfs.fromMap(fileMap));
 	};
 
 	xhr.send();
 }
 
-VFS.fromProviders = function(providers) {
+ZetaVfs.fromProviders = function(providers) {
 	return {
 		readonly: function() {
 			for (var p in providers) {
