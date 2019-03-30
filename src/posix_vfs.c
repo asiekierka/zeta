@@ -111,8 +111,6 @@ void init_posix_vfs(const char* path) {
 }
 
 int vfs_open(const char* filename, int mode) {
-	char fnbuf[MAX_FNLEN + 1];
-
 	int len = strlen(filename);
 	if (len > (MAX_FNLEN - vfs_fnprefsize)) {
 		return -1;
@@ -122,18 +120,16 @@ int vfs_open(const char* filename, int mode) {
 	while (pos < MAX_FILES && file_pointers[pos] != NULL) pos++;
 	if (pos == MAX_FILES) return -1;
 
-	strncpy(fnbuf, filename, MAX_FNLEN);
-	vfs_fix_case(fnbuf);
-
-	for (int i = 0; i < strlen(fnbuf); i++) {
-		char c = fnbuf[i];
-		if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
-		vfs_fnbuf[i+vfs_fnprefsize] = c;
+	strncpy(vfs_fnbuf + vfs_fnprefsize, filename, MAX_FNLEN);
+	if (vfs_fnprefsize == 0) {
+		vfs_fix_case(vfs_fnbuf + vfs_fnprefsize);
 	}
-	vfs_fnbuf[len+vfs_fnprefsize] = 0;
 
 	FILE* file = fopen(vfs_fnbuf, (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b"));
-	if (file == NULL) return -1;
+	if (file == NULL) {
+//		fprintf(stderr, "failed to open %s\n", vfs_fnbuf);
+		return -1;
+	}
 	file_pointers[pos] = file;
 	return pos+1;
 }
