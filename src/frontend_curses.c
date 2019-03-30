@@ -17,31 +17,49 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 2
+#include <unistd.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ncurses.h>
+#include <locale.h>
+
 #include "zzt.h"
 #include "posix_vfs.h"
 
+#include <ncurses.h>
+
+static int video_blink;
+
 long zeta_time_ms() {
-	clock_t c = clock();
-	return c / (CLOCKS_PER_SEC/1000);
+	struct timespec spec;
+
+	clock_gettime(CLOCK_REALTIME, &spec);
+	return ((long) spec.tv_sec * 1000) + (long) (spec.tv_nsec / 1000000);
 }
 
 void cpu_ext_log(const char* s) {
-	fprintf(stderr, "%s\n", s);
+//	fprintf(stderr, "%s\n", s);
 }
 
 void speaker_on(double freq) {}
 void speaker_off() {}
 
-static int map_char_to_key[512];
 static WINDOW* window;
+
+#include "frontend_curses_tables.c"
 
 int zeta_has_feature(int feature) {
 	return 1;
+}
+
+void zeta_update_charset(int width, int height, u8* data) {
+}
+
+void zeta_update_palette(u32* data) {
 }
 
 static void platform_kbd_tick() {
@@ -51,59 +69,33 @@ static void platform_kbd_tick() {
 	if (c == 0 || map_char_to_key[c] != 0) {
 		int k = map_char_to_key[c];
 		zzt_key(c, k);
+		zzt_keyup(k);
 	}
 }
 
-static void init_map_char_to_key() {
-	map_char_to_key[258] = 0x50; // down
-	map_char_to_key[260] = 0x4B; // left
-	map_char_to_key[259] = 0x48; // up
-	map_char_to_key[261] = 0x4D; // right
-	map_char_to_key[13] = 0x1C; // enter
-	map_char_to_key[0] = 0;
-	map_char_to_key[0x1C] = 1; // esc
-	for (int i = 1; i <= 9; i++) map_char_to_key[i + 48] = i + 1;
-	char* chrs = "!@#$%^&*()";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = i + 1;
-	map_char_to_key[48] = 11; // numbers
-	map_char_to_key[45] = 12; // -
-	map_char_to_key[95] = 12; // _
-	map_char_to_key[61] = 13; // =
-	map_char_to_key[43] = 12; // +
-	map_char_to_key[8] = 14; // backspace
-	map_char_to_key[9] = 15; // tab
-	chrs = "qwertyuiop[]";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 15 + i;
-	chrs = "QWERTYUIOP{}";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 15 + i;
-	map_char_to_key[13] = 28; // enter
-	// 29?
-	chrs = "asdfghjkl;'";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 29 + i;
-	chrs = "ASDFGHJKL:\"";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 29 + i;
-	map_char_to_key[96] = 41; // `
-	map_char_to_key[126] = 41; // ~
-	// 42?
-	map_char_to_key[92] = 43;
-	map_char_to_key[124] = 43; // |
-	chrs = "zxcvbnm,./";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 43 + i;
-	chrs = "ZXCVBNM<>?";
-	for (int i = 0; i < strlen(chrs); i++) map_char_to_key[(int)chrs[i]] = 43 + i;
-	// 54?
-	map_char_to_key[42] = 55; // *
-	// 56?
-	map_char_to_key[32] = 57; // space
+#include "frontend_posix.c"
+
+static int nc_color_map[] = {
+	COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN,
+	COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE
+};
+
+static void init_ncurses_colors() {
+	for (int i = 0; i < 64; i++) {
+		init_pair(i+1, nc_color_map[i&7], nc_color_map[i>>3]);
+	}
 }
 
 int main(int argc, char** argv) {
-	init_posix_vfs("vfs/");
+	init_posix_vfs("");
 	init_map_char_to_key();
-	zzt_init();
-	int handle = vfs_open(argv[1]);
-	zzt_load_binary(handle, argc > 2 ? argv[2] : "");
-	vfs_close(handle);
+
+	if (posix_zzt_init(argc, argv) < 0) {
+		fprintf(stderr, "Could not load ZZT!\n");
+		return 1;
+	}
+
+	setlocale(LC_ALL, "");
 
 	window = initscr();
 	cbreak();
@@ -115,31 +107,58 @@ int main(int argc, char** argv) {
 	idlok(window, 1);
 	keypad(window, 1);
 
-	clock_t last = clock();
-	clock_t curr = last;
+	start_color();
+	init_ncurses_colors();
+/*	clock_t last = clock();
+	clock_t curr = last; */
 
-	while (zzt_execute(1600000)) {
-		// refresh screen
-		u8* ram = zzt_get_ram();
-		for (int y = 0; y < 25; y++) {
-			for (int x = 0; x < 80; x++) {
-				u8 chr = ram[TEXT_ADDR(x,y)];
-				if (chr == 2) chr = '@';
-				else if (chr == 0) chr = 32;
-				else if (chr < 32 || chr >= 128)
-					chr = '0' + (chr % 10);
-				mvwaddch(window, y, x, chr);
+	long timer_ms = zeta_time_ms();
+	long render_ms = timer_ms;
+
+	int rcode = 0;
+
+	while ((rcode = zzt_execute(64000)) > 0) {
+		long curr_ms = zeta_time_ms();
+
+		if ((curr_ms - render_ms) >= 10) {
+			// refresh screen
+			u8* ram = zzt_get_ram();
+			for (int y = 0; y < 25; y++) {
+				for (int x = 0; x < 80; x++) {
+					u8 chr = ram[TEXT_ADDR(x,y)];
+					u8 col = ram[TEXT_ADDR(x,y)+1];
+
+					int attr = COLOR_PAIR(1+((col & 7) | ((col & 0x70) >> 1) ));
+					if ((col & 0x08) != 0) attr |= A_BOLD;
+					wattrset(window, attr);
+					mvwaddstr(window, y, x, map_char_to_unicode[chr]);
+				}
 			}
+			render_ms = curr_ms;
 		}
+
 		wrefresh(window);
 		zzt_mark_frame();
 
-		curr = clock();
+/*		curr = clock();
 		float secs = (float) (curr - last) / CLOCKS_PER_SEC;
 		fprintf(stderr, "%.2f opc/sec\n", 1600000.0f / secs);
-		platform_kbd_tick();
-		last = curr;
+		last = curr; */
 
-		zzt_mark_timer();
+		if (rcode == 3) {
+			long sleep_time = 55 - (curr_ms - timer_ms);
+			if (sleep_time > 1) {
+				usleep(sleep_time * 1000);
+			}
+		}
+
+		if ((curr_ms - timer_ms) >= 55) {
+			zzt_mark_timer();
+			timer_ms = curr_ms;
+		}
+
+		platform_kbd_tick();
 	}
+
+	endwin();
 }
