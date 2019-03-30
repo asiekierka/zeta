@@ -36,6 +36,7 @@
 
 static FILE* file_pointers[MAX_FILES];
 static char vfs_fnbuf[MAX_FNLEN+1];
+static char vfs_fndir[MAX_FNLEN+1];
 static int vfs_fnprefsize;
 
 #ifdef NO_OPENDIR
@@ -53,7 +54,7 @@ static int vfs_find_filter(const struct dirent *entry) {
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
 	if (strncmp(spec, "*.", 2) == 0) {
 		vfs_findspec = spec + 1; // skip *
-		vfs_finddir = opendir(".");
+		vfs_finddir = opendir(vfs_fndir);
 		return vfs_findnext(ptr);
 	} else {
 		return -1;
@@ -83,7 +84,7 @@ static void vfs_fix_case(char *fn) {
 	DIR *dir;
 	struct dirent *entry;
 
-	dir = opendir(".");
+	dir = opendir(vfs_fndir);
 	while ((entry = readdir(dir)) != NULL) {
 		if (strcasecmp(fn, entry->d_name) == 0) {
 			strncpy(fn, entry->d_name, strlen(fn));
@@ -100,6 +101,12 @@ void init_posix_vfs(const char* path) {
 	vfs_fnprefsize = strlen(vfs_fnbuf);
 	for (int i = 0; i < MAX_FILES; i++) {
 		file_pointers[i] = NULL;
+	}
+
+	if (strlen(path) == 0) {
+		strcpy(vfs_fndir, ".");
+	} else {
+		strncpy(vfs_fndir, path, MAX_FNLEN);
 	}
 }
 
@@ -125,7 +132,7 @@ int vfs_open(const char* filename, int mode) {
 	}
 	vfs_fnbuf[len+vfs_fnprefsize] = 0;
 
-	FILE* file = fopen(fnbuf, (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b"));
+	FILE* file = fopen(vfs_fnbuf, (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b"));
 	if (file == NULL) return -1;
 	file_pointers[pos] = file;
 	return pos+1;
