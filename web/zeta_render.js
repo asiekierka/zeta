@@ -41,6 +41,17 @@ ZetaRender.toCanvas = function(canvas, options) {
 	var palette = null;
 	var rdDirty = false;
 
+	var charset_override_enabled = (options && options.charset_override) || false;
+	var charset_override = null;
+	if (charset_override_enabled) {
+		var coImg = new Image();
+		coImg.src = options.charset_override;
+		coImg.onload = function() {
+			charset_override = coImg;
+			rdDirty = true;
+		};
+	}
+
 	var updVideoMode = function(val) {
 		if (val != video_mode) {
 			chrBuf = [];
@@ -108,12 +119,19 @@ ZetaRender.toCanvas = function(canvas, options) {
 	}
 
 	var updRenderData = function() {
-		if (charset == null || palette == null) {
+		if (palette == null) {
 			return;
 		}
 
-		asciiFg = [];
 		var srcImg = null;
+		if (charset_override_enabled) {
+			if (charset_override == null) return;
+			else srcImg = charset_override;
+		} else {
+			if (charset == null) return;
+		}
+
+		asciiFg = [];
 
 		if (srcImg == null) {
 			var charCanvas = document.createElement('canvas');
