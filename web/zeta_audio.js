@@ -88,8 +88,69 @@ ZetaAudio = {};
 		};
 	};
 
-	// TODO: Rewrite to use a timeout + BufferSourceNode; ScriptProcessorNode is "abandoned"
-	ZetaAudio.createStreamBased = function(emu) {
+	ZetaAudio.createBufferBased = function(emu, options) {
+		var pc_speaker = undefined;
+		var emu = emu;
+		var sampleRate = (options && options.sampleRate) || 48000;
+		var bufferSize = (options && options.bufferSize) || 4096;
+
+		var init_speaker = function() {
+			pc_speaker = audioCtx.createBufferSource();
+			var buffer = audioCtx.createBuffer(1, bufferSize * 2, sampleRate);
+			pc_speaker.buffer = buffer;
+			pc_speaker.connect(audioCtx.destination);
+
+			var nativeBuffer = emu._malloc(bufferSize);
+			var nativeHeap = new Uint8Array(emu.HEAPU8.buffer, nativeBuffer, bufferSize);
+
+			emu._audio_stream_init(time_ms(), sampleRate);
+			emu._audio_stream_set_volume(Math.floor(0.2 * emu._audio_stream_get_max_volume()));
+			var startedAt = 0;
+			var startedAtMs = 0;
+			var lastTime = 0;
+
+			var write = function(offset) {
+				var out = buffer.getChannelData(0);
+				var sm = Math.min(time_ms(), ((audioCtx.currentTime - startedAt) * 1000) + startedAtMs);
+				emu._audio_stream_generate_u8(sm, nativeBuffer, bufferSize);
+				for (var i = 0; i < bufferSize; i++) {
+					out[offset + i] = (nativeHeap[i] - 127) / 127.0;
+				}
+			}
+
+			var tick = function() {
+				var ltPos = Math.floor( (lastTime / (bufferSize / sampleRate)) % 2 );
+				var ctPos = Math.floor( (audioCtx.currentTime / (bufferSize / sampleRate)) % 2 );
+				if (ltPos != ctPos) {
+					write(ltPos * bufferSize);
+				}
+				lastTime = audioCtx.currentTime;
+			};
+
+			pc_speaker.loop = true;
+			startedAt = audioCtx.currentTime;
+			startedAtMs = time_ms();
+			pc_speaker.start();
+			lastTime = startedAt - 0.001;
+
+			tick();
+			setInterval(tick, (bufferSize / sampleRate) * (1000.0 / 2));
+		};
+
+		return {
+			on: function(freq) {
+				if (audioCtx == undefined) return;
+				if (pc_speaker == undefined) init_speaker();
+				emu._audio_stream_append_on(time_ms(), freq);
+			},
+			off: function() {
+				if (pc_speaker == undefined) return;
+				emu._audio_stream_append_off(time_ms());
+			}
+		};
+	};
+
+/*	ZetaAudio.createScriptProcessorBased = function(emu) {
 		var pc_speaker = undefined;
 		var emu = emu;
 
@@ -126,5 +187,6 @@ ZetaAudio = {};
 				emu._audio_stream_append_off(time_ms());
 			}
 		};
-	};
+	}; */
+
 })();

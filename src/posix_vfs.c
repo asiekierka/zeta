@@ -32,11 +32,6 @@
 #include <strings.h>
 #endif
 
-long vfs_time_ms() {
-	clock_t c = clock();
-	return c / (CLOCKS_PER_SEC/1000);
-}
-
 #define MAX_FNLEN 259
 
 static FILE* file_pointers[MAX_FILES];
