@@ -32,6 +32,7 @@
 #include "zzt.h"
 #include "audio_stream.h"
 #include "posix_vfs.h"
+#include "screenshot_render.h"
 
 static const u8 sdl_to_pc_scancode[] = {
 /*  0*/	0,
@@ -610,6 +611,46 @@ int main(int argc, char **argv) {
 							SDL_SetRelativeMouseMode(0);
 							break;
 						}
+					}
+					if (event.key.keysym.sym == SDLK_F12) {
+						int i = -1;
+						FILE *file;
+						char filename[24];
+
+						int sflags = 0;
+						int swidth = (zzt_video_mode() & 2) ? 80 : 40;
+
+						if (charset_update_data == NULL || palette_update_data == NULL) {
+							break;
+						}
+
+						if (!video_blink) sflags |= SCREENSHOT_BLINK_OFF;
+						else if ((zeta_time_ms() % 466) >= 233) sflags |= SCREENSHOT_BLINK_PHASE;
+
+						while ((++i) <= 9999) {
+							snprintf(filename, 23, "screen%d.bmp", i);
+							file = fopen(filename, "rb");
+							if (!file) {
+								file = fopen(filename, "wb");
+								if (write_screenshot(
+									file, SCREENSHOT_TYPE_BMP,
+									swidth, sflags,
+									zzt_get_ram(), charset_update_data,
+									8, charset_char_height,
+									palette_update_data
+								) < 0) {
+									fprintf(stderr, "Could not write screenshot!\n");
+								}
+								break;
+							} else {
+								fclose(file);
+							}
+						}
+
+						if (i > 9999) {
+							fprintf(stderr, "Could not take screenshot!\n");
+						}
+						break;
 					}
 					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
 						// Alt+ENTER
