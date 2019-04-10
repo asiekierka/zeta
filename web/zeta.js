@@ -280,8 +280,8 @@ var vfs_done = function() {
 	draw_progress(1.0);
 	ZetaNative().then(function(c) {
 		emu = c;
-//		audio = ZetaAudio.createOscillatorBased();
-		audio = ZetaAudio.createBufferBased(emu);
+		audio = ZetaAudio.createOscillatorBased();
+//		audio = ZetaAudio.createBufferBased(emu);
 
 		var buffer = emu._malloc(vfs_arg.length + 1);
 		var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, vfs_arg.length + 1);

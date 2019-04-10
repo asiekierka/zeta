@@ -85,33 +85,32 @@ ZetaVfs.fromZip = function(url, filenameFilter, progressCallback, finishCallback
 ZetaVfs.fromProviders = function(providers) {
 	return {
 		readonly: function() {
-			for (var p in providers) {
+			for (var p = 0; p < providers.length; p++) {
 				if (providers[p].readonly()) return true;
 			}
 			return false;
 		},
 		contains: function(key) {
-			for (var p in providers) {
+			for (var p = 0; p < providers.length; p++) {
 				if (providers[p].contains(key)) return true;
 			}
 			return false;
 		},
 		get: function(key) {
-			for (var p in providers) {
+			for (var p = providers.length - 1; p >= 0; p--) {
 				if (providers[p].contains(key)) return providers[p].get(key);
 			}
 			return null;
 		},
 		list: function(filter) {
 			var data = [];
-			for (var p in providers) {
+			for (var p = 0; p < providers.length; p++) {
 				data = data.concat(providers[p].list(filter));
 			}
 			return data.sort();
 		},
 		set: function(key, value) {
-			for (var i = providers.length - i; i >= 0; i--) {
-				var p = providers[i];
+			for (var p = providers.length - 1; p >= 0; p--) {
 				if (providers[p].set(key, value)) return true;
 			}
 			return false;
