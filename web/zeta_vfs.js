@@ -49,7 +49,7 @@ ZetaVfs.fromMap = function(inMap, options) {
 			return a;
 		},
 		set: function(key, value) {
-			if (!readOnly) return false;
+			if (readOnly) return false;
 			map[key.toUpperCase()] = value;
 			return true;
 		}

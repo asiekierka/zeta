@@ -60,7 +60,7 @@ function vfsg_open(fn, mode) {
 	console.log("opening " + fn);
 	var i = 1;
 	while (i in handles) i++;
-	handles[i] = {name: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
+	handles[i] = {fn: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
 
 	return i;
 }
