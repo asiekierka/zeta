@@ -32,7 +32,7 @@
 #include "zzt.h"
 #include "audio_stream.h"
 #include "posix_vfs.h"
-#include "screenshot_render.h"
+#include "screenshot_writer.h"
 
 static const u8 sdl_to_pc_scancode[] = {
 /*  0*/	0,
@@ -624,8 +624,8 @@ int main(int argc, char **argv) {
 							break;
 						}
 
-						if (!video_blink) sflags |= SCREENSHOT_BLINK_OFF;
-						else if ((zeta_time_ms() % 466) >= 233) sflags |= SCREENSHOT_BLINK_PHASE;
+						if (!video_blink) sflags |= RENDER_BLINK_OFF;
+						else if ((zeta_time_ms() % 466) >= 233) sflags |= RENDER_BLINK_PHASE;
 
 						while ((++i) <= 9999) {
 							snprintf(filename, 23, "screen%d.bmp", i);

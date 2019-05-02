@@ -19,77 +19,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "screenshot_render.h"
+#include "screenshot_writer.h"
 
 #define POS_MUL (scr_width <= 40 ? 2 : 1)
-
-static void render_screenshot_rgb(u32 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
-	int pos_mul = POS_MUL;
-	int pos = 0;
-
-	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < scr_width; x++, pos += 2) {
-			u8 chr = ram[0xB8000 + pos];
-			u8 col = ram[0xB8000 + pos + 1];
-
-			if (col >= 0x80 && !(flags & SCREENSHOT_BLINK_OFF)) {
-				col &= 0x7F;
-				if (flags & SCREENSHOT_BLINK_PHASE) {
-					col = (col >> 4) * 0x11;
-				}
-			}
-
-			u8 bg = col >> 4;
-			u8 fg = col & 0xF;
-			u8 *co = charset + (chr * char_height);
-
-			for (int cy = 0; cy < char_height; cy++, co++) {
-				int line = *co;
-				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * (scr_width * char_width * pos_mul)) + (x * char_width * pos_mul);
-					buffer[bpos] = palette[(line & 0x80) ? fg : bg];
-					if (pos_mul == 2) {
-						buffer[bpos+1] = palette[(line & 0x80) ? fg : bg];
-					}
-				}
-			}
-		}
-	}
-}
-
-static void render_screenshot_paletted(u8 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height) {
-	int pos_mul = POS_MUL;
-	int pos = 0;
-
-	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < scr_width; x++, pos += 2) {
-			u8 chr = ram[0xB8000 + pos];
-			u8 col = ram[0xB8000 + pos + 1];
-
-			if (col >= 0x80 && !(flags & SCREENSHOT_BLINK_OFF)) {
-				col &= 0x7F;
-				if (flags & SCREENSHOT_BLINK_PHASE) {
-					col = (col >> 4) * 0x11;
-				}
-			}
-
-			u8 bg = col >> 4;
-			u8 fg = col & 0xF;
-			u8 *co = charset + (chr * char_height);
-
-			for (int cy = 0; cy < char_height; cy++, co++) {
-				int line = *co;
-				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * (scr_width * char_width * pos_mul)) + ((x * char_width + cx) * pos_mul);
-					buffer[bpos] = (line & 0x80) ? fg : bg;
-					if (pos_mul == 2) {
-						buffer[bpos+1] = (line & 0x80) ? fg : bg;
-					}
-				}
-			}
-		}
-	}
-}
 
 static void fput16le(FILE *output, int i) {
 	fputc((i & 0xFF), output);
@@ -158,9 +90,9 @@ int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, 
 	}
 
 	if (paletted) {
-		render_screenshot_paletted(buffer, scr_width, flags, ram, charset, char_width, char_height);
+		render_software_paletted(buffer, scr_width, flags, ram, charset, char_width, char_height);
 	} else {
-		render_screenshot_rgb(buffer, scr_width, flags, ram, charset, char_width, char_height, palette);
+		render_software_rgb(buffer, scr_width, flags, ram, charset, char_width, char_height, palette);
 	}
 
 	int result;
