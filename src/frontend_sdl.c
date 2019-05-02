@@ -17,7 +17,9 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef NO_GETOPT
+#include "config.h"
+
+#ifdef USE_GETOPT
 #define _POSIX_C_SOURCE 2
 #include <unistd.h>
 #endif
@@ -28,11 +30,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <SDL2/SDL.h>
+#ifdef USE_OPENGL
 #include <SDL2/SDL_opengl.h>
+#endif
 #include "zzt.h"
 #include "audio_stream.h"
 #include "posix_vfs.h"
+#include "render_software.h"
+#ifdef ENABLE_SCREENSHOTS
 #include "screenshot_writer.h"
+#endif
 
 static const u8 sdl_to_pc_scancode[] = {
 /*  0*/	0,
@@ -198,6 +205,35 @@ static void update_keymod(SDL_Keymod keymod) {
 	if (KEYMOD_ALT(keymod)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
 }
 
+static char as_shifted(char kcode) {
+	if (kcode >= 'a' && kcode <= 'z') {
+		return kcode - 32;
+	} else switch(kcode) {
+		case '1': return '!';
+		case '2': return '@';
+		case '3': return '#';
+		case '4': return '$';
+		case '5': return '%';
+		case '6': return '^';
+		case '7': return '&';
+		case '8': return '*';
+		case '9': return '(';
+		case '0': return ')';
+		case '-': return '_';
+		case '=': return '+';
+		case '[': return '{';
+		case ']': return '}';
+		case ';': return ':';
+		case '\'': return '"';
+		case '\\': return '|';
+		case ',': return '<';
+		case '.': return '>';
+		case '/': return '?';
+		case '`': return '~';
+		default: return kcode;
+	}
+}
+
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static int charw, charh;
@@ -207,8 +243,10 @@ static SDL_Texture *playfieldtex = NULL;
 static u32 software_palette[16];
 
 // used in OpenGL mode
+#ifdef USE_OPENGL
 static SDL_Texture *chartex = NULL;
 static SDL_GLContext gl_context;
+#endif
 
 // used for marking render data updates
 static SDL_mutex *render_data_update_mutex;
@@ -220,6 +258,7 @@ static u8* charset_update_data = NULL;
 static int palette_update_requested = 0;
 static u32* palette_update_data = NULL;
 
+#ifdef USE_OPENGL
 static void prepare_render_opengl() {
 	int iw = 80*charw;
 	int ih = 25*charh;
@@ -331,35 +370,6 @@ static void deinit_opengl() {
 	}
 } */
 
-static char as_shifted(char kcode) {
-	if (kcode >= 'a' && kcode <= 'z') {
-		return kcode - 32;
-	} else switch(kcode) {
-		case '1': return '!';
-		case '2': return '@';
-		case '3': return '#';
-		case '4': return '$';
-		case '5': return '%';
-		case '6': return '^';
-		case '7': return '&';
-		case '8': return '*';
-		case '9': return '(';
-		case '0': return ')';
-		case '-': return '_';
-		case '=': return '+';
-		case '[': return '{';
-		case ']': return '}';
-		case ';': return ':';
-		case '\'': return '"';
-		case '\\': return '|';
-		case ',': return '<';
-		case '.': return '>';
-		case '/': return '?';
-		case '`': return '~';
-		default: return kcode;
-	}
-}
-
 static void render_opengl(long curr_time, int regen_visuals) {
 	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
 	float texw, texh;
@@ -429,6 +439,7 @@ static void render_opengl(long curr_time, int regen_visuals) {
 		SDL_GL_UnbindTexture(chartex);
 	}
 }
+#endif /* USE_OPENGL */
 
 static void render_software_copy(long curr_time) {
 	void *buffer;
@@ -519,6 +530,7 @@ int main(int argc, char **argv) {
 	charw = 8;
 	charh = 14;
 
+#ifdef USE_OPENGL
 	use_opengl = 1;
 	if (use_opengl) {
 		init_opengl();
@@ -539,9 +551,14 @@ int main(int argc, char **argv) {
 			SDL_GL_SetSwapInterval(1);
 		}
 	}
+#else
+	use_opengl = 0;
+#endif
 
 	if (!use_opengl) {
+#ifdef USE_OPENGL
 		fprintf(stderr, "Could not initialize OpenGL (%s), using software renderer...", SDL_GetError());
+#endif
 		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			80*charw, 25*charh, 0);
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
@@ -553,8 +570,13 @@ int main(int argc, char **argv) {
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
 	if (!use_opengl) {
-		int endian_test = 0xFF000000;
-		int pformat = ((((char*)&endian_test)[0]) != 0) ? SDL_PIXELFORMAT_ARGB32 : SDL_PIXELFORMAT_BGRA32;
+//		int endian_test = 0xFF000000;
+//		int pformat = ((((char*)&endian_test)[0]) != 0) ? SDL_PIXELFORMAT_ARGB32 : SDL_PIXELFORMAT_BGRA32;
+#ifdef BIG_ENDIAN
+		int pformat = SDL_PIXELFORMAT_ARGB32;
+#else
+		int pformat = SDL_PIXELFORMAT_BGRA32;
+#endif
 		playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
 	}
 
@@ -603,6 +625,7 @@ int main(int argc, char **argv) {
 							break;
 						}
 					}
+#ifdef ENABLE_SCREENSHOTS
 					if (event.key.keysym.sym == SDLK_F12) {
 						int i = -1;
 						FILE *file;
@@ -643,6 +666,7 @@ int main(int argc, char **argv) {
 						}
 						break;
 					}
+#endif
 					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
 						// Alt+ENTER
 						if (windowed) {
@@ -707,17 +731,21 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(render_data_update_mutex);
 
 		if (charset_update_requested) {
+#ifdef USE_OPENGL
 			if (use_opengl) {
 				if (chartex != NULL) SDL_DestroyTexture(chartex);
 				chartex = create_texture_from_array(renderer, SDL_TEXTUREACCESS_STATIC, charset_update_data, charset_char_height);
 				SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
 			}
+#endif
 			charset_update_requested = 0;
 		}
 
 		if (palette_update_requested) {
 			if (use_opengl) {
+#ifdef USE_OPENGL
 				update_opengl_colcache(palette_update_data);
+#endif
 			} else {
 				for (int i = 0; i < 16; i++) {
 					software_palette[i] = palette_update_data[i] | 0xFF000000;
@@ -730,8 +758,10 @@ int main(int argc, char **argv) {
 
 		curr_time = zeta_time_ms();
 		if (use_opengl) {
+#ifdef USE_OPENGL
 			render_opengl(curr_time, should_render);
 			SDL_GL_SwapWindow(window);
+#endif
 		} else {
 			render_software_copy(curr_time);
 			SDL_RenderPresent(renderer);
@@ -739,11 +769,14 @@ int main(int argc, char **argv) {
 	}
 
 	zzt_thread_running = 0;
+#ifdef USE_OPENGL
 	if (use_opengl) {
 		deinit_opengl();
 	}
 
 	if (chartex != NULL) SDL_DestroyTexture(chartex);
+#endif
+	if (playfieldtex != NULL) SDL_DestroyTexture(playfieldtex);
 	SDL_DestroyRenderer(renderer);
 	if (audio_device != 0) {
 		SDL_CloseAudioDevice(audio_device);

@@ -41,7 +41,7 @@ static int posix_zzt_init(int argc, char **argv) {
 	int c;
 	int skip_kc = 0;
 
-#ifndef NO_GETOPT
+#ifdef USE_GETOPT
 	while ((c = getopt(argc, argv, "be:ht")) >= 0) {
 		switch(c) {
 			case 'b':
@@ -71,12 +71,12 @@ static int posix_zzt_init(int argc, char **argv) {
 
 	zzt_init();
 
-#ifdef NO_GETOPT
-	if (argc > 1 && posix_vfs_exists(argv[1])) {
-		strncpy(arg_name, argv[1], 256);
-#else
+#ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {
 		strncpy(arg_name, argv[optind], 256);
+#else
+	if (argc > 1 && posix_vfs_exists(argv[1])) {
+		strncpy(arg_name, argv[1], 256);
 #endif
 	} else if (argc > 0) {
 		char *sl_ptr = strrchr(argv[0], '/');

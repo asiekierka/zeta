@@ -20,8 +20,19 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+// General configuration
+
 //#define BIG_ENDIAN
 #define UNALIGNED_OK
+
+// SDL port configuration
+
+#define ENABLE_SCREENSHOTS
+#define USE_GETOPT
+#define USE_OPENGL
+
+// Zeta-preconfigured CPU core settings - do not touch!
+
 #define MAX_INTQUEUE_SIZE 256
 
 // required for accurate Zeta joystick support
