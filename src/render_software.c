@@ -23,9 +23,13 @@
 
 #define POS_MUL (scr_width <= 40 ? 2 : 1)
 
-void render_software_rgb(u32 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
+void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
 	int pos_mul = POS_MUL;
 	int pos = 0;
+
+	if (row_length < 0) {
+		row_length = scr_width * char_width * pos_mul;
+	}
 
 	for (int y = 0; y < 25; y++) {
 		for (int x = 0; x < scr_width; x++, pos += 2) {
@@ -46,7 +50,7 @@ void render_software_rgb(u32 *buffer, int scr_width, int flags, u8 *ram, u8 *cha
 			for (int cy = 0; cy < char_height; cy++, co++) {
 				int line = *co;
 				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * (scr_width * char_width * pos_mul)) + (x * char_width * pos_mul);
+					int bpos = ((y * char_height + cy) * row_length) + ((x * char_width + cx) * pos_mul);
 					buffer[bpos] = palette[(line & 0x80) ? fg : bg];
 					if (pos_mul == 2) {
 						buffer[bpos+1] = palette[(line & 0x80) ? fg : bg];
@@ -57,9 +61,13 @@ void render_software_rgb(u32 *buffer, int scr_width, int flags, u8 *ram, u8 *cha
 	}
 }
 
-void render_software_paletted(u8 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height) {
+void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height) {
 	int pos_mul = POS_MUL;
 	int pos = 0;
+
+	if (row_length < 0) {
+		row_length = scr_width * char_width * pos_mul;
+	}
 
 	for (int y = 0; y < 25; y++) {
 		for (int x = 0; x < scr_width; x++, pos += 2) {
@@ -80,7 +88,7 @@ void render_software_paletted(u8 *buffer, int scr_width, int flags, u8 *ram, u8 
 			for (int cy = 0; cy < char_height; cy++, co++) {
 				int line = *co;
 				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * (scr_width * char_width * pos_mul)) + ((x * char_width + cx) * pos_mul);
+					int bpos = ((y * char_height + cy) * row_length) + ((x * char_width + cx) * pos_mul);
 					buffer[bpos] = (line & 0x80) ? fg : bg;
 					if (pos_mul == 2) {
 						buffer[bpos+1] = (line & 0x80) ? fg : bg;

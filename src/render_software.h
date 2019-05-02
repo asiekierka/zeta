@@ -26,8 +26,8 @@
 #define RENDER_BLINK_PHASE 2
 
 USER_FUNCTION
-void render_software_rgb(u32 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette);
+void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette);
 USER_FUNCTION
-void render_software_paletted(u8 *buffer, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height);
+void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height);
 
 #endif /* __RENDER_SOFTWARE_H__ */

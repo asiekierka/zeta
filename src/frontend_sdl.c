@@ -52,7 +52,7 @@ static const u8 sdl_to_pc_scancode[] = {
 
 static const int sdl_to_pc_scancode_max = sizeof(sdl_to_pc_scancode) - 1;
 
-static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, unsigned char *data, int height) {
+static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access, unsigned char *data, int height) {
 	SDL_Texture *texture;
 	SDL_Rect rect;
 	Uint32 texdata[8 * height];
@@ -63,7 +63,7 @@ static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, unsigned c
 	rect.h = height;
 	texture = SDL_CreateTexture(renderer,
 		SDL_PIXELFORMAT_RGBA32,
-		SDL_TEXTUREACCESS_STATIC,
+		access,
 		16*rect.w, 16*rect.h);
 
 	for (ch = 0; ch < 256; ch++) {
@@ -200,10 +200,17 @@ static void update_keymod(SDL_Keymod keymod) {
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
-static SDL_Texture *chartex = NULL;
-static SDL_GLContext gl_context;
 static int charw, charh;
 
+// used in software mode
+static SDL_Texture *playfieldtex = NULL;
+static u32 software_palette[16];
+
+// used in OpenGL mode
+static SDL_Texture *chartex = NULL;
+static SDL_GLContext gl_context;
+
+// used for marking render data updates
 static SDL_mutex *render_data_update_mutex;
 
 static int charset_update_requested = 0;
@@ -424,51 +431,29 @@ static void render_opengl(long curr_time, int regen_visuals) {
 }
 
 static void render_software_copy(long curr_time) {
-	SDL_Rect rectSrc, rectDst;
-	rectSrc.w = rectDst.w = charw;
-	rectSrc.h = rectDst.h = charh;
+	void *buffer;
+	int pitch;
 
-	if (palette_update_data == NULL) {
+	int swidth = (zzt_video_mode() & 2) ? 80 : 40;
+	int sflags = 0;
+
+	if (palette_update_data == NULL || charset_update_data == NULL) {
 		return;
 	}
 
-	int width = (zzt_video_mode() & 2) ? 80 : 40;
-	int vpos = 0;
-	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < width; x++, vpos += 2) {
-			u8 chr = zzt_vram_copy[vpos];
-			u8 col = zzt_vram_copy[vpos + 1];
-			rectSrc.x = (chr & 0xF)*charw;
-			rectSrc.y = (chr >> 4)*charh;
-			rectDst.x = x*charw;
-			rectDst.y = y*charh;
+	if (!video_blink) sflags |= RENDER_BLINK_OFF;
+	else if ((zeta_time_ms() % 466) >= 233) sflags |= RENDER_BLINK_PHASE;
 
-			if (video_blink && col >= 0x80) {
-				col &= 0x7f;
-				if ((curr_time % 466) >= 233) {
-					col = (col >> 4) * 0x11;
-				}
-			}
-
-			u8 render_fg = ((col >> 4) ^ (col & 0xF));
-
-			SDL_SetRenderDrawColor(renderer,
-				(palette_update_data[col >> 4] >> 16) & 0xFF,
-				(palette_update_data[col >> 4] >> 8) & 0xFF,
-				(palette_update_data[col >> 4] >> 0) & 0xFF,
-				255);
-
-			SDL_RenderFillRect(renderer, &rectDst);
-
-			if (render_fg && chartex != NULL) {
-				SDL_SetTextureColorMod(chartex,
-					(palette_update_data[col & 0xF] >> 16) & 0xFF,
-					(palette_update_data[col & 0xF] >> 8) & 0xFF,
-					(palette_update_data[col & 0xF] >> 0) & 0xFF);
-				SDL_RenderCopy(renderer, chartex, &rectSrc, &rectDst);
-			}
-		}
-	}
+	SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
+	render_software_rgb(
+		buffer,
+		swidth, pitch / 4, sflags,
+		zzt_get_ram(), charset_update_data,
+		8, charset_char_height,
+		palette_update_data
+	);
+	SDL_UnlockTexture(playfieldtex);
+	SDL_RenderCopy(renderer, playfieldtex, NULL, NULL);
 }
 
 void zeta_update_charset(int width, int height, u8* data) {
@@ -556,7 +541,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (!use_opengl) {
-		fprintf(stderr, "Could not initialize OpenGL (%s), using fallback renderer...", SDL_GetError());
+		fprintf(stderr, "Could not initialize OpenGL (%s), using software renderer...", SDL_GetError());
 		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			80*charw, 25*charh, 0);
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
@@ -566,6 +551,12 @@ int main(int argc, char **argv) {
 
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+
+	if (!use_opengl) {
+		int endian_test = 0xFF000000;
+		int pformat = ((((char*)&endian_test)[0]) != 0) ? SDL_PIXELFORMAT_ARGB32 : SDL_PIXELFORMAT_BGRA32;
+		playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
+	}
 
 	long curr_time;
 	u8 cont_loop = 1;
@@ -716,14 +707,22 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(render_data_update_mutex);
 
 		if (charset_update_requested) {
-			if (chartex != NULL) SDL_DestroyTexture(chartex);
-			chartex = create_texture_from_array(renderer, charset_update_data, charset_char_height);
-			SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+			if (use_opengl) {
+				if (chartex != NULL) SDL_DestroyTexture(chartex);
+				chartex = create_texture_from_array(renderer, SDL_TEXTUREACCESS_STATIC, charset_update_data, charset_char_height);
+				SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+			}
 			charset_update_requested = 0;
 		}
 
 		if (palette_update_requested) {
-			update_opengl_colcache(palette_update_data);
+			if (use_opengl) {
+				update_opengl_colcache(palette_update_data);
+			} else {
+				for (int i = 0; i < 16; i++) {
+					software_palette[i] = palette_update_data[i] | 0xFF000000;
+				}
+			}
 			palette_update_requested = 0;
 		}
 

@@ -90,9 +90,9 @@ int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, 
 	}
 
 	if (paletted) {
-		render_software_paletted(buffer, scr_width, flags, ram, charset, char_width, char_height);
+		render_software_paletted(buffer, scr_width, -1, flags, ram, charset, char_width, char_height);
 	} else {
-		render_software_rgb(buffer, scr_width, flags, ram, charset, char_width, char_height, palette);
+		render_software_rgb(buffer, scr_width, -1, flags, ram, charset, char_width, char_height, palette);
 	}
 
 	int result;
