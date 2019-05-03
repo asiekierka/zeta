@@ -31,7 +31,11 @@
 #include <string.h>
 #include <SDL2/SDL.h>
 #ifdef USE_OPENGL
+#ifdef USE_OPENGL_ES
+#include <SDL2/SDL_opengles.h>
+#else
 #include <SDL2/SDL_opengl.h>
+#endif
 #endif
 #include "zzt.h"
 #include "audio_stream.h"
@@ -258,26 +262,50 @@ static u8* charset_update_data = NULL;
 static int palette_update_requested = 0;
 static u32* palette_update_data = NULL;
 
-#ifdef USE_OPENGL
-static void prepare_render_opengl() {
+#define AREA_WITHOUT_SCALE 1
+
+static void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	int iw = 80*charw;
 	int ih = 25*charh;
-	int w, h;
-	SDL_GL_GetDrawableSize(window, &w, &h);
 
 	int scale = 1;
 	while (((scale+1)*iw <= w) && ((scale+1)*ih <= h)) scale++;
+	if (scale_out != NULL) *scale_out = scale;
 
 	w /= scale;
 	h /= scale;
 
-	int xdif = (w - iw) / 2;
-	int ydif = (h - ih) / 2;
+	if (flags & AREA_WITHOUT_SCALE) scale = 1;
 
-	glViewport(0, 0, w*scale, h*scale);
+	rect->x = ((w - iw) * scale) / 2;
+	rect->y = ((h - ih) * scale) / 2;
+	rect->w = iw * scale;
+	rect->h = ih * scale;
+}
+
+#ifdef USE_OPENGL
+/* static void oglguard() {
+	GLenum err;
+
+	while ((err = glGetError()) != GL_NO_ERROR) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "OpenGL error: %d", err);
+	}
+} */
+
+static void prepare_render_opengl() {
+	SDL_Rect rect;
+	int w, h, scale;
+	SDL_GL_GetDrawableSize(window, &w, &h);
+	calc_render_area(&rect, w, h, &scale, AREA_WITHOUT_SCALE);
+
+	glViewport(0, 0, scale * (rect.w + (rect.x * 2)), scale * (rect.h + (rect.y * 2)));
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(-xdif, w - xdif, h - ydif, -ydif, -1, 1);
+#ifdef USE_OPENGL_ES
+	glOrthof(-(rect.x), rect.w + (rect.x), rect.h + (rect.y), -(rect.y), -1, 1);
+#else
+	glOrtho(-(rect.x), rect.w + (rect.x), rect.h + (rect.y), -(rect.y), -1, 1);
+#endif
 	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
@@ -294,9 +322,16 @@ static float *ogl_buf_tex;
 static unsigned char *ogl_buf_colcache;
 static float *ogl_buf_texcache;
 
+#ifdef USE_OPENGL_ES
+#define GL_COMPONENT_POINTS 6
+#else
+#define GL_COMPONENT_POINTS 4
+#endif
+
 static void update_opengl_colcache(u32* pal) {
-	for (int i = 0; i < 16; i++) {
-		for (int bpos = i*16; bpos < (i+1)*16; bpos+=4) {
+	int size = GL_COMPONENT_POINTS * 4;
+	for (int i = 0; i < size; i++) {
+		for (int bpos = i*size; bpos < (i+1)*size; bpos+=4) {
 			ogl_buf_colcache[bpos] = (pal[i] >> 16) & 0xFF;
 			ogl_buf_colcache[bpos + 1] = (pal[i] >> 8) & 0xFF;
 			ogl_buf_colcache[bpos + 2] = (pal[i] >> 0) & 0xFF;
@@ -306,15 +341,16 @@ static void update_opengl_colcache(u32* pal) {
 }
 
 static void init_opengl() {
-	ogl_buf_pos = malloc((80 * 25) * 4 * 2 * sizeof(short));
-	ogl_buf_pos40 = malloc((40 * 25) * 4 * 2 * sizeof(short));
-	ogl_buf_col = malloc(2 * (80 * 25) * 4 * 4 * sizeof(char));
-	ogl_buf_tex = malloc((80 * 25) * 4 * 2 * sizeof(float));
-	ogl_buf_colcache = malloc(16 * 16 * sizeof(char));
-	ogl_buf_texcache = malloc(256 * 8 * sizeof(float));
+	ogl_buf_pos = malloc((80 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
+	ogl_buf_pos40 = malloc((40 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
+	ogl_buf_col = malloc(2 * (80 * 25) * GL_COMPONENT_POINTS * 4 * sizeof(char));
+	ogl_buf_tex = malloc((80 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(float));
+	ogl_buf_colcache = malloc(16 * 4 * GL_COMPONENT_POINTS * sizeof(char));
+	ogl_buf_texcache = malloc(256 * 2 * GL_COMPONENT_POINTS * sizeof(float));
 
-	memset(ogl_buf_colcache, 0, 16 * 16 * sizeof(char));
+	memset(ogl_buf_colcache, 0, 16 * 4 * GL_COMPONENT_POINTS * sizeof(char));
 
+#ifndef USE_OPENGL_ES
 	for (int tpos = 0; tpos < 256 * 8; tpos += 8) {
 		u8 chr = tpos >> 3;
 		ogl_buf_texcache[tpos] = GLTX(chr,0);
@@ -339,6 +375,7 @@ static void init_opengl() {
 		ogl_buf_pos[i * 8 + 6] = GLVX(x,80);
 		ogl_buf_pos[i * 8 + 7] = GLVY(y+1);
 	}
+
 	for (int i = 0; i < 1000; i++) {
 		int x = i % 40;
 		int y = i / 40;
@@ -351,6 +388,57 @@ static void init_opengl() {
 		ogl_buf_pos40[i * 8 + 6] = GLVX(x,40);
 		ogl_buf_pos40[i * 8 + 7] = GLVY(y+1);
 	}
+#else
+	for (int tpos = 0; tpos < 256 * 12; tpos += 12) {
+		u8 chr = tpos / 12;
+		ogl_buf_texcache[tpos] = GLTX(chr,0);
+		ogl_buf_texcache[tpos+1] = GLTY(chr,0);
+		ogl_buf_texcache[tpos+2] = GLTX(chr,1);
+		ogl_buf_texcache[tpos+3] = GLTY(chr,0);
+		ogl_buf_texcache[tpos+4] = GLTX(chr,1);
+		ogl_buf_texcache[tpos+5] = GLTY(chr,1);
+		ogl_buf_texcache[tpos+6] = GLTX(chr,0);
+		ogl_buf_texcache[tpos+7] = GLTY(chr,0);
+		ogl_buf_texcache[tpos+8] = GLTX(chr,1);
+		ogl_buf_texcache[tpos+9] = GLTY(chr,1);
+		ogl_buf_texcache[tpos+10] = GLTX(chr,0);
+		ogl_buf_texcache[tpos+11] = GLTY(chr,1);
+	}
+
+	for (int i = 0; i < 2000; i++) {
+		int x = i % 80;
+		int y = i / 80;
+		ogl_buf_pos[i * 12 + 0] = GLVX(x,80);
+		ogl_buf_pos[i * 12 + 1] = GLVY(y);
+		ogl_buf_pos[i * 12 + 2] = GLVX(x+1,80);
+		ogl_buf_pos[i * 12 + 3] = GLVY(y);
+		ogl_buf_pos[i * 12 + 4] = GLVX(x+1,80);
+		ogl_buf_pos[i * 12 + 5] = GLVY(y+1);
+		ogl_buf_pos[i * 12 + 6] = GLVX(x,80);
+		ogl_buf_pos[i * 12 + 7] = GLVY(y);
+		ogl_buf_pos[i * 12 + 8] = GLVX(x+1,80);
+		ogl_buf_pos[i * 12 + 9] = GLVY(y+1);
+		ogl_buf_pos[i * 12 + 10] = GLVX(x,80);
+		ogl_buf_pos[i * 12 + 11] = GLVY(y+1);
+	}
+
+	for (int i = 0; i < 1000; i++) {
+		int x = i % 40;
+		int y = i / 40;
+		ogl_buf_pos40[i * 12 + 0] = GLVX(x,40);
+		ogl_buf_pos40[i * 12 + 1] = GLVY(y);
+		ogl_buf_pos40[i * 12 + 2] = GLVX(x+1,40);
+		ogl_buf_pos40[i * 12 + 3] = GLVY(y);
+		ogl_buf_pos40[i * 12 + 4] = GLVX(x+1,40);
+		ogl_buf_pos40[i * 12 + 5] = GLVY(y+1);
+		ogl_buf_pos40[i * 12 + 6] = GLVX(x,40);
+		ogl_buf_pos40[i * 12 + 7] = GLVY(y);
+		ogl_buf_pos40[i * 12 + 8] = GLVX(x+1,40);
+		ogl_buf_pos40[i * 12 + 9] = GLVY(y+1);
+		ogl_buf_pos40[i * 12 + 10] = GLVX(x,40);
+		ogl_buf_pos40[i * 12 + 11] = GLVY(y+1);
+	}
+#endif
 }
 
 static void deinit_opengl() {
@@ -361,14 +449,6 @@ static void deinit_opengl() {
 	free(ogl_buf_pos40);
 	free(ogl_buf_pos);
 }
-
-/* static void oglguard() {
-	GLenum err;
-
-	if ((err = glGetError()) != GL_NO_ERROR) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "OpenGL error: %d", err);
-	}
-} */
 
 static void render_opengl(long curr_time, int regen_visuals) {
 	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
@@ -393,12 +473,12 @@ static void render_opengl(long curr_time, int regen_visuals) {
 				}
 			}
 
-			int bpos_s = vpos * 8;
-			memcpy(ogl_buf_col + bpos_s, ogl_buf_colcache + (16*bgcol), 16*sizeof(char));
-			memcpy(ogl_buf_col + bpos_s + 32000, ogl_buf_colcache + (16*fgcol), 16*sizeof(char));
+			int bpos_s = vpos * 2 * GL_COMPONENT_POINTS;
+			memcpy(ogl_buf_col + bpos_s, ogl_buf_colcache + (4*GL_COMPONENT_POINTS*bgcol), 4*GL_COMPONENT_POINTS*sizeof(char));
+			memcpy(ogl_buf_col + bpos_s + (8000 * GL_COMPONENT_POINTS), ogl_buf_colcache + (4*GL_COMPONENT_POINTS*fgcol), 4*GL_COMPONENT_POINTS*sizeof(char));
 
 			int tpos_s = bpos_s >> 1;
-			memcpy(ogl_buf_tex + tpos_s, ogl_buf_texcache + chr*8, 8*sizeof(float));
+			memcpy(ogl_buf_tex + tpos_s, ogl_buf_texcache + chr*2*GL_COMPONENT_POINTS, 2*GL_COMPONENT_POINTS*sizeof(float));
 		}
 	}
 
@@ -414,7 +494,11 @@ static void render_opengl(long curr_time, int regen_visuals) {
 	glVertexPointer(2, GL_SHORT, 0, width == 40 ? ogl_buf_pos40 : ogl_buf_pos);
 	glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col);
 
+#ifdef USE_OPENGL_ES
+	glDrawArrays(GL_TRIANGLES, 0, width * 25 * 6);
+#else
 	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+#endif
 
 	// pass 2: foreground colors
 	if (chartex != NULL) {
@@ -427,10 +511,14 @@ static void render_opengl(long curr_time, int regen_visuals) {
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-		glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * 4 * sizeof(char)));
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * GL_COMPONENT_POINTS * sizeof(char)));
 		glTexCoordPointer(2, GL_FLOAT, 0, ogl_buf_tex);
 
+#ifdef USE_OPENGL_ES
+		glDrawArrays(GL_TRIANGLES, 0, width * 25 * 6);
+#else
 		glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+#endif
 
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		glDisableClientState(GL_VERTEX_ARRAY);
@@ -442,8 +530,9 @@ static void render_opengl(long curr_time, int regen_visuals) {
 #endif /* USE_OPENGL */
 
 static void render_software_copy(long curr_time) {
+	SDL_Rect dest;
 	void *buffer;
-	int pitch;
+	int w, h, pitch;
 
 	int swidth = (zzt_video_mode() & 2) ? 80 : 40;
 	int sflags = 0;
@@ -455,6 +544,9 @@ static void render_software_copy(long curr_time) {
 	if (!video_blink) sflags |= RENDER_BLINK_OFF;
 	else if ((zeta_time_ms() % 466) >= 233) sflags |= RENDER_BLINK_PHASE;
 
+	SDL_GetWindowSize(window, &w, &h);
+	calc_render_area(&dest, w, h, NULL, 0);
+
 	SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
 	render_software_rgb(
 		buffer,
@@ -464,7 +556,10 @@ static void render_software_copy(long curr_time) {
 		palette_update_data
 	);
 	SDL_UnlockTexture(playfieldtex);
-	SDL_RenderCopy(renderer, playfieldtex, NULL, NULL);
+
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer, playfieldtex, NULL, &dest);
 }
 
 void zeta_update_charset(int width, int height, u8* data) {
@@ -535,8 +630,14 @@ int main(int argc, char **argv) {
 	if (use_opengl) {
 		init_opengl();
 
+#ifdef USE_OPENGL_ES
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#else
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
+#endif
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 

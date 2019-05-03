@@ -30,6 +30,7 @@
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
 #define USE_OPENGL
+// #define USE_OPENGL_ES /* GLES 1.1, not production ready */
 
 // Zeta-preconfigured CPU core settings - do not touch!
 
