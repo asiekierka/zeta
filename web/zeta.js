@@ -300,7 +300,6 @@ var vfs_done = function() {
 		emu._zzt_load_binary(handle, buffer);
 		vfsg_close(handle);
 
-		var ram = emu._zzt_get_ram();
 		last_timer_time = time_ms();
 		zzt_tick();
 	});
