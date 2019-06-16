@@ -747,6 +747,10 @@ int main(int argc, char **argv) {
 							file = fopen(filename, "rb");
 							if (!file) {
 								file = fopen(filename, "wb");
+								if (!file) {
+									fprintf(stderr, "Could not open file '%s' for writing!\n", filename);
+									break;
+								}
 								if (write_screenshot(
 									file, SCREENSHOT_TYPE_BMP,
 									swidth, sflags,
@@ -756,6 +760,7 @@ int main(int argc, char **argv) {
 								) < 0) {
 									fprintf(stderr, "Could not write screenshot!\n");
 								}
+								fclose(file);
 								break;
 							} else {
 								fclose(file);
