@@ -34,7 +34,7 @@
 
 static int video_blink;
 
-long zeta_time_ms() {
+long zeta_time_ms(void) {
 	struct timespec spec;
 
 	clock_gettime(CLOCK_REALTIME, &spec);
@@ -46,7 +46,7 @@ void cpu_ext_log(const char* s) {
 }
 
 void speaker_on(double freq) {}
-void speaker_off() {}
+void speaker_off(void) {}
 
 static WINDOW* window;
 
@@ -62,7 +62,7 @@ void zeta_update_charset(int width, int height, u8* data) {
 void zeta_update_palette(u32* data) {
 }
 
-static void platform_kbd_tick() {
+static void platform_kbd_tick(void) {
 	int c = getch();
 	if (c == ERR) return;
 	if (c == 263) c = 8;
@@ -80,7 +80,7 @@ static int nc_color_map[] = {
 	COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE
 };
 
-static void init_ncurses_colors() {
+static void init_ncurses_colors(void) {
 	for (int i = 0; i < 64; i++) {
 		init_pair(i+1, nc_color_map[i&7], nc_color_map[i>>3]);
 	}

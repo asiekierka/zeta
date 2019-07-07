@@ -51,10 +51,9 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 				int line = *co;
 				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
 					int bpos = ((y * char_height + cy) * row_length) + ((x * char_width + cx) * pos_mul);
-					buffer[bpos] = palette[(line & 0x80) ? fg : bg];
-					if (pos_mul == 2) {
-						buffer[bpos+1] = palette[(line & 0x80) ? fg : bg];
-					}
+					int col = palette[(line & 0x80) ? fg : bg];
+					buffer[bpos] = col;
+					if (pos_mul == 2) buffer[bpos+1] = col;
 				}
 			}
 		}

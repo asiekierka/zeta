@@ -110,7 +110,7 @@ void zzt_kmod_clear(int mod) {
 	zzt.kmod &= ~mod;
 }
 
-static long zzt_internal_time() {
+static long zzt_internal_time(void) {
 	return zzt.timer_time;
 //	return (long) (zzt.timer_time + (zeta_time_ms() - zzt.real_time));
 }
@@ -130,11 +130,11 @@ static int zzt_key_append(int qch, int qke) {
 	return 0;
 }
 
-int zzt_key_get_delay() {
+int zzt_key_get_delay(void) {
 	return zzt.key_delay;
 }
 
-int zzt_key_get_repeat_delay() {
+int zzt_key_get_repeat_delay(void) {
 	return zzt.key_repeat_delay;
 }
 
@@ -356,6 +356,18 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 			fprintf(stderr, "mouse %04X\n", cpu->ax);
 			break;
 	}
+}
+
+u32 zzt_get_timer_ticks(void) {
+	return zzt.cpu.ram[0x46c] | (zzt.cpu.ram[0x46d] << 8)
+	    | (zzt.cpu.ram[0x46e] << 16) | (zzt.cpu.ram[0x46f] << 24);
+}
+
+void zzt_set_timer_ticks(u32 time) {
+	zzt.cpu.ram[0x46c] = time & 0xFF;
+	zzt.cpu.ram[0x46d] = (time>>8) & 0xFF;
+	zzt.cpu.ram[0x46e] = (time>>16) & 0xFF;
+	zzt.cpu.ram[0x46f] = (time>>24) & 0xFF;
 }
 
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
@@ -946,7 +958,7 @@ void zzt_load_binary(int handle, const char *arg) {
 	fprintf(stderr, "wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
 }
 
-void zzt_init() {
+void zzt_init(void) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
@@ -1006,7 +1018,7 @@ int zzt_execute(int opcodes) {
 	return cpu_execute(&(zzt.cpu), opcodes);
 }
 
-static void zzt_update_keys() {
+static void zzt_update_keys(void) {
 	long ctime = zeta_time_ms();
 	zzt_key_entry* key = &(zzt.key);
 

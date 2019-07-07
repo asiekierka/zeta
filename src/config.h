@@ -27,6 +27,7 @@
 
 // SDL port configuration
 
+#define BLINK_TOGGLE_DURATION_MS 233
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
 #define USE_OPENGL

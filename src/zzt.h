@@ -49,7 +49,7 @@ void zzt_mouse_axis(int axis, int value /* delta, in pixels */);
 USER_FUNCTION
 void zzt_mouse_clear(int button);
 USER_FUNCTION
-void zzt_init();
+void zzt_init(void);
 USER_FUNCTION
 void zzt_load_binary(int handle, const char *arg);
 USER_FUNCTION
@@ -61,11 +61,15 @@ void zzt_mark_frame(void);
 USER_FUNCTION
 void zzt_mark_timer(void);
 USER_FUNCTION
-int zzt_key_get_delay();
+int zzt_key_get_delay(void);
 USER_FUNCTION
-int zzt_key_get_repeat_delay();
+int zzt_key_get_repeat_delay(void);
 USER_FUNCTION
 void zzt_key_set_delay(int ms, int repeat_ms);
+USER_FUNCTION
+u32 zzt_get_timer_ticks(void);
+USER_FUNCTION
+void zzt_set_timer_ticks(u32 ticks);
 
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);

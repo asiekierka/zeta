@@ -29,7 +29,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_main.h>
 #ifdef USE_OPENGL
 #ifdef USE_OPENGL_ES
 #include <SDL2/SDL_opengles.h>
@@ -63,6 +65,7 @@ static const u8 sdl_to_pc_scancode[] = {
 
 static const int sdl_to_pc_scancode_max = sizeof(sdl_to_pc_scancode) - 1;
 
+#ifdef USE_OPENGL
 static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access, unsigned char *data, int height) {
 	SDL_Texture *texture;
 	SDL_Rect rect;
@@ -92,8 +95,9 @@ static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access
 
 	return texture;
 }
+#endif
 
-long zeta_time_ms() {
+long zeta_time_ms(void) {
 	return SDL_GetTicks();
 }
 
@@ -121,7 +125,7 @@ void speaker_on(double freq) {
 	SDL_UnlockMutex(audio_mutex);
 }
 
-void speaker_off() {
+void speaker_off(void) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_off(zeta_time_ms());
 	SDL_UnlockMutex(audio_mutex);
@@ -129,7 +133,9 @@ void speaker_off() {
 
 static SDL_mutex *zzt_thread_lock;
 static SDL_cond *zzt_thread_cond;
+#ifdef USE_OPENGL
 static u8 zzt_vram_copy[80*25*2];
+#endif
 static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 video_blink = 1;
@@ -161,10 +167,14 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	return tick_time;
 }
 
-static void sdl_timer_init() {
+static void sdl_timer_init(void) {
 	first_timer_tick = zeta_time_ms();
 	timer_time = 0;
 	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
+}
+
+static int sdl_is_blink_phase(long curr_time) {
+	return ((curr_time % (BLINK_TOGGLE_DURATION_MS*2)) >= BLINK_TOGGLE_DURATION_MS);
 }
 
 // try to keep a budget of ~5ms per call
@@ -284,7 +294,7 @@ static void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int f
 }
 
 #ifdef USE_OPENGL
-/* static void oglguard() {
+/* static void oglguard(void) {
 	GLenum err;
 
 	while ((err = glGetError()) != GL_NO_ERROR) {
@@ -292,7 +302,7 @@ static void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int f
 	}
 } */
 
-static void prepare_render_opengl() {
+static void prepare_render_opengl(void) {
 	SDL_Rect rect;
 	int w, h, scale;
 	SDL_GL_GetDrawableSize(window, &w, &h);
@@ -340,7 +350,7 @@ static void update_opengl_colcache(u32* pal) {
 	}
 }
 
-static void init_opengl() {
+static void init_opengl(void) {
 	ogl_buf_pos = malloc((80 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
 	ogl_buf_pos40 = malloc((40 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
 	ogl_buf_col = malloc(2 * (80 * 25) * GL_COMPONENT_POINTS * 4 * sizeof(char));
@@ -441,7 +451,7 @@ static void init_opengl() {
 #endif
 }
 
-static void deinit_opengl() {
+static void deinit_opengl(void) {
 	free(ogl_buf_texcache);
 	free(ogl_buf_colcache);
 	free(ogl_buf_tex);
@@ -451,7 +461,7 @@ static void deinit_opengl() {
 }
 
 static void render_opengl(long curr_time, int regen_visuals) {
-	u8 blink_local = video_blink && ((curr_time % 466) >= 233);
+	u8 blink_local = video_blink && sdl_is_blink_phase(curr_time);
 	float texw, texh;
 	int width = (zzt_video_mode() & 2) ? 80 : 40;
 
@@ -542,9 +552,9 @@ static void render_software_copy(long curr_time) {
 	}
 
 	if (!video_blink) sflags |= RENDER_BLINK_OFF;
-	else if ((zeta_time_ms() % 466) >= 233) sflags |= RENDER_BLINK_PHASE;
+	else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
 
-	SDL_GetWindowSize(window, &w, &h);
+	SDL_GetRendererOutputSize(renderer, &w, &h);
 	calc_render_area(&dest, w, h, NULL, 0);
 
 	SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
@@ -661,7 +671,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Could not initialize OpenGL (%s), using software renderer...", SDL_GetError());
 #endif
 		window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-			80*charw, 25*charh, 0);
+			80*charw, 25*charh, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 	} else {
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -699,7 +709,9 @@ int main(int argc, char **argv) {
 
 	sdl_timer_init();
 
-	int should_render;
+#ifdef USE_OPENGL
+	int should_render = 1;
+#endif
 
 	while (cont_loop) {
 		if (!zzt_thread_running) { cont_loop = 0; break; }
@@ -707,9 +719,13 @@ int main(int argc, char **argv) {
 		atomic_fetch_add(&zzt_renderer_waiting, 1);
 		SDL_LockMutex(zzt_thread_lock);
 		atomic_fetch_sub(&zzt_renderer_waiting, 1);
-		u8* ram = zzt_get_ram();
-		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2);
-		if (should_render) memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
+#ifdef USE_OPENGL
+		if (use_opengl) {
+			u8* ram = zzt_get_ram();
+			should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2);
+			if (should_render) memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
+		}
+#endif
 		zzt_mark_frame();
 
 		// do KEYUPs before KEYDOWNS - fixes key loss issues w/ Windows
@@ -740,7 +756,7 @@ int main(int argc, char **argv) {
 						}
 
 						if (!video_blink) sflags |= RENDER_BLINK_OFF;
-						else if ((zeta_time_ms() % 466) >= 233) sflags |= RENDER_BLINK_PHASE;
+						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
 
 						while ((++i) <= 9999) {
 							snprintf(filename, 23, "screen%d.bmp", i);

@@ -70,6 +70,7 @@ static int posix_zzt_init(int argc, char **argv) {
 #endif
 
 	zzt_init();
+	zzt_set_timer_ticks(time(NULL));
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {
