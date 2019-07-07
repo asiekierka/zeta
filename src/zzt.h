@@ -67,9 +67,7 @@ int zzt_key_get_repeat_delay(void);
 USER_FUNCTION
 void zzt_key_set_delay(int ms, int repeat_ms);
 USER_FUNCTION
-u32 zzt_get_timer_ticks(void);
-USER_FUNCTION
-void zzt_set_timer_ticks(u32 ticks);
+void zzt_set_timer_offset(long ms);
 
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);

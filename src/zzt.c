@@ -68,6 +68,7 @@ static u32 def_palette[] = {
 typedef struct {
 	cpu_state cpu;
 	long real_time;
+	long timer_time_offset;
 	double timer_time;
 
 	// keyboard
@@ -96,7 +97,7 @@ typedef struct {
 	// DOS
 	u32 dos_dta;
 
-	u8 charset[256*14];
+	u8 charset[256*16];
 	u32 palette[16];
 } zzt_state;
 
@@ -111,7 +112,7 @@ void zzt_kmod_clear(int mod) {
 }
 
 static long zzt_internal_time(void) {
-	return zzt.timer_time;
+	return zzt.timer_time_offset + ((long) zzt.timer_time);
 //	return (long) (zzt.timer_time + (zeta_time_ms() - zzt.real_time));
 }
 
@@ -358,16 +359,8 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 	}
 }
 
-u32 zzt_get_timer_ticks(void) {
-	return zzt.cpu.ram[0x46c] | (zzt.cpu.ram[0x46d] << 8)
-	    | (zzt.cpu.ram[0x46e] << 16) | (zzt.cpu.ram[0x46f] << 24);
-}
-
-void zzt_set_timer_ticks(u32 time) {
-	zzt.cpu.ram[0x46c] = time & 0xFF;
-	zzt.cpu.ram[0x46d] = (time>>8) & 0xFF;
-	zzt.cpu.ram[0x46e] = (time>>16) & 0xFF;
-	zzt.cpu.ram[0x46f] = (time>>24) & 0xFF;
+void zzt_set_timer_offset(long time) {
+	zzt.timer_time_offset = time;
 }
 
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
@@ -686,6 +679,11 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
 		} return STATE_WAIT;
+		case 0x2D: { // systime set
+			long ms = cpu->dl * 10 + cpu->dh * 1000 + cpu->cl * 60000 + cpu->ch * 3600000;
+			zzt->timer_time_offset = ms - zzt->timer_time;
+			cpu->al = 0x00;
+		} return STATE_CONTINUE;
 		case 0x35: // get ivt
 			cpu->bl = cpu->ram[cpu->al * 4];
 			cpu->bh = cpu->ram[cpu->al * 4 + 1];

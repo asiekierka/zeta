@@ -70,7 +70,6 @@ static int posix_zzt_init(int argc, char **argv) {
 #endif
 
 	zzt_init();
-	zzt_set_timer_ticks(time(NULL));
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {
@@ -135,6 +134,8 @@ static int posix_zzt_init(int argc, char **argv) {
 		zzt_load_binary(exeh, arg_name);
 		vfs_close(exeh);
 	}
+
+	zzt_set_timer_offset((time(NULL) % 86400) * 1000L);
 
 	if (skip_kc) {
 		zzt_key('k', 0x25);

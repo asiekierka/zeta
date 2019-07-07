@@ -300,6 +300,8 @@ var vfs_done = function() {
 		emu._zzt_load_binary(handle, buffer);
 		vfsg_close(handle);
 
+		emu._zzt_set_timer_offset(Date.now() % 86400000)
+
 		last_timer_time = time_ms();
 		zzt_tick();
 	});
