@@ -31,8 +31,8 @@
 # endif
 #endif
 
-#ifdef ANDROID
-#define KEYBUF_SIZE 64
+#if defined(ANDROID) || defined(HAS_OSK)
+#define KEYBUF_SIZE 192
 #else
 #define KEYBUF_SIZE 8
 #endif

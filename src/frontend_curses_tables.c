@@ -19,7 +19,7 @@
 
 static u8 map_char_to_key[512];
 
-static void init_map_char_to_key() {
+static void init_map_char_to_key(void) {
 	map_char_to_key[258] = 0x50; // down
 	map_char_to_key[260] = 0x4B; // left
 	map_char_to_key[259] = 0x48; // up
