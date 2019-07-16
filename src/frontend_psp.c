@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "zzt.h"
 #include "posix_vfs.h"
@@ -94,6 +95,7 @@ int psp_exit_thread(SceSize args, void *argp) {
 }
 
 static int zzt_thread_running = 1;
+static int psp_osk_open = 0;
 static long timer_last_ms;
 
 int psp_zzt_thread(SceSize args, void *argp) {
@@ -101,6 +103,11 @@ int psp_zzt_thread(SceSize args, void *argp) {
 
 	timer_last_ms = zeta_time_ms();
 	while (zzt_thread_running) {
+		if (psp_osk_open) {
+			sceKernelDelayThreadCB(20 * 1000);
+			continue;
+		}
+
 		long duration = zeta_time_ms();
 		int rcode = zzt_execute(opcodes);
 		long timer_curr_ms = zeta_time_ms();
@@ -132,6 +139,12 @@ static int osk_counter = 0;
 int psp_timer_thread(SceSize args, void *argp) {
 	while (zzt_thread_running) {
 		long curr_timer_tick = zeta_time_ms();
+		if (psp_osk_open) {
+			timer_time = curr_timer_tick - first_timer_tick;
+			sceKernelDelayThreadCB(20 * 1000);
+			continue;
+		}
+
 		zzt_mark_timer();
 
 		timer_time += SYS_TIMER_TIME;
@@ -252,12 +265,18 @@ static void psp_draw_frame(void) {
 }
 
 void psp_audio_callback(void *stream, unsigned int len, void *userdata) {
+	if (psp_osk_open) {
+		memset(stream, 0, len*sizeof(s16)*2);
+		return;
+	}
+
 	u8 *stream_u8 = ((u8*) stream) + (len * 3);
 	s16 *stream_s16 = ((s16*) stream);
 
 	audio_stream_generate_u8(zeta_time_ms(), stream_u8, len);
 	for (int i = 0; i < len; i++, stream_u8++, stream_s16+=2) {
-		s32 val = (((s32) stream_u8[0]) << 8) - 0x8000;
+		s8 sample_s8 = (s8) (stream_u8[0] ^ 0x80);
+		s16 val = ((s16) sample_s8) << 8;
 		stream_s16[0] = (s16) val;
 		stream_s16[1] = (s16) val;
 	}
@@ -271,12 +290,27 @@ void speaker_off(void) {
 	audio_stream_append_off(zeta_time_ms());
 }
 
+static void psp_init_vfs(void) {
+	char buf[MAXPATHLEN+1];
+
+	if (getcwd(buf, MAXPATHLEN) == NULL || strlen(buf) <= 0) {
+		fprintf(stderr, "psp_init_vfs: getcwd failed, using fallback\n");
+		if (chdir("ms0:/PSP/GAME/ZETA/") != 0) {
+			fprintf(stderr, "psp_init_vfs: chdir failed, using fallback\n");
+			init_posix_vfs("ms0:/PSP/GAME/ZETA/");
+			return;
+		}
+	}
+
+	init_posix_vfs("");
+}
+
 int main(int argc, char** argv) {
 	SceCtrlData pad;
 	u32 last_buttons = 0;
 
 	{
-		init_posix_vfs("");
+		psp_init_vfs();
 		zzt_init();
 
 		int exeh = vfs_open("zzt.exe", 0);
@@ -414,10 +448,10 @@ int main(int argc, char** argv) {
 			if (br & PSP_CTRL_DOWN) zzt_keyup(0x50);
 			if (br & PSP_CTRL_RIGHT) zzt_keyup(0x4D);
 			if (br & PSP_CTRL_CROSS) zzt_kmod_clear(0x01);
-			if (bp & PSP_CTRL_CIRCLE) zzt_keyup(0x1C);
+			if (br & PSP_CTRL_CIRCLE) zzt_keyup(0x1C);
 			if (br & PSP_CTRL_SELECT) zzt_keyup(16);
 			if (br & PSP_CTRL_RTRIGGER && osk_text[0] == 0) {
-				int osk_running = 1;
+				psp_osk_open = 1;
 				unsigned short desctext[33];
 				unsigned short intext[65];
 				SceUtilityOskData data[1];
@@ -457,7 +491,7 @@ int main(int argc, char** argv) {
 				params.data = data;
 
 				sceUtilityOskInitStart(&params);
-				while (osk_running) {
+				while (psp_osk_open) {
 					sceGuStart(GU_DIRECT, gu_list);
 					sceGuClearColor(0);
 					sceGuClearDepth(0);
@@ -472,7 +506,7 @@ int main(int argc, char** argv) {
 							sceUtilityOskShutdownStart();
 							break;
 						case PSP_UTILITY_DIALOG_NONE:
-							osk_running = 0;
+							psp_osk_open = 0;
 							break;
 					}
 					sceDisplayWaitVblankStartCB();
