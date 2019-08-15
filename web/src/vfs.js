@@ -114,7 +114,7 @@ class VfsSynchronousWrapper extends MapBasedVfs {
 
 	_populate() {
 		const self = this;
-		
+
 		return this.parent.list(null).then(result => {
 			self.map = {};
 

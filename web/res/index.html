@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+* { border: 0; margin: 0; padding: 0; }
+</style>
+</head>
+<body>
+<canvas id="zeta_canvas" width="640" height="350"></canvas>
+<script type="text/javascript" src="./zeta_loader.js"></script>
+<script type="text/javascript">
+ZetaLoad({
+	render: {
+		canvas: document.getElementById("zeta_canvas")
+	},
+	storage: { // optional - if not present, saves to RAM (lost on page refresh)
+		type: "auto", // can also be "localstorage" or "indexeddb"; "auto" is recommended
+		database: "test_database"
+	},
+	path: "./",
+	arg: "MY_GAME.ZZT", // optional
+	files: [
+		["zzt.zip", {
+			"filenameFilter": function(f) {
+				let fl = f.toLowerCase();
+				return fl.startsWith("zzt.");
+			}
+		}],
+		"my_game.zip"
+	]
+});
+</script>
+</body>
+</html>

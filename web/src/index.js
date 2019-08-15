@@ -23,8 +23,10 @@ import { createVfsFromMap, createVfsFromVfs, createVfsFromZip, wrapVfsSynchronou
 import { createEmulator } from "./emulator.js";
 import { getIndexedDB, getLocalStorage } from "./util.js";
 
+const VERSION = "@VERSION@";
+
 class LoadingScreen {
-    constructor(canvas, ctx, options) {
+    constructor(canvas, ctx, version, options) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.loaded = false;
@@ -32,9 +34,16 @@ class LoadingScreen {
         const self = this;
         const loadingImage = new Image();
         loadingImage.onload = function() {
-            var w = loadingImage.width;
-            var h = loadingImage.height;
+            const versionStr = VERSION;
+            const w = loadingImage.width;
+            const h = loadingImage.height;
             ctx.drawImage(loadingImage,0,0,w,h,(canvas.width - w*2)/2,(canvas.height - h*2)/2,w*2,h*2);
+
+            ctx.font = "16px sans-serif";
+            ctx.fillStyle = "#aaaaaa";
+            ctx.textBaseline = "bottom";
+            ctx.fillText(versionStr, (canvas.width + w*2) / 2 - 6 - ctx.measureText(versionStr).width, (canvas.height + h*2) / 2 - 6);
+
             self.loaded = true;
         };
         loadingImage.src = options.path + "loading.png";
@@ -64,7 +73,7 @@ window.ZetaInitialize = function(options) {
 	const ctx = canvas.getContext('2d', {alpha: false});
     ctx.imageSmoothingEnabled = false;
     
-    const loadingScreen = new LoadingScreen(canvas, ctx, options);
+    const loadingScreen = new LoadingScreen(canvas, ctx, VERSION, options);
 
     var vfsPromises = [];
     var vfsProgresses = [];
