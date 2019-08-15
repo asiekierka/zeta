@@ -38,7 +38,7 @@ export function initVfsWrapper() {
 		}
 	
 		fn = fn.toUpperCase();
-		const data = vfs.get(fn);
+		let data = vfs.get(fn);
 		const is_write = (mode & 0x3) == 1;
 	
 		if (is_write) {

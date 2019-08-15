@@ -216,13 +216,15 @@ class Emulator {
                 const ax1 = Math.round(gamepad.axes[1] * 127);
                 this.emu._zzt_joy_axis(0, ax0);
                 this.emu._zzt_joy_axis(1, ax1);
-                this.emu._zzt_joy_clear(0);
+                let pressed = false;
                 for (var j = 0; j < gamepad.buttons.length; j++) {
                     if (gamepad.buttons[j].pressed) {
-                        this.emu._zzt_joy_set(0);
+                        pressed = true;
                         break;
                     }
                 }
+                if (pressed) this.emu._zzt_joy_set(0);
+                else this.emu._zzt_joy_clear(0);
             }
         }
     }

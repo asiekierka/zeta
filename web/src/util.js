@@ -22,3 +22,11 @@ let date_s = Date.now();
 export function time_ms() {
 	return Date.now() - date_s;
 }
+
+export function getIndexedDB() {
+	return window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB;
+}
+
+export function getLocalStorage() {
+	return window.localStorage;
+}
