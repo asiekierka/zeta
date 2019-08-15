@@ -1,0 +1,20 @@
+{
+  "name": "zeta-web",
+  "version": "0.1.0",
+  "description": "Zeta web frontend",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node_modules/.bin/rollup -c"
+  },
+  "author": "asie",
+  "license": "GPL-3.0-or-later",
+  "devDependencies": {
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "rollup": "^1.19.4",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-node-resolve": "^5.2.0"
+  },
+  "dependencies": {
+  }
+}

@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-ZetaKbdmap = {
+let ZetaKbdmap = {
 	ArrowUp: 0x48,
 	ArrowLeft: 0x4B,
 	ArrowRight: 0x4D,
@@ -47,22 +47,22 @@ ZetaKbdmap = {
 	" ": 57
 };
 
-(function() {
-	var addCharsInOrder = function(c, off) {
-		for(var i = 0; i < c.length; i++) {
-			ZetaKbdmap[c.charAt(i)]=off + i;
-		}
+let addCharsInOrder = function(c, off) {
+	for(var i = 0; i < c.length; i++) {
+		ZetaKbdmap[c.charAt(i)]=off + i;
 	}
+}
 
-	addCharsInOrder("1234567890", 2);
-	addCharsInOrder("QWERTYUIOP{}", 16);
-	addCharsInOrder("qwertyuiop[]", 16);
-	addCharsInOrder("asdfghjkl;'", 30);
-	addCharsInOrder("ASDFGHJKL:\"", 30);
-	addCharsInOrder("zxcvbnm,./", 44);
-	addCharsInOrder("ZXCVBNM<>?", 44);
+addCharsInOrder("1234567890", 2);
+addCharsInOrder("QWERTYUIOP{}", 16);
+addCharsInOrder("qwertyuiop[]", 16);
+addCharsInOrder("asdfghjkl;'", 30);
+addCharsInOrder("ASDFGHJKL:\"", 30);
+addCharsInOrder("zxcvbnm,./", 44);
+addCharsInOrder("ZXCVBNM<>?", 44);
 
-	for (var i = 1; i <= 10; i++) {
-		ZetaKbdmap["F" + i] = 0x3A + i;
-	}
-})();
+for (var i = 1; i <= 10; i++) {
+	ZetaKbdmap["F" + i] = 0x3A + i;
+}
+
+export const keymap = ZetaKbdmap;

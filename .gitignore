@@ -1,3 +1,6 @@
 build
 res/*.c
 res/*.h
+web/node_modules
+web/package-lock.json
+web/zeta.js
