@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { time_ms } from "./util.js";
+import { time_ms, drawErrorMessage } from "./util.js";
 import { keymap } from "./keymap.js";
 import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js"
 
@@ -204,6 +204,8 @@ class Emulator {
             } else {
                 setTimeout(() => this._tick(), time_to_timer);
             }
+        } else {
+            drawErrorMessage(this.render.canvas, this.render.ctx, "Emulation stopped.");
         }
     }
 

@@ -11,6 +11,7 @@ rm build/zeta_native.wast
 xxd -i res/8x14.bin > res/8x14.c
 
 emcc -O3 --js-library src/emscripten_glue.js \
+  --llvm-lto 2 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc"]' \
   -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \

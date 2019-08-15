@@ -19,6 +19,28 @@
 
 let date_s = Date.now();
 
+export function drawErrorMessage(canvas, ctx, text) {
+	let fontSize = 32;
+	while (fontSize > 8) {
+		ctx.font = "bold " + fontSize + "px sans-serif";
+		if (ctx.measureText(text).width <= canvas.width - 4) break;
+		fontSize--;
+	}
+
+	ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.textBaseline = "middle";
+
+	const xOffset = (canvas.width - ctx.measureText(text).width) / 2;
+	const yOffset = canvas.height / 2;
+
+	ctx.fillStyle = "#000000";
+	ctx.fillText(text, xOffset + 2, yOffset + 2);
+
+	ctx.fillStyle = "#ffffff";
+	ctx.fillText(text, xOffset, yOffset);
+}
+
 export function time_ms() {
 	return Date.now() - date_s;
 }
