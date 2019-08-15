@@ -23,6 +23,36 @@ import { createVfsFromMap, createVfsFromVfs, createVfsFromZip, wrapVfsSynchronou
 import { createEmulator } from "./emulator.js";
 import { getIndexedDB, getLocalStorage } from "./util.js";
 
+class LoadingScreen {
+    constructor(canvas, ctx, options) {
+        this.canvas = canvas;
+        this.ctx = ctx;
+        this.loaded = false;
+
+        const self = this;
+        const loadingImage = new Image();
+        loadingImage.onload = function() {
+            var w = loadingImage.width;
+            var h = loadingImage.height;
+            ctx.drawImage(loadingImage,0,0,w,h,(canvas.width - w*2)/2,(canvas.height - h*2)/2,w*2,h*2);
+            self.loaded = true;
+        };
+        loadingImage.src = options.path + "loading.png";
+    }
+
+    progress(p) {
+        if (!this.loaded) return;
+        
+        const canvas = this.canvas;
+        const ctx = this.ctx;
+        const cx = (canvas.width - 640) / 2;
+        const cy = (canvas.height - 350) / 2;
+    
+        ctx.fillStyle = "#ff0000";
+        ctx.fillRect(cx + 14*2, cy + 112*2, p * 292*2, 20);
+    }
+}
+
 window.ZetaInitialize = function(options) {
     if (!options.render) throw "Missing option: render!";
 	if (!options.render.canvas) throw "Missing option: render.canvas!";
@@ -32,9 +62,9 @@ window.ZetaInitialize = function(options) {
 	const canvas = options.render.canvas;
 	canvas.contentEditable = true;
 	const ctx = canvas.getContext('2d', {alpha: false});
-	ctx.imageSmoothingEnabled = false;
-
-    // TODO: bring back loading screen
+    ctx.imageSmoothingEnabled = false;
+    
+    const loadingScreen = new LoadingScreen(canvas, ctx, options);
 
     var vfsPromises = [];
     var vfsProgresses = [];
@@ -42,19 +72,25 @@ window.ZetaInitialize = function(options) {
 
     for (var s in options.files) {
         vfsProgresses.push(0);
-        const file = options.files[s]
+        const file = options.files[s];
+        const i = vfsProgresses.length - 1;
+        const progressUpdater = function(p) {
+            vfsProgresses[i] = Math.min(p, 1);
+            loadingScreen.progress(vfsProgresses.reduce((p, c) => p + c) / options.files.length);            
+        }
+
 		if (Array.isArray(file)) {
             var opts = file[1];
             if (!opts.hasOwnProperty("readonly")) {
                 opts.readonly = true;
             }
             vfsPromises.push(
-                createVfsFromZip(file[0], opts, null)
+                createVfsFromZip(file[0], opts, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         } else {
             vfsPromises.push(
-                createVfsFromZip(file, {"readonly": true}, null)
+                createVfsFromZip(file, {"readonly": true}, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         }
