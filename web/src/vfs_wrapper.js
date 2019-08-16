@@ -17,10 +17,10 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- import { createVfsFromMap } from "./vfs"
+import { createInMemoryStorage } from "./storage";
 
 let emu;
-let vfs = createVfsFromMap({});
+let vfs = createInMemoryStorage({});
 let handles = {};
 
 export function setWrappedEmu(inputEmu) {

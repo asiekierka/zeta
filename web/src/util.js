@@ -52,3 +52,30 @@ export function getIndexedDB() {
 export function getLocalStorage() {
 	return window.localStorage;
 }
+
+export function xhrFetchAsArrayBuffer(url, progressCallback) {
+	return new Promise((resolve, reject) => {
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", url, true);
+		xhr.responseType = "arraybuffer";
+
+		xhr.onprogress = event => {
+			if (progressCallback) progressCallback(event.loaded / event.total);
+		};
+
+		xhr.onload = event => {
+			if (progressCallback) progressCallback(1);
+			if (xhr.status != 200) {
+				reject("Error downloading " + url + " (" + xhr.status + ")");
+				return;
+			}
+			resolve(xhr);
+		};
+
+		xhr.onerror = event => {
+			reject("Error downloading " + url + " (XHR)");
+		}
+
+		xhr.send();
+	});
+}

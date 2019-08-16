@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util";
+import { getIndexedDB, getLocalStorage, drawErrorMessage, xhrFetchAsArrayBuffer } from "./util";
 
 function filterKeys(list, filter) {
 	if (filter == null) return list;
@@ -30,7 +30,7 @@ function filterKeys(list, filter) {
 	return newList;
 }
 
-class MapBasedVfs {
+class InMemoryStorage {
 	constructor(inputMap, options) {
 		this.map = {};
 		for (var key in inputMap) {
@@ -61,7 +61,7 @@ class MapBasedVfs {
 	}
 }
 
-class VfsBasedVfs {
+class CompositeStorage {
 	constructor(providers) {
 		this.providers = providers;
 	}
@@ -106,7 +106,7 @@ class VfsBasedVfs {
 	}
 }
 
-class VfsSynchronousWrapper extends MapBasedVfs {
+class AsyncStorageWrapper extends InMemoryStorage {
 	constructor(parent) {
 		super({}, {});
 		this.parent = parent;
@@ -140,7 +140,7 @@ class VfsSynchronousWrapper extends MapBasedVfs {
 	}
 }
 
-class BrowserStorageBasedVFS {
+class BrowserBackedStorage {
 	constructor(localStorage, prefix) {
 		this.storage = localStorage;
 		this.prefix = prefix + "_file_";
@@ -176,7 +176,7 @@ class BrowserStorageBasedVFS {
 	}
 }
 
-class IndexedDBBasedAsyncVFS {
+class IndexedDbBackedAsyncStorage {
 	constructor(indexedDB, dbName, options) {
 		this.indexedDB = indexedDB;
 		this.dbName = dbName;
@@ -248,51 +248,45 @@ class IndexedDBBasedAsyncVFS {
 	}
 }
 
-export function createVfsFromBrowserStorage(storage, dbName) {
-	return new BrowserStorageBasedVFS(storage, dbName);
+export function createBrowserBackedStorage(storage, dbName) {
+	return new BrowserBackedStorage(storage, dbName);
 }
 
-export function createAsyncVfsFromIndexedDB(dbName) {
+export function createIndexedDbBackedAsyncStorage(dbName) {
 	const indexedDB = getIndexedDB();
 	if (!indexedDB) {
 		return Promise.reject("IndexedDB not supported!");
 	}
-	const dbObj = new IndexedDBBasedAsyncVFS(indexedDB, dbName);
+	const dbObj = new IndexedDbBackedAsyncStorage(indexedDB, dbName);
 	return dbObj._open().then(_ => dbObj);
 }
 
-export function wrapVfsSynchronously(asyncVfs) {
-	const obj = new VfsSynchronousWrapper(asyncVfs);
+export function wrapAsyncStorage(asyncVfs) {
+	const obj = new AsyncStorageWrapper(asyncVfs);
 	return obj._populate().then(_ => obj);
 }
 
-export function createVfsFromMap(inputMap, options) {
-	return new MapBasedVfs(inputMap, options);
+export function createInMemoryStorage(inputMap, options) {
+	return new InMemoryStorage(inputMap, options);
 }
 
-export function createVfsFromVfs(providers) {
-	return new VfsBasedVfs(providers);
+export function createCompositeStorage(providers) {
+	return new CompositeStorage(providers);
 }
 
-export function createVfsFromZip(url, options, progressCallback) {
-	return new Promise((resolve, reject) => {
-		var xhr = new XMLHttpRequest();
-		xhr.open("GET", url, true);
-		xhr.responseType = "arraybuffer";
+export function createZipStorage(url, options, progressCallback) {
+	return xhrFetchAsArrayBuffer(url, progressCallback)
+		.then(xhr => new Promise((resolve, reject) => {
+			let files;
+			let fileMap = {};
 
-		xhr.onprogress = function(event) {
-			if (progressCallback != null) progressCallback(event.loaded / event.total);
-		};
-
-		xhr.onload = function() {
-			if (progressCallback != null) progressCallback(1);
-			if (xhr.status != 200) {
-				reject("Error downloading " + url + " (" + xhr.status + ")");
+			try {
+				files = UZIP.parse(xhr.response);
+			} catch (e) {
+				reject(e);
 				return;
 			}
 
-			let files = UZIP.parse(this.response);
-			let fileMap = {};
 			for (var key in files) {
 				const keyOrig = key;
 
@@ -326,9 +320,7 @@ export function createVfsFromZip(url, options, progressCallback) {
 					}
 				}
 			}
-			resolve(new MapBasedVfs(fileMap, options));
-		};
 
-		xhr.send();
-	});
+			resolve(new InMemoryStorage(fileMap, options));
+		}));
 }

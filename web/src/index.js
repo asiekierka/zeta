@@ -19,9 +19,9 @@
 
 import { OscillatorBasedAudio } from "./audio.js";
 import { CanvasBasedRenderer } from "./render.js";
-import { createVfsFromMap, createVfsFromVfs, createVfsFromZip, wrapVfsSynchronously, createAsyncVfsFromIndexedDB, createVfsFromBrowserStorage } from "./vfs.js";
 import { createEmulator } from "./emulator.js";
 import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util.js";
+import { createInMemoryStorage, createBrowserBackedStorage, wrapAsyncStorage, createIndexedDbBackedAsyncStorage, createCompositeStorage, createZipStorage } from "./storage.js";
 
 const VERSION = "@VERSION@";
 
@@ -110,12 +110,12 @@ window.ZetaInitialize = function(options) {
                 opts.readonly = true;
             }
             vfsPromises.push(
-                createVfsFromZip(file[0], opts, progressUpdater)
+                createZipStorage(file[0], opts, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         } else {
             vfsPromises.push(
-                createVfsFromZip(file, {"readonly": true}, progressUpdater)
+                createZipStorage(file, {"readonly": true}, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         }
@@ -137,21 +137,21 @@ window.ZetaInitialize = function(options) {
         if (options.storage && options.storage.type) {
             if (options.storage.type == "indexeddb") {
                 if (!options.storage.database) throw "Missing option: storage.database!";
-                return createAsyncVfsFromIndexedDB("zeta_" + options.storage.database)
-                    .then(result => wrapVfsSynchronously(result))
+                return createIndexedDbBackedAsyncStorage("zeta_" + options.storage.database)
+                    .then(result => wrapAsyncStorage(result))
                     .then(result => vfsObjects.push(result));
             } else if (options.storage.type == "localstorage") {
                 if (!options.storage.database) throw "Missing option: storage.database!";
                 let storageObj = window.localStorage;
                 if (options.storage.storage) storageObj = options.storage.storage;
                 if (storageObj == undefined) throw "Could not find storage object!";
-                vfsObjects.push(createVfsFromBrowserStorage(storageObj, "zeta_" + options.storage.database));
+                vfsObjects.push(createBrowserBackedStorage(storageObj, "zeta_" + options.storage.database));
                 return true;
             } else {
                 throw "Unknown storage type: " + options.storage.type;
             }
         } else {
-            vfsObjects.push(createVfsFromMap({}, {"readonly": false}));
+            vfsObjects.push(createInMemoryStorage({}, {"readonly": false}));
             return true;
         }
     }).then(_ => {
@@ -159,7 +159,7 @@ window.ZetaInitialize = function(options) {
 
         const render = new CanvasBasedRenderer(options.render.canvas, options.render);
         const audio = new OscillatorBasedAudio(options.audio);
-        const vfs = createVfsFromVfs(vfsObjects);
+        const vfs = createCompositeStorage(vfsObjects);
 
         return createEmulator(render, audio, vfs, options);
     }).then(_ => true).catch(reason => {
