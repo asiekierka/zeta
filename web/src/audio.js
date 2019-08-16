@@ -34,12 +34,13 @@ document.addEventListener('keydown', function(event) {
 });
 
 export class OscillatorBasedAudio {
-	constructor() {
+	constructor(options) {
 		this.lastCurrTime = 0;
 		this.lastTimeMs = 0;
 		this.timeSpeakerOn = 0;
 		this.audioGain = undefined;
 		this.pc_speaker = undefined;
+		this.volume = (options && options.volume) || 0.2;
 	}
 
 	on(freq) {
@@ -62,7 +63,7 @@ export class OscillatorBasedAudio {
 			this.pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);
 			this.pc_speaker.connect(this.audioGain);
 			this.audioGain.connect(audioCtx.destination);
-			this.audioGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+			this.audioGain.gain.setValueAtTime(this.volume, audioCtx.currentTime);
 			this.pc_speaker.start(0);
 		} else {
 			this.pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);

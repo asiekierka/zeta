@@ -71,12 +71,14 @@ class LoadingScreen {
 }
 
 window.ZetaInitialize = function(options) {
+    console.log("         _        \n _______| |_ __ _ \n|_  / _ \\ __/ _` |\n / /  __/ || (_| |\n/___\\___|\\__\\__,_|\n\n " + VERSION);
+
     if (!options.render) throw "Missing option: render!";
     if (!options.render.canvas) throw "Missing option: render.canvas!";
 
-	const canvas = options.render.canvas;
-	canvas.contentEditable = true;
-	const ctx = canvas.getContext('2d', {alpha: false});
+    const canvas = options.render.canvas;
+    canvas.contentEditable = true;
+    const ctx = canvas.getContext('2d', {alpha: false});
     ctx.imageSmoothingEnabled = false;
     
     try {
@@ -155,8 +157,8 @@ window.ZetaInitialize = function(options) {
     }).then(_ => {
         // initialize emulator
 
-        const render = new CanvasBasedRenderer(options.render.canvas);
-        const audio = new OscillatorBasedAudio();
+        const render = new CanvasBasedRenderer(options.render.canvas, options.render);
+        const audio = new OscillatorBasedAudio(options.audio);
         const vfs = createVfsFromVfs(vfsObjects);
 
         return createEmulator(render, audio, vfs, options);

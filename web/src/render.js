@@ -117,8 +117,8 @@ export class CanvasBasedRenderer {
 			this.chrBuf[y * 80 + x] = bufcmp;
 		}
 
-		x = x * this.drawChrWidth + this.x_offset;
-		y = y * this.chrHeight + this.y_offset;
+		x = x * this.drawChrWidth * this.scale + this.x_offset;
+		y = y * this.chrHeight * this.scale + this.y_offset;
 
 		const bg = (col >> 4) & 0x0F;
 		const fg = (col & 15);
