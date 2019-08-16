@@ -123,7 +123,7 @@ window.ZetaInitialize = function(options) {
 
     return loadingScreen._drawBackground().then(_ => Promise.all(vfsPromises)).then(_ => {
         // add storage vfs
-        if (options.storage.type == "auto") {
+        if (options.storage && options.storage.type == "auto") {
             if (getIndexedDB() != null) {
                 options.storage.type = "indexeddb";
             } else if (getLocalStorage() != null) {

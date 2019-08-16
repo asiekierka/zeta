@@ -57,6 +57,7 @@ export function xhrFetchAsArrayBuffer(url, progressCallback) {
 	return new Promise((resolve, reject) => {
 		var xhr = new XMLHttpRequest();
 		xhr.open("GET", url, true);
+		xhr.overrideMimeType('text/plain; charset=x-user-defined');
 		xhr.responseType = "arraybuffer";
 
 		xhr.onprogress = event => {
