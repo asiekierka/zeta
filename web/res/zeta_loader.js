@@ -18,6 +18,8 @@
  */
 
 ZetaLoad = function(options, callback) {
+	if (!options.path) throw "Missing option: path!";
+
 	var scripts_array = [];
 	var script_ldr = function() {
 		if (scripts_array.length == 0) {

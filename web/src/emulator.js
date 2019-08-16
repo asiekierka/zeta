@@ -27,6 +27,8 @@ import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js"
 	if (event.altKey) emu._zzt_kmod_set(0x08); else emu._zzt_kmod_clear(0x08);
 } */
 
+const TIMER_DURATION = 1000 / 18.2;
+
 class Emulator {
     constructor(element, emu, render, audio, vfs, options) {
         this.element = element;
@@ -40,7 +42,6 @@ class Emulator {
         this.frameQueued = false;
         this.time_ms_cached = time_ms();
         this.last_timer_time = 0;
-        this.timer_dur = 1000 / 18.2;
         this.opcodes = 1000;
 
         const self = this;
@@ -176,9 +177,9 @@ class Emulator {
     _tick() {
         this.time_ms_cached = time_ms();
 
-        while ((this.time_ms_cached - this.last_timer_time) >= this.timer_dur) {
+        while ((this.time_ms_cached - this.last_timer_time) >= TIMER_DURATION) {
 //    		console.log("timer, drift = " + (tms - last_timer_time - timer_dur) + " ms");
-            this.last_timer_time += this.timer_dur;
+            this.last_timer_time += TIMER_DURATION;
             this.emu._zzt_mark_timer();
         }
 
@@ -186,9 +187,9 @@ class Emulator {
         const duration = time_ms() - this.time_ms_cached;
         if (rcode) {
             if (rcode == 1) {
-                if (duration < 3) {
+                if (duration < 4) {
                     this.opcodes = (this.opcodes * 20 / 19);
-                } else if (duration > 6) {
+                } else if (duration > 8) {
                     this.opcodes = (this.opcodes * 19 / 20);
                 }
             }
@@ -198,7 +199,7 @@ class Emulator {
                 window.requestAnimationFrame(() => this._frame());
             }
 
-            const time_to_timer = this.timer_dur - ((this.time_ms_cached + duration) - this.last_timer_time);
+            const time_to_timer = TIMER_DURATION - ((this.time_ms_cached + duration) - this.last_timer_time);
             if (rcode != 3 || time_to_timer <= 1) {
                 window.postMessage("zzt_tick", "*");
             } else {
@@ -235,14 +236,6 @@ class Emulator {
 export function createEmulator(render, audio, vfs, options) {
 	return new Promise(resolve => {
         ZetaNative().then(emu => {
-            const vfs_arg = (options && options.arg) || "";
-            const buffer = emu._malloc(vfs_arg.length + 1);
-            const heap = new Uint8Array(emu.HEAPU8.buffer, buffer, vfs_arg.length + 1);
-            for (var i = 0; i < vfs_arg.length; i++) {
-                heap[i] = vfs_arg.charCodeAt(i);
-            }
-            heap[vfs_arg.length] = 0;
-            
             setWrappedVfs(vfs);
             setWrappedEmu(emu);
             initVfsWrapper();
@@ -252,11 +245,33 @@ export function createEmulator(render, audio, vfs, options) {
             emu._zzt_init();
 
             let handle = vfsg_open("zzt.exe", 0);
-            if (handle < 0)
+            let extension = ".zzt";
+            if (handle < 0) {
                 handle = vfsg_open("superz.exe", 0);
-            if (handle < 0)
+                extension = undefined;
+            }
+            if (handle < 0) {
                 throw "Could not find ZZT executable!";
-            emu._zzt_load_binary(handle, buffer);
+            }
+
+            let vfs_arg = "";
+            if (options && options.arg) {
+                vfs_arg = options.arg;
+            } else if (extension != undefined) {
+                let candidates = vfs.list(s => s.toLowerCase().endsWith(extension));
+                if (candidates.length > 0) {
+                    vfs_arg = candidates[0];
+                }
+            }
+
+            const vfs_arg_buffer = emu._malloc(vfs_arg.length + 1);
+            const vfs_arg_heap = new Uint8Array(emu.HEAPU8.buffer, vfs_arg_buffer, vfs_arg.length + 1);
+            for (var i = 0; i < vfs_arg.length; i++) {
+                vfs_arg_heap[i] = vfs_arg.charCodeAt(i);
+            }
+            vfs_arg_heap[vfs_arg.length] = 0;
+
+            emu._zzt_load_binary(handle, vfs_arg_buffer);
             vfsg_close(handle);
 
             emu._zzt_set_timer_offset(Date.now() % 86400000)

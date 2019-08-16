@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { getIndexedDB, getLocalStorage } from "./util";
+import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util";
 
 function filterKeys(list, filter) {
 	if (filter == null) return list;
@@ -275,7 +275,7 @@ export function createVfsFromVfs(providers) {
 }
 
 export function createVfsFromZip(url, options, progressCallback) {
-	return new Promise(resolve => {
+	return new Promise((resolve, reject) => {
 		var xhr = new XMLHttpRequest();
 		xhr.open("GET", url, true);
 		xhr.responseType = "arraybuffer";
@@ -285,14 +285,45 @@ export function createVfsFromZip(url, options, progressCallback) {
 		};
 
 		xhr.onload = function() {
-			console.log(this.response);
 			if (progressCallback != null) progressCallback(1);
+			if (xhr.status != 200) {
+				reject("Error downloading " + url + " (" + xhr.status + ")");
+				return;
+			}
 
 			let files = UZIP.parse(this.response);
 			let fileMap = {};
 			for (var key in files) {
-				if (!(options && options.filenameFilter) || options.filenameFilter(key)) {
-					fileMap[key] = files[key];
+				const keyOrig = key;
+
+				if (options && options.filenameMap) {
+					if (typeof(options.filenameMap) === "object") {
+						key = options.filenameMap[key] || undefined;
+					} else if (typeof(options.filenameMap) === "string" && options.filenameMap.length > 0) {
+						let cmpStr = options.filenameMap.toLowerCase();
+						if (!cmpStr.endsWith("/")) cmpStr += "/";
+
+						if (key.toLowerCase().startsWith(cmpStr)) {
+							key = key.substring(cmpStr.length);
+						} else {
+							key = undefined;
+						}
+					} else if (typeof(options.filenameMap) === "function") {
+						key = options.filenameMap(key);
+					}
+				}
+
+				if (key) {
+					if (key.indexOf("/") >= 0) {
+						console.warn("skipped file inside subdirectory: " + url + " -> " + key);
+						key = undefined;
+					}
+				}
+
+				if (key) {
+					if (!(options && options.filenameFilter) || options.filenameFilter(key)) {
+						fileMap[key] = files[keyOrig];
+					}
 				}
 			}
 			resolve(new MapBasedVfs(fileMap, options));

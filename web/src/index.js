@@ -21,7 +21,7 @@ import { OscillatorBasedAudio } from "./audio.js";
 import { CanvasBasedRenderer } from "./render.js";
 import { createVfsFromMap, createVfsFromVfs, createVfsFromZip, wrapVfsSynchronously, createAsyncVfsFromIndexedDB, createVfsFromBrowserStorage } from "./vfs.js";
 import { createEmulator } from "./emulator.js";
-import { getIndexedDB, getLocalStorage } from "./util.js";
+import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util.js";
 
 const VERSION = "@VERSION@";
 
@@ -30,23 +30,31 @@ class LoadingScreen {
         this.canvas = canvas;
         this.ctx = ctx;
         this.loaded = false;
+        this.path = options.path;
 
         const self = this;
-        const loadingImage = new Image();
-        loadingImage.onload = function() {
-            const versionStr = VERSION;
-            const w = loadingImage.width;
-            const h = loadingImage.height;
-            ctx.drawImage(loadingImage,0,0,w,h,(canvas.width - w*2)/2,(canvas.height - h*2)/2,w*2,h*2);
+    }
 
-            ctx.font = "16px sans-serif";
-            ctx.fillStyle = "#aaaaaa";
-            ctx.textBaseline = "bottom";
-            ctx.fillText(versionStr, (canvas.width + w*2) / 2 - 6 - ctx.measureText(versionStr).width, (canvas.height + h*2) / 2 - 6);
+    _drawBackground() {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            const loadingImage = new Image();
+            loadingImage.onload = function() {
+                const versionStr = VERSION;
+                const w = loadingImage.width;
+                const h = loadingImage.height;
+                self.ctx.drawImage(loadingImage,0,0,w,h,(self.canvas.width - w*2)/2,(self.canvas.height - h*2)/2,w*2,h*2);
 
-            self.loaded = true;
-        };
-        loadingImage.src = options.path + "loading.png";
+                self.ctx.font = "16px sans-serif";
+                self.ctx.fillStyle = "#aaaaaa";
+                self.ctx.textBaseline = "bottom";
+                self.ctx.fillText(versionStr, (self.canvas.width + w*2) / 2 - 6 - self.ctx.measureText(versionStr).width, (self.canvas.height + h*2) / 2 - 6);
+
+                self.loaded = true;
+                resolve(true);
+            };
+            loadingImage.src = self.path + "loading.png";
+        });
     }
 
     progress(p) {
@@ -64,15 +72,21 @@ class LoadingScreen {
 
 window.ZetaInitialize = function(options) {
     if (!options.render) throw "Missing option: render!";
-	if (!options.render.canvas) throw "Missing option: render.canvas!";
-	if (!options.path) throw "Missing option: path!";
-    if (!options.files) throw "Missing option: files!";
+    if (!options.render.canvas) throw "Missing option: render.canvas!";
 
 	const canvas = options.render.canvas;
 	canvas.contentEditable = true;
 	const ctx = canvas.getContext('2d', {alpha: false});
     ctx.imageSmoothingEnabled = false;
     
+    try {
+        if (!options.path) throw "Missing option: path!";
+        if (!options.files) throw "Missing option: files!";
+    } catch (e) {
+        drawErrorMessage(canvas, ctx, e);
+        return Promise.reject(e);
+    }
+
     const loadingScreen = new LoadingScreen(canvas, ctx, VERSION, options);
 
     var vfsPromises = [];
@@ -105,7 +119,7 @@ window.ZetaInitialize = function(options) {
         }
 	}
 
-	return Promise.all(vfsPromises).then(_ => {
+    return loadingScreen._drawBackground().then(_ => Promise.all(vfsPromises)).then(_ => {
         // add storage vfs
         if (options.storage.type == "auto") {
             if (getIndexedDB() != null) {
@@ -146,5 +160,7 @@ window.ZetaInitialize = function(options) {
         const vfs = createVfsFromVfs(vfsObjects);
 
         return createEmulator(render, audio, vfs, options);
-    }).then(_ => true);
+    }).then(_ => true).catch(reason => {
+        drawErrorMessage(canvas, ctx, reason);
+    });
 }

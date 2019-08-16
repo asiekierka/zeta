@@ -25,7 +25,7 @@ export class CanvasBasedRenderer {
 		this.ctx = canvas.getContext('2d', {alpha: false});
 		this.ctx.imageSmoothingEnabled = false;
 
-		this.video_blink = true;
+		this.video_blink = this.blink_duration > 0;
 		if (options && options.hasOwnProperty("blink")) {
 			this.video_blink = options.blink;
 		}
@@ -60,7 +60,7 @@ export class CanvasBasedRenderer {
 		}
 	}
 
-	_updVideoMode(val) {
+	_updVideoMode(val, time) {
 		if (val != this.video_mode) {
 			this.chrBuf = [];
 			if ((val & 0x02) == 2) {
@@ -79,19 +79,37 @@ export class CanvasBasedRenderer {
 		this.cw = this.canvas.width;
 		this.ch = this.canvas.height;
 		this.scale = Math.min(Math.floor(this.cw / this.pw), Math.floor(this.ch / this.ph));
-	}
 
-	_drawChar(x, y, chr, col, time) {
-		if (this.video_blink && col >= 0x80) {
-			col = col & 0x7F;
-
+		if (this.video_blink) {
 			if ((time % this.blink_duration) >= (this.blink_duration / 2)) {
-				col = (col >> 4) * 0x11;
+				this.blink_state = 2;
+			} else {
+				this.blink_state = 1;
 			}
+		} else {
+			this.blink_state = 0;
 		}
 
-		let buffered = this.chrBuf[y * 80 + x];
-		let bufcmp = (chr << 8) | col;
+		this.x_offset = ((this.cw - this.pw*this.scale) / 2);
+		this.y_offset = ((this.ch - this.ph*this.scale) / 2);
+	}
+
+	_drawChar(x, y, chr, col) {
+		switch (this.blink_state) {
+			case 0:
+				break;
+			case 1:
+				col = col & 0x7F;
+				break;
+			case 2:
+				if (col >= 0x80) {
+					col = ((col & 0x70) >> 4) * 0x11;
+				}
+				break;
+		}
+
+		const buffered = this.chrBuf[y * 80 + x];
+		const bufcmp = (chr << 8) | col;
 
 		if (buffered == bufcmp) {
 			return;
@@ -99,28 +117,18 @@ export class CanvasBasedRenderer {
 			this.chrBuf[y * 80 + x] = bufcmp;
 		}
 
-		x = x * this.drawChrWidth;
-		y = y * this.chrHeight;
+		x = x * this.drawChrWidth + this.x_offset;
+		y = y * this.chrHeight + this.y_offset;
 
-		let bg = (col >> 4) & 0x0F;
-		let fg = (col & 15);
+		const bg = (col >> 4) & 0x0F;
+		const fg = (col & 15);
 
-		let rw = this.drawChrWidth;
-		let rh = this.chrHeight;
-
-		if (this.scale > 1) {
-			rw *= this.scale;
-			rh *= this.scale;
-			x = (x*this.scale) + ((this.cw - this.pw*this.scale) / 2);
-			y = (y*this.scale) + ((this.ch - this.ph*this.scale) / 2);
-		} else {
-			x += ((this.cw - this.pw) / 2);
-			y += ((this.ch - this.ph) / 2);
-		}
+		let rw = this.drawChrWidth * this.scale;
+		let rh = this.chrHeight * this.scale;
 
 		this.ctx.fillStyle = this.palette[bg];
 		this.ctx.fillRect(x, y, rw, rh);
-
+		
 		if (bg != fg) {
 			this.ctx.drawImage(this.asciiFg[fg], (chr & 15) * this.chrWidth, ((chr >> 4) & 15) * this.chrHeight, this.chrWidth, this.chrHeight, x, y, rw, rh);
 		}
@@ -189,14 +197,14 @@ export class CanvasBasedRenderer {
 
 	render(heap, mode, time) {
 		if (this.rdDirty) this._updRenderData();
-		this._updVideoMode(mode);
+		this._updVideoMode(mode, time);
 
 		let pos = 0;
 
 		if (this.asciiFg != null && this.palette != null) {
 			for (var y = 0; y < 25; y++) {
 				for (var x = 0; x < this.scrWidth; x++, pos+=2) {
-					this._drawChar(x, y, heap[pos], heap[pos+1], time);
+					this._drawChar(x, y, heap[pos], heap[pos+1]);
 				}
 			}
 		}
