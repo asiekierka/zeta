@@ -137,7 +137,7 @@ export function initVfsWrapper() {
 				const lenDiff = a.length - b.length;
 				if (lenDiff != 0) return lenDiff;
 				else return a.localeCompare(b);
-			});
+			}).map(a => a.toUpperCase());
 			return list;
 		} else {
 			console.log("unknown findfirst spec: " + spec);

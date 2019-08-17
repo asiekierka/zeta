@@ -109,13 +109,16 @@ window.ZetaInitialize = function(options) {
             if (!opts.hasOwnProperty("readonly")) {
                 opts.readonly = true;
             }
+            if (!opts.hasOwnProperty("ignoreCase")) {
+                opts.ignoreCase = "upper";
+            }
             vfsPromises.push(
                 createZipStorage(file[0], opts, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         } else {
             vfsPromises.push(
-                createZipStorage(file, {"readonly": true}, progressUpdater)
+                createZipStorage(file, {"readonly": true, "ignoreCase": "upper"}, progressUpdater)
                     .then(o => vfsObjects.push(o))
             );
         }
@@ -138,20 +141,20 @@ window.ZetaInitialize = function(options) {
             if (options.storage.type == "indexeddb") {
                 if (!options.storage.database) throw "Missing option: storage.database!";
                 return createIndexedDbBackedAsyncStorage("zeta_" + options.storage.database)
-                    .then(result => wrapAsyncStorage(result))
+                    .then(result => wrapAsyncStorage(result, {"ignoreCase": "upper"}))
                     .then(result => vfsObjects.push(result));
             } else if (options.storage.type == "localstorage") {
                 if (!options.storage.database) throw "Missing option: storage.database!";
                 let storageObj = window.localStorage;
                 if (options.storage.storage) storageObj = options.storage.storage;
                 if (storageObj == undefined) throw "Could not find storage object!";
-                vfsObjects.push(createBrowserBackedStorage(storageObj, "zeta_" + options.storage.database));
+                vfsObjects.push(createBrowserBackedStorage(storageObj, "zeta_" + options.storage.database, {"ignoreCase": "upper"}));
                 return true;
             } else {
                 throw "Unknown storage type: " + options.storage.type;
             }
         } else {
-            vfsObjects.push(createInMemoryStorage({}, {"readonly": false}));
+            vfsObjects.push(createInMemoryStorage({}, {"readonly": false, "ignoreCase": "upper"}));
             return true;
         }
     }).then(_ => {

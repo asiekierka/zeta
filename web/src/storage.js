@@ -30,34 +30,35 @@ function filterKeys(list, filter) {
 	return newList;
 }
 
-class InMemoryStorage {
-	constructor(inputMap, options) {
-		this.map = {};
-		for (var key in inputMap) {
-			this.map[key.toUpperCase()] = inputMap[key];
-		}
+class BaseStorage {
+	constructor(options) {
+		this.ignoreCase = (options && options.ignoreCase) || false;
 		this.readonly = (options && options.readonly) || false;
 	}
 
+	_transformKey(key) {
+		if (this.ignoreCase == "upper") return key.toUpperCase();
+		else if (this.ignoreCase) return key.toLowerCase();
+		else return key;
+	}
+
 	canSet(key) {
-		return this.readonly;
+		if (this.readonly) return false;
+		if (this._canSet) return this._canSet(this._transformKey(key));
+		return true;
 	}
 
 	get(key) {
-		if (!this.map.hasOwnProperty(key.toUpperCase())) {
-			return null;
-		}
-		return this.map[key.toUpperCase()].slice(0);
+		return this._get(this._transformKey(key));
 	}
 
 	list(filter) {
-		return filterKeys(Object.keys(this.map), filter);
+		return this._list(filter);
 	}
 
 	set(key, value) {
 		if (this.readonly) return false;
-		this.map[key.toUpperCase()] = value;
-		return true;
+		return this._set(this._transformKey(key), value);
 	}
 }
 
@@ -106,9 +107,36 @@ class CompositeStorage {
 	}
 }
 
+class InMemoryStorage extends BaseStorage {
+	constructor(inputMap, options) {
+		super(options);
+
+		this.map = {};
+		for (var key in inputMap) {
+			this.map[this._transformKey(key)] = inputMap[key];
+		}
+	}
+
+	_get(key) {
+		if (!this.map.hasOwnProperty(key)) {
+			return null;
+		}
+		return this.map[key].slice(0);
+	}
+
+	_list(filter) {
+		return filterKeys(Object.keys(this.map), filter);
+	}
+
+	_set(key, value) {
+		this.map[key] = value;
+		return true;
+	}
+}
+
 class AsyncStorageWrapper extends InMemoryStorage {
-	constructor(parent) {
-		super({}, {});
+	constructor(parent, options) {
+		super({}, options);
 		this.parent = parent;
 	}
 
@@ -122,7 +150,7 @@ class AsyncStorageWrapper extends InMemoryStorage {
 			for (var i = 0; i < result.length; i++) {
 				const key = result[i];
 				getters.push(self.parent.get(key).then(result => {
-					self.map[key.toUpperCase()] = result;
+					this._set(key, result);
 				}));
 			}
 
@@ -130,8 +158,8 @@ class AsyncStorageWrapper extends InMemoryStorage {
 		});
 	}
 
-	set(key, value) {
-		if (super.set(key, value)) {
+	_set(key, value) {
+		if (super._set(key, value)) {
 			this.parent.set(key, value);
 			return true;
 		} else {
@@ -140,17 +168,14 @@ class AsyncStorageWrapper extends InMemoryStorage {
 	}
 }
 
-class BrowserBackedStorage {
-	constructor(localStorage, prefix) {
+class BrowserBackedStorage extends BaseStorage {
+	constructor(localStorage, prefix, options) {
+		super(options);
 		this.storage = localStorage;
 		this.prefix = prefix + "_file_";
 	}
 
-	canSet(key) {
-		return true;
-	}
-
-	get(key) {
+	_get(key) {
 		const result = this.storage.getItem(this.prefix + key.toUpperCase());
 		if (result) {
 			return result.split(",").map(s => parseInt(s));
@@ -159,7 +184,7 @@ class BrowserBackedStorage {
 		}
 	}
 
-	list(filter) {
+	_list(filter) {
 		var list = [];
 		for (var i = 0; i < this.storage.length; i++) {
 			const key = this.storage.key(i);
@@ -170,14 +195,14 @@ class BrowserBackedStorage {
 		return filterKeys(list, filter);
 	}
 
-	set(key, value) {
-		this.storage.setItem(this.prefix + key.toUpperCase(), value.join(","));
+	_set(key, value) {
+		this.storage.setItem(this.prefix + key, value.join(","));
 		return true;
 	}
 }
 
 class IndexedDbBackedAsyncStorage {
-	constructor(indexedDB, dbName, options) {
+	constructor(indexedDB, dbName) {
 		this.indexedDB = indexedDB;
 		this.dbName = dbName;
 	}
@@ -235,7 +260,7 @@ class IndexedDbBackedAsyncStorage {
 		const transaction = this.database.transaction(["files"], "readwrite");
 		return new Promise((resolve, reject) => {
 			const request = transaction.objectStore("files").put({
-				"filename": key.toUpperCase(),
+				"filename": key,
 				"value": value
 			});
 			request.onsuccess = event => {
@@ -248,8 +273,8 @@ class IndexedDbBackedAsyncStorage {
 	}
 }
 
-export function createBrowserBackedStorage(storage, dbName) {
-	return new BrowserBackedStorage(storage, dbName);
+export function createBrowserBackedStorage(storage, dbName, options) {
+	return new BrowserBackedStorage(storage, dbName, options);
 }
 
 export function createIndexedDbBackedAsyncStorage(dbName) {
@@ -261,8 +286,8 @@ export function createIndexedDbBackedAsyncStorage(dbName) {
 	return dbObj._open().then(_ => dbObj);
 }
 
-export function wrapAsyncStorage(asyncVfs) {
-	const obj = new AsyncStorageWrapper(asyncVfs);
+export function wrapAsyncStorage(asyncVfs, options) {
+	const obj = new AsyncStorageWrapper(asyncVfs, options);
 	return obj._populate().then(_ => obj);
 }
 
@@ -270,8 +295,8 @@ export function createInMemoryStorage(inputMap, options) {
 	return new InMemoryStorage(inputMap, options);
 }
 
-export function createCompositeStorage(providers) {
-	return new CompositeStorage(providers);
+export function createCompositeStorage(providers, options) {
+	return new CompositeStorage(providers, options);
 }
 
 export function createZipStorage(url, options, progressCallback) {
