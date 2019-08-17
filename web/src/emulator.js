@@ -19,7 +19,7 @@
 
 import { time_ms, drawErrorMessage } from "./util.js";
 import { keymap } from "./keymap.js";
-import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js"
+import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
 /* var check_modifiers = function(event) {
 	if (event.shiftKey) emu._zzt_kmod_set(0x01); else emu._zzt_kmod_clear(0x01);
@@ -232,6 +232,22 @@ class Emulator {
             }
         }
     }
+
+    _str2buffer(arg, mth) {
+        const arg_buffer = this.emu._malloc(arg.length + 1);
+        const arg_heap = new Uint8Array(this.emu.HEAPU8.buffer, arg_buffer, arg.length + 1);
+        for (var i = 0; i < arg.length; i++) {
+            var code = arg.charCodeAt(i);
+            if (code >= 127) {
+                arg_heap[i] = 0;
+            } else {
+                arg_heap[i] = code;
+            }
+        }
+        arg_heap[arg.length] = 0;
+        mth(arg_buffer);
+        this.emu._free(arg_buffer);
+    }
 }
 
 export function createEmulator(render, audio, vfs, options) {
@@ -244,39 +260,64 @@ export function createEmulator(render, audio, vfs, options) {
             const emuObj = new Emulator(options.render.canvas, emu, render(emu), audio(emu), vfs, options);
 
             emu._zzt_init();
-
-            let handle = vfsg_open("zzt.exe", 0);
-            let extension = ".zzt";
-            if (handle < 0) {
-                handle = vfsg_open("superz.exe", 0);
-                extension = undefined;
-            }
-            if (handle < 0) {
-                throw "Could not find ZZT executable!";
-            }
-
-            let vfs_arg = "";
-            if (options && options.arg) {
-                vfs_arg = options.arg;
-            } else if (extension != undefined) {
-                let candidates = vfs.list(s => s.toLowerCase().endsWith(extension));
-                if (candidates.length > 0) {
-                    vfs_arg = candidates[0];
-                }
-            }
-
-            const vfs_arg_buffer = emu._malloc(vfs_arg.length + 1);
-            const vfs_arg_heap = new Uint8Array(emu.HEAPU8.buffer, vfs_arg_buffer, vfs_arg.length + 1);
-            for (var i = 0; i < vfs_arg.length; i++) {
-                vfs_arg_heap[i] = vfs_arg.charCodeAt(i);
-            }
-            vfs_arg_heap[vfs_arg.length] = 0;
-
-            emu._zzt_load_binary(handle, vfs_arg_buffer);
-            vfsg_close(handle);
-
             emu._zzt_set_timer_offset(Date.now() % 86400000)
             
+            if (options && options.commands) {
+                const lastCommand = options.commands.length - 1;
+                for (var i = 0; i <= lastCommand; i++) {
+                    let command = options.commands[i];
+                    if (typeof(command) == "string") {
+                        command = [command, ""];
+                    }
+
+                    let handle = vfsg_open(command[0].toLowerCase(), 0);
+                    if (handle < 0) {
+                        throw "Could not find executable " + command[0] + " (command #" + (i+1) + ")!";
+                    }
+
+                    emuObj._str2buffer(command[1], arg_buffer => {
+                        emu._zzt_load_binary(handle, arg_buffer);
+                    });
+
+                    vfsg_close(handle);
+
+                    console.log("executing " + command[0] + " " + command[1]);
+                    if (i < lastCommand) {
+                        while (emu._zzt_execute(10000) != 0) { }
+                    }
+                }
+            } else {
+                let executable = "zzt.exe";
+                let handle = vfsg_open(executable, 0);
+                let extension = ".zzt";
+                if (handle < 0) {
+                    executable = "superz.exe";
+                    handle = vfsg_open(executable, 0);
+                    extension = undefined;
+                }
+                if (handle < 0) {
+                    throw "Could not find ZZT/Super ZZT executable!";
+                }
+
+                let vfs_arg = "";
+                if (options && options.arg) {
+                    vfs_arg = options.arg;
+                } else if (extension != undefined) {
+                    const candidates = vfs.list(s => s.toLowerCase().endsWith(extension));
+                    if (candidates.length > 0) {
+                        vfs_arg = candidates[0];
+                    }
+                }
+
+                emuObj._str2buffer(vfs_arg, arg_buffer => {
+                    emu._zzt_load_binary(handle, arg_buffer);
+                });
+
+                vfsg_close(handle);
+
+                console.log("executing " + executable + " " + vfs_arg);
+            }
+
             emuObj._resetLastTimerTime();
             emuObj._tick();
             resolve(emuObj);

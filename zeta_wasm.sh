@@ -13,7 +13,7 @@ xxd -i res/8x14.bin > res/8x14.c
 emcc -O3 --js-library src/emscripten_glue.js \
   -s WASM_OBJECT_FILES=0 --llvm-lto 1 \
   -s ENVIRONMENT=web \
-  -s 'EXPORTED_FUNCTIONS=["_malloc"]' \
+  -s 'EXPORTED_FUNCTIONS=["_malloc","_free"]' \
   -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
   -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
