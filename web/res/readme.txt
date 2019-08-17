@@ -22,10 +22,14 @@ Optional option keys:
     * type: can be "auto" (preferred), "localstorage" or "indexeddb".
     * database: for all of the above, a required database name. If you're hosting multiple games on the same domain, you may want to make this unique.
 * render:
+    * type: the engine to use for video rendering; can be "auto" (preferred) or "canvas"
     * blink: true if video blinking should be enabled, false otherwise
     * blink_duration: the length of a full blink cycle, in milliseconds
     * charset_override: the location of a PNG image file (16x16 chars) overriding the character set, if present
 * audio:
+    * type: the engine to use for audio rendering; can be "auto" (preferred), "buffer" or "oscillator" (pre-beta15; deprecated)
+    * bufferSize (buffer): the audio buffer size, in samples
+    * sampleRate (buffer): the audio sampling rate, in Hz
     * volume: the volume of the outputted audio stream; 0.2 by default
 
 File entries can be either a string (denoting the relative or absolute path to a .ZIP file), or an array of a string and an options object containing the following optional keys:

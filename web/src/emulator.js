@@ -178,7 +178,10 @@ class Emulator {
         this.time_ms_cached = time_ms();
 
         while ((this.time_ms_cached - this.last_timer_time) >= TIMER_DURATION) {
-//    		console.log("timer, drift = " + (tms - last_timer_time - timer_dur) + " ms");
+            /* var drift = (this.time_ms_cached - this.last_timer_time - TIMER_DURATION);
+            if (drift >= 2) {
+                console.warn("large timer drift! " + drift + " ms");
+            } */
             this.last_timer_time += TIMER_DURATION;
             this.emu._zzt_mark_timer();
         }
@@ -186,12 +189,10 @@ class Emulator {
         const rcode = this.emu._zzt_execute(this.opcodes);
         const duration = time_ms() - this.time_ms_cached;
         if (rcode) {
-            if (rcode == 1) {
-                if (duration < 4) {
-                    this.opcodes = (this.opcodes * 20 / 19);
-                } else if (duration > 8) {
-                    this.opcodes = (this.opcodes * 19 / 20);
-                }
+            if (duration < 5 && rcode == 1) {
+                this.opcodes = (this.opcodes * 20 / 19);
+            } else if (duration > 10) {
+                this.opcodes = (this.opcodes * 19 / 20);
             }
 
             if (!this.frameQueued) {
@@ -240,7 +241,7 @@ export function createEmulator(render, audio, vfs, options) {
             setWrappedEmu(emu);
             initVfsWrapper();
 
-            const emuObj = new Emulator(options.render.canvas, emu, render, audio, vfs, options);
+            const emuObj = new Emulator(options.render.canvas, emu, render(emu), audio(emu), vfs, options);
 
             emu._zzt_init();
 

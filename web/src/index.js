@@ -17,7 +17,7 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { OscillatorBasedAudio } from "./audio.js";
+import { OscillatorBasedAudio, BufferBasedAudio } from "./audio.js";
 import { CanvasBasedRenderer } from "./render.js";
 import { createEmulator } from "./emulator.js";
 import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util.js";
@@ -155,10 +155,19 @@ window.ZetaInitialize = function(options) {
             return true;
         }
     }).then(_ => {
-        // initialize emulator
+        let render_type = (options && options.render && options.render.type) || "auto";
+        let audio_type = (options && options.audio && options.audio.type) || "auto";
 
-        const render = new CanvasBasedRenderer(options.render.canvas, options.render);
-        const audio = new OscillatorBasedAudio(options.audio);
+        let render, audio;
+        
+        render = (emu) => new CanvasBasedRenderer(options.render.canvas, options.render);
+        
+        if (audio_type == "oscillator") {
+            audio = (emu) => new OscillatorBasedAudio(options.audio);
+        } else {
+            audio = (emu) => new BufferBasedAudio(emu, options.audio);
+        }
+
         const vfs = createCompositeStorage(vfsObjects);
 
         return createEmulator(render, audio, vfs, options);

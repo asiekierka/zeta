@@ -91,63 +91,69 @@ export class OscillatorBasedAudio {
 export class BufferBasedAudio {
 	constructor(emu, options) {
 		this.emu = emu;
-		this.pc_speaker = undefined;
 		this.sampleRate = (options && options.sampleRate) || 48000;
-		this.bufferSize = (options && options.bufferSize) || 4096;
+		this.bufferSize = (options && options.bufferSize) || 2048;
 		this.volume = (options && options.volume) || 0.2;
+		this.timeUnit = (this.bufferSize / this.sampleRate);
+		this.nativeBuffer = this.emu._malloc(this.bufferSize);
+		this.nativeHeap = new Uint8Array(this.emu.HEAPU8.buffer, this.nativeBuffer, this.bufferSize);
+		this.initialized = false;
+		this.lastTimeMs = 0;
+	}
+
+	_queueBufferSource(populateFunc) {
+		this.time += this.timeUnit;
+		if (this.time < audioCtx.currentTime) this.time = audioCtx.currentTime;
+
+		const source = audioCtx.createBufferSource();
+		const buffer = audioCtx.createBuffer(1, this.bufferSize, this.sampleRate);
+		if (populateFunc) populateFunc(buffer, source);
+		source.buffer = buffer; // Firefox makes buffer immutable here!
+		source.onended = () => this._queueNextSpeakerBuffer();
+		source.connect(audioCtx.destination);
+		source.start(this.time);
+	}
+
+	_queueNextSpeakerBuffer() {
+		const self = this;
+
+		this._queueBufferSource((buffer, source) => {
+			const bufferSize = self.bufferSize;
+			const nativeBuffer = self.nativeBuffer;
+			const nativeHeap = self.nativeHeap;
+			const out0 = buffer.getChannelData(channel);
+
+			self.emu._audio_stream_generate_u8(time_ms(), nativeBuffer, self.bufferSize);
+			for (let i = 0; i < bufferSize; i++) {
+				out0[i] = (nativeHeap[i] - 127) / 127.0;
+			}
+			for (var channel = 1; channel < buffer.numberOfChannels; channel++) {
+				buffer.getChannelData(channel).set(out0);
+			}
+		})
 	}
 
 	_initSpeaker() {
-		this.pc_speaker = audioCtx.createBufferSource();
-		let buffer = audioCtx.createBuffer(1, this.bufferSize * 2, this.sampleRate);
-		this.pc_speaker.buffer = buffer;
-		this.pc_speaker.connect(audioCtx.destination);
+		if (this.initialized) return;
+		this.initialized = true;
 
-		let nativeBuffer = this.emu._malloc(this.bufferSize);
-		let nativeHeap = new Uint8Array(this.emu.HEAPU8.buffer, nativeBuffer, this.bufferSize);
+		this.time = audioCtx.currentTime;
 
 		this.emu._audio_stream_init(time_ms(), this.sampleRate);
 		this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
-		let startedAt = 0;
-		let startedAtMs = 0;
-		let lastTime = 0;
 
-		let write = function(offset) {
-			let out = buffer.getChannelData(0);
-			let sm = Math.min(time_ms(), ((audioCtx.currentTime - startedAt) * 1000) + startedAtMs);
-			this.emu._audio_stream_generate_u8(sm, nativeBuffer, this.bufferSize);
-			for (let i = 0; i < this.bufferSize; i++) {
-				out[offset + i] = (nativeHeap[i] - 127) / 127.0;
-			}
-		}
-
-		let tick = function() {
-			let ltPos = Math.floor( (lastTime / (this.bufferSize / this.sampleRate)) % 2 );
-			let ctPos = Math.floor( (audioCtx.currentTime / (this.bufferSize / this.sampleRate)) % 2 );
-			if (ltPos != ctPos) {
-				write(ltPos * this.bufferSize);
-			}
-			lastTime = audioCtx.currentTime;
-		};
-
-		this.pc_speaker.loop = true;
-		startedAt = audioCtx.currentTime;
-		startedAtMs = time_ms();
-		this.pc_speaker.start();
-		lastTime = startedAt - 0.001;
-
-		tick();
-		setInterval(tick, (this.bufferSize / this.sampleRate) * (1000.0 / 2));
+		this._queueBufferSource(() => {});
+		this._queueNextSpeakerBuffer();
 	}
 
 	on(freq) {
 		if (audioCtx == undefined) return;
-		if (this.pc_speaker == undefined) this._initSpeaker();
+		this._initSpeaker();
 		this.emu._audio_stream_append_on(time_ms(), freq);
 	}
 
 	off() {
-		if (this.pc_speaker == undefined) return;
+		if (audioCtx == undefined) return;
 		this.emu._audio_stream_append_off(time_ms());
 	}
 }
