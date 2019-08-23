@@ -43,14 +43,13 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
                 * "#012345" or "#012"-format strings.
 * render:
     * type: the engine to use for video rendering; can be "auto" (preferred) or "canvas"
-    * blink: true if video blinking should be enabled, false otherwise
-    * blink_duration: the length of a full blink cycle, in milliseconds
+    * blink_cycle_duration: the length of a full blink cycle, in seconds; <= 0 to disable; the default is 0.466
     * charset_override: the location of a PNG image file (16x16 chars) overriding the engine's character set, if present
 * audio:
     * type: the engine to use for audio rendering; can be "auto" (preferred), "buffer" or "oscillator" (pre-beta15; deprecated)
     * bufferSize (buffer): the audio buffer size, in samples
     * sampleRate (buffer): the audio sampling rate, in Hz
-    * volume: the volume of the outputted audio stream; 0.2 by default
+    * volume: the volume of the outputted audio stream (range 0.0 - 1.0); 0.2 by default
 
 File entries can be either a string (denoting the relative or absolute path to a .ZIP file), or an array of a string and an options object containing the following optional keys:
 
@@ -64,3 +63,5 @@ File entries can be either a string (denoting the relative or absolute path to a
 
 * emu.loadCharset(charset) - argument format as in options.emulator.charset. Returns true upon success.
 * emu.loadPalette(palette) - argument format as in options.emulator.palette. Returns true upon success.
+* emu.setBlinkCycleDuration(duration) - sets blink cycle duration in seconds. Returns true upon success.
+* emu.setVolume(volume) - sets volume in range 0.0 - 1.0. Returns true upon success.

@@ -20,15 +20,11 @@
 export class CanvasBasedRenderer {
 	constructor(canvas, options) {
 		this.canvas = canvas;
-		this.blink_duration = (options && options.blink_duration) || 466;
-
 		this.ctx = canvas.getContext('2d', {alpha: false});
 		this.ctx.imageSmoothingEnabled = false;
 
+		this.blink_duration = Math.round(((options && options.blink_cycle_duration) || 0.466) * 1000);
 		this.video_blink = this.blink_duration > 0;
-		if (options && options.hasOwnProperty("blink")) {
-			this.video_blink = options.blink;
-		}
 
 		this.video_mode = -1;
 		this.chrBuf = [];
@@ -208,6 +204,11 @@ export class CanvasBasedRenderer {
 				}
 			}
 		}
+	}
+
+	setBlinkCycleDuration(duration) {
+		this.blink_duration = Math.round(duration * 1000);
+		this.video_blink = this.blink_duration > 0;
 	}
 
 	setCharset(width, height, heap) {

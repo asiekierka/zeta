@@ -271,6 +271,16 @@ class Emulator {
         }
     }
 
+    setBlinkCycleDuration(duration) {
+        this.render.setBlinkCycleDuration(duration);
+        return true;
+    }
+
+    setVolume(volume) {
+        this.audio.setVolume(volume);
+        return true;
+    }
+
     _frame() {
         this._pollGamepads();
 

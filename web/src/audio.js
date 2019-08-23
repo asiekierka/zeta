@@ -40,7 +40,7 @@ export class OscillatorBasedAudio {
 		this.timeSpeakerOn = 0;
 		this.audioGain = undefined;
 		this.pc_speaker = undefined;
-		this.volume = (options && options.volume) || 0.2;
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
 	}
 
 	on(freq) {
@@ -86,6 +86,14 @@ export class OscillatorBasedAudio {
 		// console.log("pc speaker off " + (audioCtx.currentTime + lastADelay));
 		this.pc_speaker.frequency.setValueAtTime(0, audioCtx.currentTime + lastADelay);
 	}
+
+	setVolume(volume) {
+		this.volume = Math.min(1.0, Math.max(0.0, volume));
+		
+		if (this.pc_speaker != undefined) {
+			this.audioGain.gain.setValueAtTime(this.volume, audioCtx.currentTime);
+		}
+	}
 }
 
 export class BufferBasedAudio {
@@ -93,7 +101,7 @@ export class BufferBasedAudio {
 		this.emu = emu;
 		this.sampleRate = (options && options.sampleRate) || 48000;
 		this.bufferSize = (options && options.bufferSize) || 2048;
-		this.volume = (options && options.volume) || 0.2;
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
 		this.timeUnit = (this.bufferSize / this.sampleRate);
 		this.nativeBuffer = this.emu._malloc(this.bufferSize);
 		this.nativeHeap = new Uint8Array(this.emu.HEAPU8.buffer, this.nativeBuffer, this.bufferSize);
@@ -144,6 +152,14 @@ export class BufferBasedAudio {
 
 		this._queueBufferSource(() => {});
 		this._queueNextSpeakerBuffer();
+	}
+
+	setVolume(volume) {
+		this.volume = Math.min(1.0, Math.max(0.0, volume));
+		
+		if (this.initialized) {
+			this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
+		}
 	}
 
 	on(freq) {

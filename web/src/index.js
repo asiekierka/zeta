@@ -124,7 +124,7 @@ window.ZetaInitialize = function(options, callback) {
         }
 	}
 
-    return loadingScreen._drawBackground().then(_ => Promise.all(vfsPromises)).then(_ => {
+    loadingScreen._drawBackground().then(_ => Promise.all(vfsPromises)).then(_ => {
         // add storage vfs
         if (options.storage && options.storage.type == "auto") {
             if (getIndexedDB() != null) {
@@ -172,9 +172,10 @@ window.ZetaInitialize = function(options, callback) {
         }
 
         const vfs = createCompositeStorage(vfsObjects);
-        const emu = createEmulator(render, audio, vfs, options);
-        if (callback != null) callback(emu);
-        return emu;
+        return createEmulator(render, audio, vfs, options).then(emu => {
+            if (callback != null) callback(emu);
+            return emu;
+        });
     }).then(_ => true).catch(reason => {
         callback(undefined, reason);
         drawErrorMessage(canvas, ctx, reason);
