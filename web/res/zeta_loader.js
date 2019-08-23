@@ -23,11 +23,7 @@ ZetaLoad = function(options, callback) {
 	var scripts_array = [];
 	var script_ldr = function() {
 		if (scripts_array.length == 0) {
-			if (callback) {
-				callback(ZetaInitialize(options));
-			} else {
-				ZetaInitialize(options);
-			}
+			ZetaInitialize(options, callback);
 		} else {
 			var scrSrc = scripts_array.shift();
 			var scr = document.createElement("script");

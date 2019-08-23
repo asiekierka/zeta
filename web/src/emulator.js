@@ -29,6 +29,8 @@ import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
 const TIMER_DURATION = 1000 / 18.2;
 
+const PLD_TO_PAL = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
+
 class Emulator {
     constructor(element, emu, render, audio, vfs, options) {
         this.element = element;
@@ -54,8 +56,8 @@ class Emulator {
             if (id == 1 /* joy connected */) return true;
             else if (id == 2 /* mouse connected */) return true;
             else return false;
-        }        
-        
+        }
+
         window.zetag_update_charset = function(width, height, char_ptr) {
 	        const data = new Uint8Array(emu.HEAPU8.buffer, char_ptr, 256 * height);
 	        render.setCharset(width, height, data);
@@ -132,7 +134,7 @@ class Emulator {
 
         this.element.addEventListener("mousemove", function(e) {
             if (emu == undefined) return;
-    
+
             const mx = e.movementX * self.mouseSensitivity;
             const my = e.movementY * self.mouseSensitivity;
             emu._zzt_mouse_axis(0, mx);
@@ -144,18 +146,129 @@ class Emulator {
             if (mouseY < 0) mouseY = 0;
             else if (mouseY >= 350) mouseY = 349; */
         });
-    
+
         this.element.addEventListener("mousedown", function(e) {
             element.requestPointerLock();
-    
+
             if (emu == undefined) return;
             emu._zzt_mouse_set(e.button);
         });
-    
+
         this.element.addEventListener("mouseup", function(e) {
             if (emu == undefined) return;
             emu._zzt_mouse_clear(e.button);
         });
+    }
+
+    loadCharset(charset) {
+        const emu = this.emu; 
+
+        if (typeof(charset) == "string") {
+            charset = this.vfs.get(charset);
+        }
+
+        if (typeof(charset) == "object") {
+            if ((charset.length & 0xFF) != 0) return false;
+
+            const width = 8;
+            const height = charset.length >> 8;
+
+            if (height != 14) return false;
+
+            let result = false;
+
+            this._u8array2buffer(charset, charset_buffer => {
+                result = emu._zzt_load_charset(width, height, charset_buffer) >= 0;
+            });
+
+            return result;
+        } else {
+            return false;
+        }
+    }
+
+    _pal_file_append(paletteArray, array, offset, max) {
+        const red = Math.floor(array[offset] * 255 / max);
+        const green = Math.floor(array[offset + 1] * 255 / max);
+        const blue = Math.floor(array[offset + 2] * 255 / max);
+        
+        paletteArray.push(blue, green, red, 0);
+    }
+
+    loadPalette(palette) {
+        const emu = this.emu; 
+        let paletteArray = [];
+
+        if (typeof(palette) == "string") {
+            let type = "pal";
+            if (palette.toLowerCase().endsWith(".pld")) type = "pld";
+
+            const palData = this.vfs.get(palette);
+            if (palData == null) {
+                return false;
+            }
+
+            if (type == "pld") {
+                if (palData.length < 192) return false;
+                for (var i = 0; i < 16; i++) {
+                    this._pal_file_append(paletteArray, palData, PLD_TO_PAL[i] * 3, 63);
+                }
+            } else {
+                if (palData.length < 48) return false;
+                for (var i = 0; i < 16; i++) {
+                    this._pal_file_append(paletteArray, palData, i * 3, 63);
+                }
+            }
+        } else if (typeof(palette) == "object") {
+            const min = palette.min || 0;
+            const max = palette.max || 255;
+            if (palette.colors == null || palette.colors.length < 16) {
+                console.warn("[zeta.loadPalette] missing or too small colors array");
+                return false;
+            }
+            for (var i = 0; i < 16; i++) {
+                const color = palette.colors[i];
+                if (typeof(color) == "string" && color.startsWith("#")) {
+                    if (color.length == 7) {
+                        const red = parseInt(color.substring(1, 3), 16);
+                        const green = parseInt(color.substring(3, 5), 16);
+                        const blue = parseInt(color.substring(5, 7), 16);
+
+                        paletteArray.push(blue, green, red, 0);
+                    } else if (color.length == 4) {
+                        const red = parseInt(color.substring(1, 2), 16) * 0x11;
+                        const green = parseInt(color.substring(2, 3), 16) * 0x11;
+                        const blue = parseInt(color.substring(3, 4), 16) * 0x11;
+    
+                        paletteArray.push(blue, green, red, 0);
+                    } else {
+                        console.warn("[zeta.loadPalette] invalid color string length: " + color.length);
+                        return false;
+                    }
+                } else if (typeof(color) == "object" && color.length >= 3) {
+                    const red = Math.floor((palette.colors[i][0] - min) * 255 / (max - min));
+                    const green = Math.floor((palette.colors[i][1] - min) * 255 / (max - min));
+                    const blue = Math.floor((palette.colors[i][2] - min) * 255 / (max - min));
+            
+                    paletteArray.push(blue, green, red, 0);
+                } else {
+                    console.warn("[zeta.loadPalette] invalid color type @ " + i);
+                    return false;
+                }
+            }
+        }
+
+        if (paletteArray.length == 64) {
+            let result = false;
+
+            this._u8array2buffer(paletteArray, paletteBuffer => {
+                result = emu._zzt_load_palette(paletteBuffer) >= 0;
+            });
+
+            return result;
+        } else {
+            return false;
+        }
     }
 
     _frame() {
@@ -233,6 +346,16 @@ class Emulator {
         }
     }
 
+    _u8array2buffer(arr, mth) {
+        const arg_buffer = this.emu._malloc(arr.length);
+        const arg_heap = new Uint8Array(this.emu.HEAPU8.buffer, arg_buffer, arr.length);
+        for (var i = 0; i < arr.length; i++) {
+            arg_heap[i] = arr[i];
+        }
+        mth(arg_buffer);
+        this.emu._free(arg_buffer);
+    }
+
     _str2buffer(arg, mth) {
         const arg_buffer = this.emu._malloc(arg.length + 1);
         const arg_heap = new Uint8Array(this.emu.HEAPU8.buffer, arg_buffer, arg.length + 1);
@@ -251,7 +374,7 @@ class Emulator {
 }
 
 export function createEmulator(render, audio, vfs, options) {
-	return new Promise(resolve => {
+    return new Promise(resolve => {
         ZetaNative().then(emu => {
             setWrappedVfs(vfs);
             setWrappedEmu(emu);
@@ -261,7 +384,7 @@ export function createEmulator(render, audio, vfs, options) {
 
             emu._zzt_init();
             emu._zzt_set_timer_offset(Date.now() % 86400000)
-            
+
             if (options && options.commands) {
                 const lastCommand = options.commands.length - 1;
                 for (var i = 0; i <= lastCommand; i++) {
@@ -295,6 +418,7 @@ export function createEmulator(render, audio, vfs, options) {
                     handle = vfsg_open(executable, 0);
                     extension = undefined;
                 }
+
                 if (handle < 0) {
                     throw "Could not find ZZT/Super ZZT executable!";
                 }
@@ -316,6 +440,19 @@ export function createEmulator(render, audio, vfs, options) {
                 vfsg_close(handle);
 
                 console.log("executing " + executable + " " + vfs_arg);
+            }
+
+            if (options && options.engine) {
+                if (options.engine.charset) {
+                    if (!emuObj.loadCharset(options.engine.charset)) {
+                        console.error("Could not load charset from options!");
+                    }
+                }
+                if (options.engine.palette) {
+                    if (!emuObj.loadPalette(options.engine.palette)) {
+                        console.error("Could not load palette from options!");
+                    }
+                }
             }
 
             emuObj._resetLastTimerTime();

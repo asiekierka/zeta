@@ -27,7 +27,5 @@ mv a.out.js build/zeta_native.js
 mv a.out.wasm build/zeta_native.wasm
 sed -i -e "s/a\.out/zeta_native/g" build/zeta_native.js
 
-rm build/web/*
-cp web/* build/web/
 cp build/zeta_native.js build/web/
 cp build/zeta_native.wasm build/web/

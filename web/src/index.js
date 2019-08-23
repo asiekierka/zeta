@@ -70,7 +70,7 @@ class LoadingScreen {
     }
 }
 
-window.ZetaInitialize = function(options) {
+window.ZetaInitialize = function(options, callback) {
     console.log("         _        \n _______| |_ __ _ \n|_  / _ \\ __/ _` |\n / /  __/ || (_| |\n/___\\___|\\__\\__,_|\n\n " + VERSION);
 
     if (!options.render) throw "Missing option: render!";
@@ -104,7 +104,7 @@ window.ZetaInitialize = function(options) {
             loadingScreen.progress(vfsProgresses.reduce((p, c) => p + c) / options.files.length);            
         }
 
-		if (Array.isArray(file)) {
+        if (Array.isArray(file)) {
             var opts = file[1];
             if (!opts.hasOwnProperty("readonly")) {
                 opts.readonly = true;
@@ -172,9 +172,11 @@ window.ZetaInitialize = function(options) {
         }
 
         const vfs = createCompositeStorage(vfsObjects);
-
-        return createEmulator(render, audio, vfs, options);
+        const emu = createEmulator(render, audio, vfs, options);
+        if (callback != null) callback(emu);
+        return emu;
     }).then(_ => true).catch(reason => {
+        callback(undefined, reason);
         drawErrorMessage(canvas, ctx, reason);
     });
 }
