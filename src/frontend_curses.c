@@ -73,6 +73,7 @@ static void platform_kbd_tick(void) {
 	}
 }
 
+#include "asset_loader.h"
 #include "frontend_posix.c"
 
 static int nc_color_map[] = {
