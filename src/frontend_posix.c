@@ -24,25 +24,41 @@ static int posix_vfs_exists(const char *filename) {
 }
 
 static void posix_zzt_help(int argc, char **argv) {
-	fprintf(stderr, "Usage: %s [-e command] [-bt] [world file]\n", argv > 0 ? argv[0] : "zeta");
+	char *owner = (argv > 0 && argv[0] != NULL && strlen(argv[0]) > 0) ? argv[0] : "zeta";
+
+	fprintf(stderr, "Usage: %s [arguments] [world file]\n", owner);
 	fprintf(stderr, "\n");
+	fprintf(stderr, "Arguments ([] - parameter; * - may specify multiple times):\n");
 	fprintf(stderr, "  -b     disable blinking, enable bright backgrounds\n");
-	fprintf(stderr, "  -e []  execute command - repeat to run multiple commands\n");
-	fprintf(stderr, "         by default, runs either ZZT.EXE or SUPERZ.EXE\n");
+	fprintf(stderr, " *-e []  execute command - repeat to run multiple commands\n");
+	fprintf(stderr, "         by default, ZZT.EXE or SUPERZ.EXE is executed\n");
+	fprintf(stderr, "  -h     show help\n");
+	fprintf(stderr, " *-l []  load asset - in \"type:format:filename\" form or\n");
+	fprintf(stderr, "         \"filename\" form to attempt a guess\n");
+	fprintf(stderr, "         available types/formats: \n");
+	fprintf(stderr, "         - charset:\n");
+	fprintf(stderr, "             - chr (MegaZeux-like; 8x[height], 256 chars)\n");
+	fprintf(stderr, "         - palette:\n");
+	fprintf(stderr, "             - pal (MegaZeux-like; 16 colors ranged 00-3F)\n");
+	fprintf(stderr, "             - pld (Toshiba UPAL; 64 EGA colors ranged 00-3F)\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
 }
 
+#define IS_EXTENSION(s, e) (strcasecmp((s + strlen((s)) - strlen((e))), (e)) == 0)
+
 static int posix_zzt_init(int argc, char **argv) {
 	char arg_name[257];
 	char *execs[16];
+	char *loads[16];
 	int exec_count = 0;
+	int load_count = 0;
 	int c;
 	int skip_kc = 0;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "be:ht")) >= 0) {
+	while ((c = getopt(argc, argv, "be:hl:t")) >= 0) {
 		switch(c) {
 			case 'b':
 				video_blink = 0;
@@ -53,6 +69,13 @@ static int posix_zzt_init(int argc, char **argv) {
 					return -1;
 				}
 				execs[exec_count++] = optarg;
+				break;
+			case 'l':
+				if (load_count > 16) {
+					fprintf(stderr, "Too many -l commands!\n");
+					return -1;
+				}
+				loads[load_count++] = optarg;
 				break;
 			case 'h':
 				posix_zzt_help(argc, argv);
@@ -93,6 +116,56 @@ static int posix_zzt_init(int argc, char **argv) {
 		if (!posix_vfs_exists(arg_name)) {
 			arg_name[0] = 0;
 		}
+	}
+
+	for (int i = 0; i < load_count; i++) {
+		char *type, *filename;
+
+		if (strrchr(loads[i], ':') == NULL) {
+			filename = loads[i];
+			if (IS_EXTENSION(filename, ".chr")) type = "charset:chr";
+			else if (IS_EXTENSION(filename, ".pal")) type = "palette:pal";
+			else if (IS_EXTENSION(filename, ".pld")) type = "palette:pld";
+			else {
+				fprintf(stderr, "Could not guess type of %s!\n", filename);
+				continue;
+			}
+		} else {
+			type = loads[i];
+			filename = strrchr(type, ':') + 1;
+			type[filename - type - 1] = '\0';
+		}
+
+		FILE *file = fopen(filename, "rb");
+		if (!file) {
+			fprintf(stderr, "Could not open %s!\n", filename);
+			continue;
+		}
+
+		fseek(file, 0, SEEK_END);
+		long fsize = ftell(file);
+		fseek(file, 0, SEEK_SET);
+
+		if (fsize <= 0 || fsize >= 1048576) {
+			fprintf(stderr, "Could not read %s!\n", filename);
+			fclose(file);
+			continue;
+		}
+
+		u8 *buffer = (u8*) malloc((int) fsize);
+		if (!fread(buffer, (int) fsize, 1, file)) {
+			fprintf(stderr, "Could not read %s!\n", filename);
+			fclose(file);
+			continue;
+		}
+
+		fclose(file);
+
+		if (zzt_load_asset(type, buffer, (int) fsize) < 0) {
+			fprintf(stderr, "Could not load %s!\n", filename);
+		}
+
+		free(buffer);
 	}
 
 	if (exec_count > 0) {

@@ -69,6 +69,11 @@ void zzt_key_set_delay(int ms, int repeat_ms);
 USER_FUNCTION
 void zzt_set_timer_offset(long ms);
 
+USER_FUNCTION
+int zzt_load_charset(int width, int height, u8* data);
+USER_FUNCTION
+int zzt_load_palette(u32* colors);
+
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);
 

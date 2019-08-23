@@ -956,6 +956,26 @@ void zzt_load_binary(int handle, const char *arg) {
 	fprintf(stderr, "wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
 }
 
+int zzt_load_charset(int width, int height, u8 *data) {
+	if (width != 8 || height <= 0 || height > 16) return -1;
+
+	for (int i = 0; i < 256*height; i++) {
+		zzt.charset[i] = data[i];
+	}
+
+	zeta_update_charset(8, 14, zzt.charset);
+	return 0;
+}
+
+int zzt_load_palette(u32 *colors) {
+	for (int i = 0; i < 16; i++) {
+		zzt.palette[i] = colors[i];
+	}
+
+	zeta_update_palette(zzt.palette);
+	return 0;
+}
+
 void zzt_init(void) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
@@ -1000,16 +1020,10 @@ void zzt_init(void) {
 	zzt.cpu.func_port_out = cpu_func_port_out_main;
 	zzt.cpu.func_interrupt = cpu_func_interrupt_main;
 
-	for (int i = 0; i < 256*14; i++) {
-		zzt.charset[i] = res_8x14_bin[i];
-	}
+	// default assets
 
-	for (int i = 0; i < 16; i++) {
-		zzt.palette[i] = def_palette[i];
-	}
-
-	zeta_update_charset(8, 14, zzt.charset);
-	zeta_update_palette(zzt.palette);
+	zzt_load_charset(8, 14, res_8x14_bin);
+	zzt_load_palette(def_palette);
 }
 
 int zzt_execute(int opcodes) {

@@ -587,6 +587,7 @@ void zeta_update_palette(u32* data) {
 	SDL_UnlockMutex(render_data_update_mutex);
 }
 
+#include "asset_loader.h"
 #include "frontend_posix.c"
 
 int main(int argc, char **argv) {
