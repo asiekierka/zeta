@@ -27,7 +27,8 @@ import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 	if (event.altKey) emu._zzt_kmod_set(0x08); else emu._zzt_kmod_clear(0x08);
 } */
 
-const TIMER_DURATION = 1000 / 18.2;
+// see zzt.h "SYS_TIMER_TIME"
+const TIMER_DURATION = 54.92457871;
 
 const PLD_TO_PAL = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
 
