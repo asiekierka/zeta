@@ -24,7 +24,14 @@
 
 #define MAX_FILES 16
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
-#define SYS_TIMER_TIME 54.9451
+
+// the long story:
+// 3.579545 MHz - NTSC dotclock
+// dotclock * 4 = 14.31818
+// 14.31818 / 12 ~= 1.19318166 - PIT frequency
+// 65535 - maximum PIT cycle count before reload
+// (65535 / 1193181.66) = SYS_TIMER_TIME (seconds)
+#define SYS_TIMER_TIME 54.92457871
 
 USER_FUNCTION
 int zzt_video_mode(void);

@@ -23,7 +23,7 @@ export class CanvasBasedRenderer {
 		this.ctx = canvas.getContext('2d', {alpha: false});
 		this.ctx.imageSmoothingEnabled = false;
 
-		this.blink_duration = Math.round(((options && options.blink_cycle_duration) || 0.466) * 1000);
+		this.blink_duration = Math.round(((options && options.blink_cycle_duration) || 0.534) * 1000);
 		this.video_blink = this.blink_duration > 0;
 
 		this.video_mode = -1;

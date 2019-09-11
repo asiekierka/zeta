@@ -27,7 +27,8 @@
 
 // SDL port configuration
 
-#define BLINK_TOGGLE_DURATION_MS 233
+// 60/16 Hz (blink every 16 frames at 60 Hz)
+#define BLINK_TOGGLE_DURATION_MS 267
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
 #define USE_OPENGL

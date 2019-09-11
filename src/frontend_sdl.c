@@ -460,8 +460,7 @@ static void deinit_opengl(void) {
 	free(ogl_buf_pos);
 }
 
-static void render_opengl(long curr_time, int regen_visuals) {
-	u8 blink_local = video_blink && sdl_is_blink_phase(curr_time);
+static void render_opengl(long curr_time, int regen_visuals, u8 blink_local) {
 	float texw, texh;
 	int width = (zzt_video_mode() & 2) ? 80 : 40;
 
@@ -712,6 +711,7 @@ int main(int argc, char **argv) {
 
 #ifdef USE_OPENGL
 	int should_render = 1;
+	u8 last_blink_local = 0xFF;
 #endif
 
 	while (cont_loop) {
@@ -882,7 +882,10 @@ int main(int argc, char **argv) {
 		curr_time = zeta_time_ms();
 		if (use_opengl) {
 #ifdef USE_OPENGL
-			render_opengl(curr_time, should_render);
+			u8 blink_local = video_blink && sdl_is_blink_phase(curr_time);
+			should_render |= (blink_local != last_blink_local);
+			render_opengl(curr_time, should_render, blink_local);
+			last_blink_local = blink_local;
 			SDL_GL_SwapWindow(window);
 #endif
 		} else {

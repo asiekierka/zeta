@@ -894,7 +894,7 @@ static void zzt_load_exe(int handle, const char *arg) {
 //	int size_pars = 40400;
 //	int offset_pars = mem_alloc(size_pars, 0);
 	int offset_pars = 0x100;
-	int size_pars = 0xA000 - 0x100;
+	int size_pars = 0xB800 - 0x100;
 
 	// location
 	zzt.cpu.seg[SEG_CS] = vfs_read16(handle, 0x16) + offset_pars + 0x10;
@@ -940,7 +940,7 @@ void zzt_load_binary(int handle, const char *arg) {
 
 	// assume com file
 	int offset_pars = 0x100;
-	int size_pars = 0xA000 - 0x100;
+	int size_pars = 0xB800 - 0x100;
 	zzt_load_build_psp(offset_pars, offset_pars + size_pars, arg);
 
 	zzt.cpu.seg[SEG_CS] = offset_pars;
