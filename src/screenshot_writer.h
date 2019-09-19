@@ -21,9 +21,11 @@
 #define __SCREENSHOT_RENDER_H__
 
 #include "types.h"
+#include "config.h"
 #include "render_software.h"
 
 #define SCREENSHOT_TYPE_BMP 0
+#define SCREENSHOT_TYPE_PNG 1
 
 USER_FUNCTION
 int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette);

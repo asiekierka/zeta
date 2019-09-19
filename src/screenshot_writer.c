@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "screenshot_writer.h"
 
 #define POS_MUL (scr_width <= 40 ? 2 : 1)
@@ -34,6 +35,30 @@ static void fput32le(FILE *output, int i) {
 	fputc(((i >> 16) & 0xFF), output);
 	fputc(((i >> 24) & 0xFF), output);
 }
+
+#ifdef USE_LIBPNG
+#include <png.h>
+
+static int write_screenshot_png(FILE *output, u8 *buffer, u32 *palette, int flags, int width, int height) {
+	png_image image;
+	u8 colormap[48];
+
+	memset(&image, 0, sizeof(image));
+	image.version = PNG_IMAGE_VERSION;
+	image.width = width;
+	image.height = height;
+	image.format = PNG_FORMAT_RGB_COLORMAP;
+	image.colormap_entries = 16;
+
+	for (int i = 0; i < 16; i++) {
+		colormap[i*3 + 0] = palette[i] >> 16;
+		colormap[i*3 + 1] = palette[i] >> 8;
+		colormap[i*3 + 2] = palette[i] >> 0;
+	}
+
+	return png_image_write_to_stdio(&image, output, 0, buffer, 0, colormap) > 0;
+}
+#endif
 
 static int write_screenshot_bmp(FILE *output, u8 *buffer, u32 *palette, int flags, int width, int height) {
 	int bmp_size = 54 + (4*16) + (width * height / 2);
@@ -82,7 +107,7 @@ static int write_screenshot_bmp(FILE *output, u8 *buffer, u32 *palette, int flag
 int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
 	void *buffer;
 
-	int paletted = (type == SCREENSHOT_TYPE_BMP);
+	int paletted = (type == SCREENSHOT_TYPE_BMP || type == SCREENSHOT_TYPE_PNG);
 
 	buffer = malloc(char_width * char_height * scr_width * POS_MUL * 25 * (paletted ? sizeof(u8) : sizeof(u32)));
 	if (buffer == NULL) {
@@ -97,10 +122,18 @@ int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, 
 
 	int result;
 
-	if (type == SCREENSHOT_TYPE_BMP) {
-		result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * 25);
-	} else {
-		result = -1;
+	switch (type) {
+		case SCREENSHOT_TYPE_BMP:
+			result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * 25);
+			break;
+#ifdef USE_LIBPNG
+		case SCREENSHOT_TYPE_PNG:
+			result = write_screenshot_png(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * 25);
+			break;
+#endif
+		default:
+			result = -1;
+			break;
 	}
 
 	free(buffer);

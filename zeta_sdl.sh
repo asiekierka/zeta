@@ -5,4 +5,4 @@ gcc -o build/zeta86 -g -O2 -std=c18 -Wall \
   src/frontend_sdl.c src/zzt.c src/cpu.c \
   src/screenshot_writer.c src/render_software.c \
   src/asset_loader.c \
-  -lGL -lSDL2 -lSDL2main
+  -lGL -lSDL2 -lSDL2main -lpng

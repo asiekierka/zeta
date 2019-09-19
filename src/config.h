@@ -31,6 +31,7 @@
 #define BLINK_TOGGLE_DURATION_MS 267
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
+#define USE_LIBPNG
 #define USE_OPENGL
 // #define USE_OPENGL_ES /* GLES 1.1, not production ready */
 

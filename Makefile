@@ -6,13 +6,14 @@ BUILDDIR = build
 CC = gcc
 CFLAGS = -g -O2 -flto -std=c11 -Wall
 LDFLAGS = -g -O2
-LIBS = -lGL -lSDL2 -lSDL2main
+LIBS = -lGL -lSDL2 -lSDL2main -lpng
 TARGET = $(BUILDDIR)/zeta86
 
 OBJS =	$(OBJDIR)/8x14.o \
 	\
 	$(OBJDIR)/cpu.o \
 	$(OBJDIR)/zzt.o \
+	$(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/audio_stream.o \
 	\
 	$(OBJDIR)/posix_vfs.o \

@@ -760,7 +760,13 @@ int main(int argc, char **argv) {
 						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
 
 						while ((++i) <= 9999) {
+#ifdef USE_LIBPNG
+							int stype = SCREENSHOT_TYPE_PNG;
+							snprintf(filename, 23, "screen%d.png", i);
+#else
+							int stype = SCREENSHOT_TYPE_BMP;
 							snprintf(filename, 23, "screen%d.bmp", i);
+#endif
 							file = fopen(filename, "rb");
 							if (!file) {
 								file = fopen(filename, "wb");
@@ -769,7 +775,7 @@ int main(int argc, char **argv) {
 									break;
 								}
 								if (write_screenshot(
-									file, SCREENSHOT_TYPE_BMP,
+									file, stype,
 									swidth, sflags,
 									zzt_get_ram(), charset_update_data,
 									8, charset_char_height,
