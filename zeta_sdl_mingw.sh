@@ -6,4 +6,5 @@ i686-w64-mingw32-gcc -o build/zeta86.exe -g -O2 -std=c18 -Wall -mwindows \
   res/8x14.c src/posix_vfs.c src/audio_stream.c src/frontend_sdl.c src/zzt.c src/cpu.c \
   src/screenshot_writer.c src/render_software.c build/mingw_resources.o \
   src/asset_loader.c \
-  -lmingw32 -lSDL2main -lSDL2 -lopengl32
+  -Wl,-Bstatic -lmingw32 -lwinpthread -lgcc -lSDL2main -lpng -lz \
+  -Wl,-Bdynamic -lSDL2 -lopengl32
