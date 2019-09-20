@@ -34,8 +34,8 @@ ZetaLoad = function(options, callback) {
 	}
 
 	scripts_array = [
-		options.path+"uzip.min.js",
 		options.path+"zeta_native.js",
+		options.path+"uzip.min.js",
 		options.path+"zeta.min.js"
 	];
 	if (options.dev) {
