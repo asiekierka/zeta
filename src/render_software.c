@@ -23,7 +23,7 @@
 
 #define POS_MUL (scr_width <= 40 ? 2 : 1)
 
-void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
+void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
 	int pos_mul = POS_MUL;
 	int pos = 0;
 
@@ -33,8 +33,8 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 
 	for (int y = 0; y < 25; y++) {
 		for (int x = 0; x < scr_width; x++, pos += 2) {
-			u8 chr = ram[0xB8000 + pos];
-			u8 col = ram[0xB8000 + pos + 1];
+			u8 chr = video[pos];
+			u8 col = video[pos + 1];
 
 			if (col >= 0x80 && !(flags & RENDER_BLINK_OFF)) {
 				col &= 0x7F;
@@ -60,7 +60,7 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 	}
 }
 
-void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *ram, u8 *charset, int char_width, int char_height) {
+void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height) {
 	int pos_mul = POS_MUL;
 	int pos = 0;
 
@@ -70,8 +70,8 @@ void render_software_paletted(u8 *buffer, int scr_width, int row_length, int fla
 
 	for (int y = 0; y < 25; y++) {
 		for (int x = 0; x < scr_width; x++, pos += 2) {
-			u8 chr = ram[0xB8000 + pos];
-			u8 col = ram[0xB8000 + pos + 1];
+			u8 chr = video[pos];
+			u8 col = video[pos + 1];
 
 			if (col >= 0x80 && !(flags & RENDER_BLINK_OFF)) {
 				col &= 0x7F;

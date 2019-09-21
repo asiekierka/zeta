@@ -35,6 +35,8 @@
 #define USE_OPENGL
 // #define USE_OPENGL_ES /* GLES 1.1, not production ready */
 
+// #define DEBUG_OPENGL
+
 // Zeta-preconfigured CPU core settings - do not touch!
 
 #define MAX_INTQUEUE_SIZE 256

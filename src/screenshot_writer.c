@@ -104,7 +104,7 @@ static int write_screenshot_bmp(FILE *output, u8 *buffer, u32 *palette, int flag
 	return 0;
 }
 
-int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette) {
+int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
 	void *buffer;
 
 	int paletted = (type == SCREENSHOT_TYPE_BMP || type == SCREENSHOT_TYPE_PNG);
@@ -115,9 +115,9 @@ int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, 
 	}
 
 	if (paletted) {
-		render_software_paletted(buffer, scr_width, -1, flags, ram, charset, char_width, char_height);
+		render_software_paletted(buffer, scr_width, -1, flags, video, charset, char_width, char_height);
 	} else {
-		render_software_rgb(buffer, scr_width, -1, flags, ram, charset, char_width, char_height, palette);
+		render_software_rgb(buffer, scr_width, -1, flags, video, charset, char_width, char_height, palette);
 	}
 
 	int result;

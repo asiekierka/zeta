@@ -17,17 +17,39 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __RENDER_SOFTWARE_H__
-#define __RENDER_SOFTWARE_H__
+#ifndef __FRONTEND_SDL_H__
+#define __FRONTEND_SDL_H__
 
-#include "types.h"
+#include "../types.h"
+#include <SDL2/SDL.h>
+#ifdef USE_OPENGL
+#ifdef USE_OPENGL_ES
+#include <SDL2/SDL_opengles.h>
+#else
+#include <SDL2/SDL_opengl.h>
+#endif
+#endif
 
-#define RENDER_BLINK_OFF 1
-#define RENDER_BLINK_PHASE 2
+enum {
+    BLINK_MODE_NONE = 0,
+    BLINK_MODE_1,
+    BLINK_MODE_2
+};
 
-USER_FUNCTION
-void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette);
-USER_FUNCTION
-void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height);
+typedef struct {
+    int (*init)(void);
+    void (*deinit)(void);
+    void (*update_charset)(int, int, u8*);
+    void (*update_palette)(u32*);
+    void (*update_vram)(u8*);
+    void (*draw)(u8*, int);
+    SDL_Window *(*get_window)(void);
+} sdl_renderer;
 
-#endif /* __RENDER_SOFTWARE_H__ */
+// provided by frontend.c
+
+#define AREA_WITHOUT_SCALE 1
+
+void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags);
+
+#endif /* __FRONTEND_SDL_H__ */
