@@ -159,6 +159,11 @@ window.ZetaInitialize = function(options, callback) {
             return true;
         }
     }).then(_ => {
+        // clear canvas
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // init emulator
         let render_type = (options && options.render && options.render.type) || "auto";
         let audio_type = (options && options.audio && options.audio.type) || "auto";
 

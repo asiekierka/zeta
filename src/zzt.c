@@ -72,7 +72,7 @@ typedef struct {
 	double timer_time;
 
 	// video
-	u8 chr_width, chr_height;
+	int chr_width, chr_height;
 
 	// keyboard
 	int key_delay, key_repeat_delay;

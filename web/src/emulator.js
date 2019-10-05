@@ -174,7 +174,7 @@ class Emulator {
             const width = 8;
             const height = charset.length >> 8;
 
-            if (height != 14) return false;
+            if (height <= 0 || height > 16) return false;
 
             let result = false;
 

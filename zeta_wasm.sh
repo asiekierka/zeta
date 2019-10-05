@@ -20,12 +20,11 @@ emcc -O3 --js-library src/emscripten_glue.js \
   -s 'MALLOC="emmalloc"' -s NO_FILESYSTEM=1 \
   -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
-  -DNO_MEMSET \
+  -DNO_MEMSET -o zeta_native.js \
   src/cpu.c src/zzt.c res/8x14.c src/audio_stream.c
 
-mv a.out.js build/zeta_native.js
-mv a.out.wasm build/zeta_native.wasm
-sed -i -e "s/a\.out/zeta_native/g" build/zeta_native.js
+mv zeta_native.js build/zeta_native.js
+mv zeta_native.wasm build/zeta_native.wasm
 
 cp build/zeta_native.js build/web/
 cp build/zeta_native.wasm build/web/
