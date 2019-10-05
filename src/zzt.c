@@ -71,6 +71,9 @@ typedef struct {
 	long timer_time_offset;
 	double timer_time;
 
+	// video
+	u8 chr_width, chr_height;
+
 	// keyboard
 	int key_delay, key_repeat_delay;
 	zzt_key_entry key;
@@ -99,6 +102,7 @@ typedef struct {
 
 	u8 charset[256*16];
 	u32 palette[16];
+
 } zzt_state;
 
 zzt_state zzt;
@@ -344,8 +348,8 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 			break;
 		case 3:
 			cpu->bx = zzt->mouse_buttons;
-			cpu->cx = zzt->mouse_x / 8;
-			cpu->dx = zzt->mouse_y / 14;
+			cpu->cx = zzt->mouse_x / zzt->chr_width;
+			cpu->dx = zzt->mouse_y / zzt->chr_height;
 			break;
 		case 0xB:
 			cpu->cx = zzt->mouse_xd;
@@ -522,8 +526,8 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			switch (cpu->al) {
 				case 0x00:
 				case 0x10: {
-					if (cpu->bh != 14) {
-						fprintf(stderr, "int 0x10: character loading failed - non-8x14 character sizes unsupported!\n");
+					if (zzt.chr_width != 8) {
+						fprintf(stderr, "int 0x10: character loading failed - non-8-wide character set updates unsupported!\n");
 						return;
 					}
 #ifdef DEBUG_INTERRUPTS
@@ -532,12 +536,19 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					int size = cpu->bh * cpu->cx;
 					int outpos = cpu->dx * cpu->bh;
 					u8* buffer = U8_ES_BP;
+
+					if (cpu->bh != zzt.chr_height && cpu->cx < 256 && cpu->dx != 0) {
+						fprintf(stderr, "int 0x10: character loading failed - partial changing of character sizes unsupported!\n");
+						return;
+					}
+
 					for (int i = 0; i < size; i++) {
-						if ((outpos + i) >= (256*14)) break;
+						if ((outpos + i) >= (256*(cpu->bh))) break;
 						zzt.charset[outpos + i] = buffer[i];
 					}
 
-					zeta_update_charset(8, 14, zzt.charset);
+					zzt.chr_height = cpu->bh;
+					zeta_update_charset(zzt.chr_width, zzt.chr_height, zzt.charset);
 				} return;
 			}
 			break;
@@ -962,11 +973,13 @@ void zzt_load_binary(int handle, const char *arg) {
 int zzt_load_charset(int width, int height, u8 *data) {
 	if (width != 8 || height <= 0 || height > 16) return -1;
 
+	zzt.chr_width = width;
+	zzt.chr_height = height;
 	for (int i = 0; i < 256*height; i++) {
 		zzt.charset[i] = data[i];
 	}
 
-	zeta_update_charset(8, 14, zzt.charset);
+	zeta_update_charset(width, height, zzt.charset);
 	return 0;
 }
 
