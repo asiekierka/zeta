@@ -33,6 +33,7 @@
 #endif
 
 #define MAX_FNLEN 259
+#define MAX_SPECLEN 16
 
 static FILE* file_pointers[MAX_FILES];
 static char vfs_fnbuf[MAX_FNLEN+1];
@@ -45,15 +46,22 @@ int vfs_findfirst(u8* ptr, u16 mask, char* spec) { return -1; }
 int vfs_findnext(u8* ptr) { return -1; }
 #else
 static DIR *vfs_finddir;
-static char *vfs_findspec;
+static char vfs_findspec[MAX_SPECLEN+1];
+
 static int vfs_find_filter(const struct dirent *entry) {
 	const char *name = entry->d_name;
-	return strlen(name) >= strlen(vfs_findspec) && strcasecmp(name + strlen(name) - strlen(vfs_findspec), vfs_findspec) == 0;
+	int spec_len = strlen(vfs_findspec);
+	return strlen(name) >= spec_len && strcasecmp(name + strlen(name) - spec_len, vfs_findspec) == 0;
 }
 
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
+	vfs_findspec[0] = 0; // clear findspec
+
 	if (strncmp(spec, "*.", 2) == 0) {
-		vfs_findspec = spec + 1; // skip *
+		if (strlen(spec+1) > MAX_SPECLEN) {
+			return -1;
+		}
+		strncpy(vfs_findspec, spec + 1, MAX_SPECLEN); // skip the *
 		vfs_finddir = opendir(vfs_fndir);
 		return vfs_findnext(ptr);
 	} else {

@@ -879,6 +879,9 @@ static void zzt_load_build_psp(int first_seg, int last_seg, const char *arg) {
 		zzt.cpu.ram[psp + 0x80] = 1;
 		zzt.cpu.ram[psp + 0x81] = 0x0D;
 	}
+
+	// set default DTA value
+	zzt.dos_dta = psp + 0x80;
 }
 
 static void zzt_load_exe(int handle, const char *arg) {
