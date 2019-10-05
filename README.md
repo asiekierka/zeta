@@ -7,7 +7,8 @@ Zeta consists of:
 
 Currently, it has the following front-ends:
 
-* *curses* - incomplete, designed primarily for testing,
+* *curses* - use ZZT in a terminal (sort of),
+* *sdl* - primary desktop frontend,
 * *web* - utilizes the WASM-compiled version of Zeta to allow using Zeta inside a web browser.
 
 ## Directory structure
