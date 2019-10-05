@@ -112,6 +112,7 @@ window.ZetaInitialize = function(options, callback) {
             if (!opts.hasOwnProperty("ignoreCase")) {
                 opts.ignoreCase = "upper";
             }
+            opts.use83Names = true;
             vfsPromises.push(
                 createZipStorage(file[0], opts, progressUpdater)
                     .then(o => vfsObjects.push(o))

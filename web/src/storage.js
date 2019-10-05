@@ -32,14 +32,47 @@ function filterKeys(list, filter) {
 
 class BaseStorage {
 	constructor(options) {
+		this.use83Names = (options && options.use83Names) || false;
 		this.ignoreCase = (options && options.ignoreCase) || false;
 		this.readonly = (options && options.readonly) || false;
 	}
 
 	_transformKey(key) {
-		if (this.ignoreCase == "upper") return key.toUpperCase();
-		else if (this.ignoreCase) return key.toLowerCase();
-		else return key;
+		var newKey = key;
+
+		if (this.ignoreCase == "upper") newKey = newKey.toUpperCase();
+		else if (this.ignoreCase) newKey = newKey.toLowerCase();
+
+		if (this.use83Names) {
+			var nkSplit = newKey.split(".", 2);
+			var findTildedName = false;
+			if (nkSplit[0].length > 8) {
+				nkSplit[0] = nkSplit[0].substring(0, 6); 
+				findTildedName = true;
+			}
+			if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
+				nkSplit[1] = nkSplit[1].substring(0, 3);
+			}
+			if (findTildedName) {
+				var i = 1;
+				while (1) {
+					var is = i.toString();
+					nkSplit[0] = nkSplit[0].substring(0, 7 - is.length) + "~" + is;
+					newKey = nkSplit.join(".");
+					if (this.get(newKey) == null) {
+						break;
+					}
+					i = i + 1;
+					if (i >= 1000) {
+						throw "Too many filenames! (at " + key + ")";
+					}
+				}
+			} else {
+				newKey = nkSplit.join(".");
+			}
+		}
+
+		return newKey;
 	}
 
 	canSet(key) {
