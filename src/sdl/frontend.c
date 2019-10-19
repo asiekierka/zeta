@@ -81,15 +81,17 @@ static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_UnlockMutex(audio_mutex);
 }
 
+static double audio_time;
+
 void speaker_on(double freq) {
 	SDL_LockMutex(audio_mutex);
-	audio_stream_append_on(zeta_time_ms(), freq);
+	audio_stream_append_on(audio_time, freq);
 	SDL_UnlockMutex(audio_mutex);
 }
 
 void speaker_off(void) {
 	SDL_LockMutex(audio_mutex);
-	audio_stream_append_off(zeta_time_ms());
+	audio_stream_append_off(audio_time);
 	SDL_UnlockMutex(audio_mutex);
 }
 
@@ -112,6 +114,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	atomic_fetch_sub(&zzt_renderer_waiting, 1);
 	zzt_mark_timer();
 
+	audio_time = zeta_time_ms();
 	timer_time += SYS_TIMER_TIME;
 	long duration = curr_timer_tick - first_timer_tick;
 	long tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
