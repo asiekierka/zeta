@@ -17,6 +17,8 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+double posix_zzt_arg_note_delay = -1.0;
+
 static int posix_vfs_exists(const char *filename) {
 	int h = vfs_open(filename, 0);
 	if (h >= 0) { vfs_close(h); return 1; }
@@ -30,6 +32,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Arguments ([] - parameter; * - may specify multiple times):\n");
 	fprintf(stderr, "  -b     disable blinking, enable bright backgrounds\n");
+	fprintf(stderr, "  -D []  set per-note delay, in milliseconds (floating-point)\n");
 	fprintf(stderr, " *-e []  execute command - repeat to run multiple commands\n");
 	fprintf(stderr, "         by default, ZZT.EXE or SUPERZ.EXE is executed\n");
 	fprintf(stderr, "  -h     show help\n");
@@ -58,8 +61,11 @@ static int posix_zzt_init(int argc, char **argv) {
 	int skip_kc = 0;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "be:hl:t")) >= 0) {
+	while ((c = getopt(argc, argv, "D:be:hl:t")) >= 0) {
 		switch(c) {
+			case 'D':
+				posix_zzt_arg_note_delay = atof(optarg);
+				break;
 			case 'b':
 				video_blink = 0;
 				break;

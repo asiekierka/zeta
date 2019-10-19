@@ -34,5 +34,9 @@ USER_FUNCTION
 void audio_stream_append_on(long time, double freq);
 USER_FUNCTION
 void audio_stream_append_off(long time);
+USER_FUNCTION
+double audio_stream_get_note_delay();
+USER_FUNCTION
+void audio_stream_set_note_delay(double delay);
 
 #endif
