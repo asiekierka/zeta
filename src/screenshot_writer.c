@@ -20,21 +20,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "util.h"
 #include "screenshot_writer.h"
 
 #define POS_MUL (scr_width <= 40 ? 2 : 1)
-
-static void fput16le(FILE *output, int i) {
-	fputc((i & 0xFF), output);
-	fputc(((i >> 8) & 0xFF), output);
-}
-
-static void fput32le(FILE *output, int i) {
-	fputc((i & 0xFF), output);
-	fputc(((i >> 8) & 0xFF), output);
-	fputc(((i >> 16) & 0xFF), output);
-	fputc(((i >> 24) & 0xFF), output);
-}
 
 #ifdef USE_LIBPNG
 #include <png.h>

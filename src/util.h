@@ -17,28 +17,13 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __AUDIO_STREAM_H__
-#define __AUDIO_STREAM_H__
+#ifndef __UTIL_H__
+#define __UTIL_H__
 
-#include "types.h"
+#include <stdio.h>
 
-USER_FUNCTION
-void audio_stream_init(long time, int freq);
-USER_FUNCTION
-u8 audio_stream_get_volume();
-USER_FUNCTION
-u8 audio_stream_get_max_volume();
-USER_FUNCTION
-void audio_stream_set_volume(u8 volume);
-USER_FUNCTION
-void audio_stream_generate_u8(long time, u8 *stream, int len);
-USER_FUNCTION
-void audio_stream_append_on(long time, double freq);
-USER_FUNCTION
-void audio_stream_append_off(long time);
-USER_FUNCTION
-double audio_stream_get_note_delay();
-USER_FUNCTION
-void audio_stream_set_note_delay(double delay);
+void fput16le(FILE *output, unsigned short i);
+void fput32le(FILE *output, unsigned int i);
+FILE *create_inc_file(char *filename, int length, const char *tpl, const char *mode);
 
-#endif
+#endif /* __UTIL_H__ */

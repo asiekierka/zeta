@@ -17,28 +17,15 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __AUDIO_STREAM_H__
-#define __AUDIO_STREAM_H__
+#ifndef __AUDIO_WRITER_H__
+#define __AUDIO_WRITER_H__
 
 #include "types.h"
+#include "audio_stream.h"
 
-USER_FUNCTION
-void audio_stream_init(long time, int freq);
-USER_FUNCTION
-u8 audio_stream_get_volume();
-USER_FUNCTION
-u8 audio_stream_get_max_volume();
-USER_FUNCTION
-void audio_stream_set_volume(u8 volume);
-USER_FUNCTION
-void audio_stream_generate_u8(long time, u8 *stream, int len);
-USER_FUNCTION
-void audio_stream_append_on(long time, double freq);
-USER_FUNCTION
-void audio_stream_append_off(long time);
-USER_FUNCTION
-double audio_stream_get_note_delay();
-USER_FUNCTION
-void audio_stream_set_note_delay(double delay);
+int audio_writer_start(const char *filename, long time, int freq);
+void audio_writer_stop(long time);
+void audio_writer_speaker_on(long time, double freq);
+void audio_writer_speaker_off(long time);
 
 #endif

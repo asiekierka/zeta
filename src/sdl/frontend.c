@@ -32,10 +32,12 @@
 #include <time.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
+#include "../util.h"
 #include "../zzt.h"
 #include "../audio_stream.h"
 #include "../posix_vfs.h"
 #include "../render_software.h"
+#include "../audio_writer.h"
 #ifdef ENABLE_SCREENSHOTS
 #include "../screenshot_writer.h"
 #endif
@@ -75,24 +77,31 @@ static SDL_AudioDeviceID audio_device;
 static SDL_AudioSpec audio_spec;
 static SDL_mutex *audio_mutex;
 
+static double audio_time;
+static u8 audio_writer_enabled = 0;
+
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_generate_u8(zeta_time_ms(), stream, len);
 	SDL_UnlockMutex(audio_mutex);
 }
 
-static double audio_time;
-
 void speaker_on(double freq) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_on(audio_time, freq);
 	SDL_UnlockMutex(audio_mutex);
+	if (audio_writer_enabled) {
+		audio_writer_speaker_on(audio_time, freq);
+	}
 }
 
 void speaker_off(void) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_off(audio_time);
 	SDL_UnlockMutex(audio_mutex);
+	if (audio_writer_enabled) {
+		audio_writer_speaker_off(audio_time);
+	}
 }
 
 static SDL_mutex *zzt_thread_lock;
@@ -379,7 +388,6 @@ int main(int argc, char **argv) {
 					}
 #ifdef ENABLE_SCREENSHOTS
 					if (event.key.keysym.sym == SDLK_F12) {
-						int i = -1;
 						FILE *file;
 						char filename[24];
 
@@ -393,43 +401,51 @@ int main(int argc, char **argv) {
 						if (!video_blink) sflags |= RENDER_BLINK_OFF;
 						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
 
-						while ((++i) <= 9999) {
 #ifdef USE_LIBPNG
-							int stype = SCREENSHOT_TYPE_PNG;
-							snprintf(filename, 23, "screen%d.png", i);
+						int stype = SCREENSHOT_TYPE_PNG;
+						file = create_inc_file(filename, 23, "screen%d.png", "wb");
 #else
-							int stype = SCREENSHOT_TYPE_BMP;
-							snprintf(filename, 23, "screen%d.bmp", i);
+						int stype = SCREENSHOT_TYPE_BMP;
+						file = create_inc_file(filename, 23, "screen%d.bmp", "wb");
 #endif
-							file = fopen(filename, "rb");
-							if (!file) {
-								file = fopen(filename, "wb");
-								if (!file) {
-									fprintf(stderr, "Could not open file '%s' for writing!\n", filename);
-									break;
-								}
-								if (write_screenshot(
-									file, stype,
-									swidth, sflags,
-									zzt_get_ram() + 0xB8000, charset_update_data,
-									charw, charh,
-									palette_update_data
-								) < 0) {
-									fprintf(stderr, "Could not write screenshot!\n");
-								}
-								fclose(file);
-								break;
-							} else {
-								fclose(file);
+						if (file != NULL) {
+							if (write_screenshot(
+								file, stype,
+								swidth, sflags,
+								zzt_get_ram() + 0xB8000, charset_update_data,
+								charw, charh,
+								palette_update_data
+							) < 0) {
+								fprintf(stderr, "Could not write screenshot!\n");
 							}
-						}
-
-						if (i > 9999) {
-							fprintf(stderr, "Could not take screenshot!\n");
+							fclose(file);
 						}
 						break;
 					}
 #endif
+					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
+						// audio writer
+						if (!audio_writer_enabled) {
+							FILE *file;
+							char filename[24];
+							file = create_inc_file(filename, 23, "audio%d.wav", "wb");
+							if (file != NULL) {
+								fclose(file);
+								if (audio_writer_start(filename, audio_time, 48000) >= 0) {
+									audio_writer_enabled = 1;
+									fprintf(stderr, "Audio writing started [%s].\n", filename);
+								} else {
+									fprintf(stderr, "Could not start audio writing - internal error!\n");
+								}
+							}
+						} else {
+							audio_writer_enabled = 0;
+							audio_writer_stop(audio_time);
+							fprintf(stderr, "Audio writing stopped.\n");
+						}
+						break;
+					}
+
 					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
 						// Alt+ENTER
 						if (windowed) {
@@ -508,6 +524,11 @@ int main(int argc, char **argv) {
 		long curr_time = zeta_time_ms();
 		int blink_mode = video_blink ? (sdl_is_blink_phase(curr_time) ? BLINK_MODE_2 : BLINK_MODE_1) : BLINK_MODE_NONE;
 		renderer->draw(zzt_vram_copy, blink_mode);
+	}
+
+	if (audio_writer_enabled) {
+		audio_writer_enabled = 0;
+		audio_writer_stop(audio_time);
 	}
 
 	zzt_thread_running = 0;
