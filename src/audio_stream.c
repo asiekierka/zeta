@@ -22,7 +22,7 @@
 #include <string.h>
 #include "audio_stream.h"
 
-#define AUDIO_STREAM_DEBUG
+// #define AUDIO_STREAM_DEBUG
 
 typedef struct {
 	u8 enabled;
@@ -107,6 +107,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 #endif
 
 	if (speaker_entry_pos == 0) {
+		audio_curr_time = time;
 		memset(stream, 128, len);
 	} else for (i = 0; i < speaker_entry_pos; i++) {
 		audio_dfrom = speaker_entries[i].ms - audio_prev_time;
@@ -160,6 +161,11 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 		}
 		speaker_entry_pos -= k;
 		speaker_entries[0].ms = audio_curr_time;
+	}
+
+	if (speaker_entry_pos == 1) {
+		speaker_entries[0].ms = time;
+		audio_curr_time = time;
 	}
 
 	audio_prev_time = audio_curr_time;

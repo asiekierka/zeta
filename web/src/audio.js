@@ -41,19 +41,20 @@ export class OscillatorBasedAudio {
 		this.audioGain = undefined;
 		this.pc_speaker = undefined;
 		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
+		this.noteDelay = 1;
 	}
 
-	on(freq) {
+	on(time, freq) {
 		if (audioCtx == undefined)
 			return;
 
 		let cTime = audioCtx.currentTime;
 		if (cTime != this.lastCurrTime) {
 			this.lastCurrTime = cTime;
-			this.lastTimeMs = time_ms();
+			this.lastTimeMs = time;
 		}
 
-		let lastADelay = (time_ms() - this.lastTimeMs) / 1000.0;
+		let lastADelay = (time - this.lastTimeMs) / 1000.0;
 
 		// console.log("pc speaker " + freq + " " + (audioCtx.currentTime + lastADelay));
 		if (this.pc_speaker == undefined) {
@@ -69,22 +70,26 @@ export class OscillatorBasedAudio {
 			this.pc_speaker.frequency.setValueAtTime(freq, audioCtx.currentTime + lastADelay);
 		}
 
-		this.timeSpeakerOn = time_ms();
+		this.timeSpeakerOn = time;
 	}
 
-	off() {
+	off(time) {
 		if (this.pc_speaker == undefined)
 			return;
 
 		let cTime = audioCtx.currentTime;
 		if (cTime != this.lastCurrTime) {
 			this.lastCurrTime = cTime;
-			this.lastTimeMs = time_ms();
+			this.lastTimeMs = time;
 		}
 
-		let lastADelay = (time_ms() - this.lastTimeMs) / 1000.0;
+		let lastADelay = (time - this.lastTimeMs) / 1000.0;
 		// console.log("pc speaker off " + (audioCtx.currentTime + lastADelay));
 		this.pc_speaker.frequency.setValueAtTime(0, audioCtx.currentTime + lastADelay);
+	}
+
+	setNoteDelay(delay) {
+		this.noteDelay = delay;
 	}
 
 	setVolume(volume) {
@@ -101,6 +106,7 @@ export class BufferBasedAudio {
 		this.emu = emu;
 		this.sampleRate = (options && options.sampleRate) || 48000;
 		this.bufferSize = (options && options.bufferSize) || 2048;
+		this.noteDelay = (options && options.noteDelay) || undefined;
 		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
 		this.timeUnit = (this.bufferSize / this.sampleRate);
 		this.nativeBuffer = this.emu._malloc(this.bufferSize);
@@ -116,7 +122,7 @@ export class BufferBasedAudio {
 		const source = audioCtx.createBufferSource();
 		const buffer = audioCtx.createBuffer(1, this.bufferSize, this.sampleRate);
 		if (populateFunc) populateFunc(buffer, source);
-		source.buffer = buffer; // Firefox makes buffer immutable here!
+		source.buffer = buffer; // Firefox makes buffer immutable here! :^)
 		source.onended = () => this._queueNextSpeakerBuffer();
 		source.connect(audioCtx.destination);
 		source.start(this.time);
@@ -150,8 +156,19 @@ export class BufferBasedAudio {
 		this.emu._audio_stream_init(time_ms(), this.sampleRate);
 		this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
 
+		if (this.noteDelay) {
+			this.emu._audio_stream_set_note_delay(this.noteDelay);
+		}
+
 		this._queueBufferSource(() => {});
 		this._queueNextSpeakerBuffer();
+	}
+
+	setNoteDelay(delay) {
+		this.noteDelay = delay;
+		if (this.initialized) {
+			this.emu._audio_stream_set_note_delay(delay);
+		}
 	}
 
 	setVolume(volume) {
@@ -162,53 +179,14 @@ export class BufferBasedAudio {
 		}
 	}
 
-	on(freq) {
+	on(time, freq) {
 		if (audioCtx == undefined) return;
 		this._initSpeaker();
-		this.emu._audio_stream_append_on(time_ms(), freq);
+		this.emu._audio_stream_append_on(time, freq);
 	}
 
-	off() {
+	off(time) {
 		if (audioCtx == undefined) return;
-		this.emu._audio_stream_append_off(time_ms());
+		this.emu._audio_stream_append_off(time);
 	}
 }
-
-/*	ZetaAudio.createScriptProcessorBased = function(emu) {
-		var pc_speaker = undefined;
-		var emu = emu;
-
-		var init_speaker = function() {
-			pc_speaker = audioCtx.createScriptProcessor();
-
-			var bufferSize = pc_speaker.bufferSize;
-			var buffer = emu._malloc(bufferSize);
-			var heap = new Uint8Array(emu.HEAPU8.buffer, buffer, bufferSize);
-
-			emu._audio_stream_init(time_ms(), Math.floor(audioCtx.sampleRate));
-			emu._audio_stream_set_volume(Math.floor(0.2 * emu._audio_stream_get_max_volume()));
-
-			pc_speaker.onaudioprocess = function(event) {
-				var out = event.outputBuffer.getChannelData(0);
-				emu._audio_stream_generate_u8(time_ms() - (bufferSize * 1000 / audioCtx.sampleRate), buffer, bufferSize);
-				for (var i = 0; i < bufferSize; i++) {
-					out[i] = (heap[i] - 127) / 127.0;
-				}
-				console.log("audio " + bufferSize);
-			};
-
-			pc_speaker.connect(audioCtx.destination);
-		};
-
-		return {
-			on: function(freq) {
-				if (audioCtx == undefined) return;
-				if (pc_speaker == undefined) init_speaker();
-				emu._audio_stream_append_on(time_ms(), freq);
-			},
-			off: function() {
-				if (pc_speaker == undefined) return;
-				emu._audio_stream_append_off(time_ms());
-			}
-		};
-	}; */

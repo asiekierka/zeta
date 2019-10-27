@@ -75,11 +75,11 @@ class Emulator {
           		return;
 	        }
 
-            if (audio != undefined) audio.on(freq);
+            if (audio != undefined) audio.on(self.time_ms_cached, freq);
         }
 
         window.speakerg_off = function() {
-	        if (audio != undefined) audio.off();
+	        if (audio != undefined) audio.off(self.time_ms_cached);
         }
 
         window.addEventListener("message", function(event) {
