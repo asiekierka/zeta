@@ -49,6 +49,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
     * type: the engine to use for audio rendering; can be "auto" (preferred), "buffer" or "oscillator" (pre-beta15; deprecated)
     * bufferSize (buffer): the audio buffer size, in samples
     * sampleRate (buffer): the audio sampling rate, in Hz
+    * noteDelay: the minimum note delay, in milliseconds; 1 is default
     * volume: the volume of the outputted audio stream (range 0.0 - 1.0); 0.2 by default
 
 File entries can be either a string (denoting the relative or absolute path to a .ZIP file), or an array of a string and an options object containing the following optional keys:
