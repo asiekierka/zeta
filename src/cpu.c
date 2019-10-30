@@ -1556,12 +1556,13 @@ static int cpu_func_interrupt_default(cpu_state* cpu, u8 intr) { return STATE_CO
 
 int cpu_execute(cpu_state* cpu, int cycles) {
 	int last_state = STATE_CONTINUE;
+	int max_cycles = cpu->cycles + cycles;
 	if (cpu->halted && cpu->intq_pos == 0) return STATE_BLOCK;
 
 #ifdef CPU_CHECK_KEEP_GOING
-	while (last_state == STATE_CONTINUE && (((cycles--) > 0) || cpu->keep_going)) {
+	while (last_state == STATE_CONTINUE && ((((cpu->cycles)++) < max_cycles) || cpu->keep_going)) {
 #else
-	while (last_state == STATE_CONTINUE && ((cycles--) > 0)) {
+	while (last_state == STATE_CONTINUE && (((cpu->cycles)++) < max_cycles)) {
 #endif
 #ifdef DBG1
 		fprintf(stderr,
@@ -1572,6 +1573,10 @@ cpu->seg[2], cpu->seg[3], cpu->flags, ram_u8(cpu, SEG(SEG_CS, cpu->ip)));
 		last_state = cpu_run_one(cpu, 0, 1);
 	}
 
+	if (last_state == STATE_WAIT) {
+		// try to avoid overflow
+		cpu->cycles = 0;
+	}
 	return last_state;
 }
 
@@ -1595,6 +1600,7 @@ void cpu_init(cpu_state* cpu) {
 	cpu->segmod = 0;
 	cpu->intq_pos = 0;
         cpu->keep_going = 0;
+	cpu->cycles = 0;
 
 	cpu->func_port_in = cpu_func_port_in_default;
 	cpu->func_port_out = cpu_func_port_out_default;

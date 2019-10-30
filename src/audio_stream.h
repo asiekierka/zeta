@@ -33,12 +33,14 @@ void audio_stream_set_volume(u8 volume);
 USER_FUNCTION
 void audio_stream_generate_u8(long time, u8 *stream, int len);
 USER_FUNCTION
-void audio_stream_append_on(long time, double freq);
+void audio_stream_append_on(long time, int cycles, double freq);
 USER_FUNCTION
-void audio_stream_append_off(long time);
+void audio_stream_append_off(long time, int cycles);
 USER_FUNCTION
 double audio_stream_get_note_delay();
 USER_FUNCTION
 void audio_stream_set_note_delay(double delay);
+USER_FUNCTION
+double audio_local_delay_time(int cycles_prev, int cycles_curr);
 
 #endif

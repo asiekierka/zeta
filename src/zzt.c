@@ -300,7 +300,7 @@ static void cpu_func_port_out_main(cpu_state* cpu, u16 addr, u16 val) {
 			zzt->port_42_latch ^= 1;
 //			if (!port_42_latch && (port_43[2] & 0x04) == 0x04 && (port_61 & 3) == 3) {
 			if (!(zzt->port_42_latch) && (zzt->port_61 & 3) == 3) {
-				speaker_on(1193182.0 / zzt->port_42);
+				speaker_on(cpu->cycles, 1193182.0 / zzt->port_42);
 			}
 			return;
 		case 0x43: {
@@ -313,7 +313,7 @@ static void cpu_func_port_out_main(cpu_state* cpu, u16 addr, u16 val) {
 		case 0x61:
 			zzt->port_61 = val;
 			if ((val & 3) != 3) {
-				speaker_off();
+				speaker_off(cpu->cycles);
 			}
 			return;
 		case 0x201:

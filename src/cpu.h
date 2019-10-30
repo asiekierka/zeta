@@ -95,6 +95,7 @@ struct s_cpu_state {
 	u16 ip, flags;
 	u8 segmod, halted;
 	u32 keep_going;
+	u32 cycles;
 
 	u16 (*func_port_in)(struct s_cpu_state* cpu, u16 port);
 	void (*func_port_out)(struct s_cpu_state* cpu, u16 port, u16 val);

@@ -118,8 +118,8 @@ IMPLEMENT_FUNCTION
 void zeta_update_palette(u32* colors);
 
 IMPLEMENT_FUNCTION
-void speaker_on(double freq);
+void speaker_on(int cycle, double freq);
 IMPLEMENT_FUNCTION
-void speaker_off(void);
+void speaker_off(int cycle);
 
 #endif /* __ZZT_H__ */

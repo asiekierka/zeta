@@ -22,10 +22,11 @@
 #include <string.h>
 #include "audio_stream.h"
 
-// #define AUDIO_STREAM_DEBUG
+#define AUDIO_STREAM_DEBUG
 
 typedef struct {
 	u8 enabled;
+	int cycles;
 	double freq;
 	double ms;
 } speaker_entry;
@@ -44,12 +45,24 @@ static int audio_freq;
 static void audio_stream_print(int pos) {
 	speaker_entry *e = &speaker_entries[pos];
 	if (e->enabled) {
-		printf("[%.2f] speaker on @ %.2f Hz\n", e->ms, e->freq);
+		printf("[%.2f cpu: %d] speaker on @ %.2f Hz\n", e->ms, e->cycles, e->freq);
 	} else {
-		printf("[%.2f] speaker off\n", e->ms);
+		printf("[%.2f cpu: %d] speaker off\n", e->ms, e->cycles);
 	}
 }
 #endif
+
+double audio_local_delay_time(int cycles_prev, int cycles_curr) {
+	if (cycles_prev >= cycles_curr) {
+		return 0;
+	} else {
+		if ((cycles_curr - cycles_prev) > 3600) {
+			return audio_delay_time;
+		} else {
+			return (cycles_curr - cycles_prev) * audio_delay_time / 3600.0;
+		}
+	}
+}
 
 void audio_stream_init(long time, int freq) {
 	audio_prev_time = -1;
@@ -171,19 +184,20 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	audio_prev_time = audio_curr_time;
 }
 
-void audio_stream_append_on(long time, double freq) {
+void audio_stream_append_on(long time, int cycles, double freq) {
 	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
 		fprintf(stderr, "speaker buffer overrun");
 		return;
 	}
 
 	speaker_entries[speaker_entry_pos].ms = time;
+	speaker_entries[speaker_entry_pos].cycles = cycles;
 	speaker_entries[speaker_entry_pos].freq = freq;
 
 	if (speaker_entry_pos > 0) {
 		// ZZT always immediately disables a note... except for drums!
 		u8 last_en = speaker_entries[speaker_entry_pos - 1].enabled;
-		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_delay_time;
+		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_local_delay_time(speaker_entries[speaker_entry_pos - 1].cycles, cycles);
 		if (last_en && last_ms >= time) {
 			speaker_entries[speaker_entry_pos].ms = last_ms;
 		}
@@ -195,7 +209,7 @@ void audio_stream_append_on(long time, double freq) {
 #endif
 }
 
-void audio_stream_append_off(long time) {
+void audio_stream_append_off(long time, int cycles) {
 	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
 		fprintf(stderr, "speaker buffer overrun");
 		return;
@@ -205,11 +219,12 @@ void audio_stream_append_off(long time) {
 		time = audio_prev_time;
 
 	speaker_entries[speaker_entry_pos].ms = time;
+	speaker_entries[speaker_entry_pos].cycles = cycles;
 
 	if (speaker_entry_pos > 0) {
 		// we let notes play for at least the delay time
 		u8 last_en = speaker_entries[speaker_entry_pos - 1].enabled;
-		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_delay_time;
+		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_local_delay_time(speaker_entries[speaker_entry_pos - 1].cycles, cycles);
 		if (last_en && last_ms >= time) {
 			speaker_entries[speaker_entry_pos].ms = last_ms;
 		}

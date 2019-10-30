@@ -86,21 +86,21 @@ static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_UnlockMutex(audio_mutex);
 }
 
-void speaker_on(double freq) {
+void speaker_on(int cycles, double freq) {
 	SDL_LockMutex(audio_mutex);
-	audio_stream_append_on(audio_time, freq);
+	audio_stream_append_on(audio_time, cycles, freq);
 	SDL_UnlockMutex(audio_mutex);
 	if (audio_writer_enabled) {
-		audio_writer_speaker_on(audio_time, freq);
+		audio_writer_speaker_on(audio_time, cycles, freq);
 	}
 }
 
-void speaker_off(void) {
+void speaker_off(int cycles) {
 	SDL_LockMutex(audio_mutex);
-	audio_stream_append_off(audio_time);
+	audio_stream_append_off(audio_time, cycles);
 	SDL_UnlockMutex(audio_mutex);
 	if (audio_writer_enabled) {
-		audio_writer_speaker_off(audio_time);
+		audio_writer_speaker_off(audio_time, cycles);
 	}
 }
 
@@ -440,7 +440,7 @@ int main(int argc, char **argv) {
 							}
 						} else {
 							audio_writer_enabled = 0;
-							audio_writer_stop(audio_time);
+							audio_writer_stop(audio_time, 0);
 							fprintf(stderr, "Audio writing stopped.\n");
 						}
 						break;
@@ -528,7 +528,7 @@ int main(int argc, char **argv) {
 
 	if (audio_writer_enabled) {
 		audio_writer_enabled = 0;
-		audio_writer_stop(audio_time);
+		audio_writer_stop(audio_time, 0);
 	}
 
 	zzt_thread_running = 0;

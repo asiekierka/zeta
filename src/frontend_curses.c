@@ -45,8 +45,8 @@ void cpu_ext_log(const char* s) {
 //	fprintf(stderr, "%s\n", s);
 }
 
-void speaker_on(double freq) {}
-void speaker_off(void) {}
+void speaker_on(int cycles, double freq) {}
+void speaker_off(int cycles) {}
 
 static WINDOW* window;
 

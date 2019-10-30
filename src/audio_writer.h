@@ -24,8 +24,8 @@
 #include "audio_stream.h"
 
 int audio_writer_start(const char *filename, long time, int freq);
-void audio_writer_stop(long time);
-void audio_writer_speaker_on(long time, double freq);
-void audio_writer_speaker_off(long time);
+void audio_writer_stop(long time, int cycles);
+void audio_writer_speaker_on(long time, int cycles, double freq);
+void audio_writer_speaker_off(long time, int cycles);
 
 #endif
