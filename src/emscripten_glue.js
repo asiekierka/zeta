@@ -35,11 +35,11 @@ mergeInto(LibraryManager.library, {
 	zeta_update_palette: function(data_ptr) {
 		return zetag_update_palette(data_ptr);
 	},
-	speaker_on: function(freq) {
-		speakerg_on(freq);
+	speaker_on: function(cycles, freq) {
+		speakerg_on(cycles, freq);
 	},
-	speaker_off: function() {
-		speakerg_off();
+	speaker_off: function(cycles) {
+		speakerg_off(cycles);
 	}
 });
 

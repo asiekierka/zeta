@@ -44,7 +44,7 @@ export class OscillatorBasedAudio {
 		this.noteDelay = 1;
 	}
 
-	on(time, freq) {
+	on(time, cycles, freq) {
 		if (audioCtx == undefined)
 			return;
 
@@ -73,7 +73,7 @@ export class OscillatorBasedAudio {
 		this.timeSpeakerOn = time;
 	}
 
-	off(time) {
+	off(time, cycles) {
 		if (this.pc_speaker == undefined)
 			return;
 
@@ -179,14 +179,14 @@ export class BufferBasedAudio {
 		}
 	}
 
-	on(time, freq) {
+	on(time, cycles, freq) {
 		if (audioCtx == undefined) return;
 		this._initSpeaker();
-		this.emu._audio_stream_append_on(time, freq);
+		this.emu._audio_stream_append_on(time, cycles, freq);
 	}
 
-	off(time) {
+	off(time, cycles) {
 		if (audioCtx == undefined) return;
-		this.emu._audio_stream_append_off(time);
+		this.emu._audio_stream_append_off(time, cycles);
 	}
 }

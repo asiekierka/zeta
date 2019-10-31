@@ -69,17 +69,17 @@ class Emulator {
         	render.setPalette(data);
         }
 
-        window.speakerg_on = function(freq) {
+        window.speakerg_on = function(cycles, freq) {
         	if (!document.hasFocus()) {
 		        speakerg_off();
           		return;
 	        }
 
-            if (audio != undefined) audio.on(self.time_ms_cached, freq);
+            if (audio != undefined) audio.on(self.time_ms_cached, cycles, freq);
         }
 
-        window.speakerg_off = function() {
-	        if (audio != undefined) audio.off(self.time_ms_cached);
+        window.speakerg_off = function(cycles) {
+	        if (audio != undefined) audio.off(self.time_ms_cached, cycles);
         }
 
         window.addEventListener("message", function(event) {

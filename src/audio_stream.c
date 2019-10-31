@@ -22,7 +22,7 @@
 #include <string.h>
 #include "audio_stream.h"
 
-#define AUDIO_STREAM_DEBUG
+// #define AUDIO_STREAM_DEBUG
 
 typedef struct {
 	u8 enabled;
