@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include "util.h"
+#include "logging.h"
 
 void fput16le(FILE *output, unsigned short i) {
 	fputc((i & 0xFF), output);

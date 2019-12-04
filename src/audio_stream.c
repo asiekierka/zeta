@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "audio_stream.h"
+#include "logging.h"
 
 // #define AUDIO_STREAM_DEBUG
 
@@ -35,6 +36,7 @@ typedef struct {
 #define SPEAKER_ENTRY_LEN 64
 static int speaker_entry_pos = 0;
 static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
+static u8 speaker_overrun_flagged = 0;
 static long speaker_freq_ctr = 0;
 static u8 audio_volume = AUDIO_VOLUME_MAX;
 static double audio_prev_time;
@@ -52,6 +54,13 @@ static void audio_stream_print(int pos) {
 }
 #endif
 
+static void audio_stream_flag_speaker_overrun(void) {
+	if (!speaker_overrun_flagged) {
+		fprintf(stderr, "speaker buffer overrun!\n");
+		speaker_overrun_flagged = 1;
+	}
+}
+
 double audio_local_delay_time(int cycles_prev, int cycles_curr) {
 	if (cycles_prev >= cycles_curr) {
 		return 0;
@@ -68,6 +77,7 @@ void audio_stream_init(long time, int freq) {
 	audio_prev_time = -1;
 	audio_delay_time = 1.0;
 	audio_freq = freq;
+	speaker_overrun_flagged = 0;
 }
 
 u8 audio_stream_get_volume() {
@@ -173,6 +183,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 			speaker_entries[i - k] = speaker_entries[i];
 		}
 		speaker_entry_pos -= k;
+		speaker_overrun_flagged = 0;
 		speaker_entries[0].ms = audio_curr_time;
 	}
 
@@ -185,8 +196,11 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 }
 
 void audio_stream_append_on(long time, int cycles, double freq) {
-	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
-		fprintf(stderr, "speaker buffer overrun");
+	// we want to reserve one extra speaker entry for an "off" command
+	// otherwise, large on-off-on-off-on... cycles could end on an "on"
+	// causing a permanent speaker noise
+	if (speaker_entry_pos >= (SPEAKER_ENTRY_LEN - 1)) {
+		audio_stream_flag_speaker_overrun();
 		return;
 	}
 
@@ -211,7 +225,7 @@ void audio_stream_append_on(long time, int cycles, double freq) {
 
 void audio_stream_append_off(long time, int cycles) {
 	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
-		fprintf(stderr, "speaker buffer overrun");
+		audio_stream_flag_speaker_overrun();
 		return;
 	}
 

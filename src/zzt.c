@@ -20,16 +20,7 @@
 #include <string.h>
 #include "zzt.h"
 
-#ifdef EMSCRIPTEN
-#define fprintf(...)
-#else
-# ifdef ANDROID
-#include <android/log.h>
-#define fprintf(f, ...) __android_log_print(ANDROID_LOG_INFO, "ZetaNative", __VA_ARGS__)
-# else
-#include <stdio.h>
-# endif
-#endif
+#include "logging.h"
 
 #if defined(ANDROID) || defined(HAS_OSK)
 #define KEYBUF_SIZE 192
