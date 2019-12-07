@@ -24,6 +24,7 @@
 #include "logging.h"
 
 // #define AUDIO_STREAM_DEBUG
+// #define AUDIO_STREAM_DEBUG_BUFFERS
 
 typedef struct {
 	u8 enabled;
@@ -47,9 +48,22 @@ static int audio_freq;
 static void audio_stream_print(int pos) {
 	speaker_entry *e = &speaker_entries[pos];
 	if (e->enabled) {
-		printf("[%.2f cpu: %d] speaker on @ %.2f Hz\n", e->ms, e->cycles, e->freq);
+		fprintf(stderr, "[%.2f cpu: %d] speaker on @ %.2f Hz\n", e->ms, e->cycles, e->freq);
 	} else {
-		printf("[%.2f cpu: %d] speaker off\n", e->ms, e->cycles);
+		fprintf(stderr, "[%.2f cpu: %d] speaker off\n", e->ms, e->cycles);
+	}
+}
+#endif
+
+#ifdef AUDIO_STREAM_DEBUG_BUFFERS
+static void audio_stream_print_all_entries(void) {
+	for (int i = 0; i < speaker_entry_pos; i++) {
+		speaker_entry *e = &speaker_entries[i];
+		if (e->enabled) {
+			fprintf(stderr, "buffer[%d]: %.2f ms / on @ %.2f Hz\n", i, e->ms, e->freq);
+		} else {
+			fprintf(stderr, "buffer[%d]: %.2f ms / off\n", i, e->ms);
+		}
 	}
 }
 #endif
@@ -126,71 +140,82 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	}
 
 #ifdef AUDIO_STREAM_DEBUG
-	fprintf(stderr, "[callback] expected time %.2f received time %ld drift %.2f\n", audio_curr_time, time, time - audio_curr_time);
+	fprintf(stderr, "[callback] expected time %.2f received time %ld drift %.2f buffer size %d\n", audio_curr_time, time, time - audio_curr_time, speaker_entry_pos);
+#endif
+
+#ifdef AUDIO_STREAM_DEBUG_BUFFERS
+	fprintf(stderr, "[callback] buffer state BEFORE (%d)\n", speaker_entry_pos);
+	audio_stream_print_all_entries();
 #endif
 
 	if (speaker_entry_pos == 0) {
 		audio_curr_time = time;
 		memset(stream, 128, len);
-	} else for (i = 0; i < speaker_entry_pos; i++) {
-		audio_dfrom = speaker_entries[i].ms - audio_prev_time;
+	} else {
+		for (i = 0; i < speaker_entry_pos; i++) {
+			audio_dfrom = speaker_entries[i].ms - audio_prev_time;
 
-		if (i == speaker_entry_pos - 1) audio_dto = audio_res;
-		else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
+			if (i == speaker_entry_pos - 1) audio_dto = audio_res;
+			else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
 
-		// convert
-		audio_from = (long) (audio_dfrom * res_to_samples);
-		audio_to = (long) (audio_dto * res_to_samples);
+			// convert
+			audio_from = (long) (audio_dfrom * res_to_samples);
+			audio_to = (long) (audio_dto * res_to_samples);
 
-#ifdef AUDIO_STREAM_DEBUG
-		if (speaker_entries[i].enabled) {
-			printf("[callback] testing note @ %.2f Hz (%ld, %ld)\n", speaker_entries[i].freq, audio_from, audio_to);
-		}
-#endif
-
-		if (audio_from < 0) audio_from = 0;
-		else if (audio_from >= len) break;
-		if (audio_to < 0) audio_to = 0;
-		else if (audio_to > len) audio_to = len;
-
-		// emit
-		if (audio_to > audio_from) {
+			#ifdef AUDIO_STREAM_DEBUG
 			if (speaker_entries[i].enabled) {
-#ifdef AUDIO_STREAM_DEBUG
-				printf("[callback] emitting note @ %.2f Hz\n", speaker_entries[i].freq);
-#endif
-				freq_samples_fixed = (int) ((audio_freq << 8) / (speaker_entries[i].freq * 2));
-				pos_samples_fixed = (speaker_freq_ctr << 8) % (freq_samples_fixed << 1);
-				for (j = audio_from; j < audio_to; j++) {
-					if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
-						stream[j] = 128+audio_volume;
-					else
-						stream[j] = 128-audio_volume;
-					pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
+				fprintf(stderr, "[callback] testing note @ %.2f Hz (%ld, %ld)\n", speaker_entries[i].freq, audio_from, audio_to);
+			}
+			#endif
+
+			if (audio_from < 0) audio_from = 0;
+			else if (audio_from >= len) break;
+			if (audio_to < 0) audio_to = 0;
+			else if (audio_to > len) audio_to = len;
+
+			// emit
+			if (audio_to > audio_from) {
+				if (speaker_entries[i].enabled) {
+					#ifdef AUDIO_STREAM_DEBUG
+					fprintf(stderr, "[callback] emitting note @ %.2f Hz\n", speaker_entries[i].freq);
+					#endif
+					freq_samples_fixed = (int) ((audio_freq << 8) / (speaker_entries[i].freq * 2));
+					pos_samples_fixed = (speaker_freq_ctr << 8) % (freq_samples_fixed << 1);
+					for (j = audio_from; j < audio_to; j++) {
+						if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
+							stream[j] = 128+audio_volume;
+						else
+							stream[j] = 128-audio_volume;
+						pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
+					}
+					speaker_freq_ctr += audio_to - audio_from;
+				} else {
+					speaker_freq_ctr = 0;
+					memset(stream + audio_from, 128, audio_to - audio_from);
 				}
-				speaker_freq_ctr += audio_to - audio_from;
-			} else {
-				speaker_freq_ctr = 0;
-				memset(stream + audio_from, 128, audio_to - audio_from);
 			}
 		}
-	}
 
-	if (speaker_entry_pos > 0) {
-		k = i;
-		if (k >= speaker_entry_pos) k = speaker_entry_pos - 1;
-		for (i = k; i < speaker_entry_pos; i++) {
-			speaker_entries[i - k] = speaker_entries[i];
+		if (speaker_entry_pos > 0) {
+			k = i - 1;
+			if (k >= speaker_entry_pos) k = speaker_entry_pos - 1;
+			for (i = k; i < speaker_entry_pos; i++) {
+				speaker_entries[i - k] = speaker_entries[i];
+			}
+			speaker_entry_pos -= k;
+			speaker_overrun_flagged = 0;
+			if (speaker_entry_pos == 1) {
+				// sync
+				audio_curr_time = time;
+			}
+			speaker_entries[0].ms = audio_curr_time;
 		}
-		speaker_entry_pos -= k;
-		speaker_overrun_flagged = 0;
-		speaker_entries[0].ms = audio_curr_time;
 	}
 
-	if (speaker_entry_pos == 1) {
-		speaker_entries[0].ms = time;
-		audio_curr_time = time;
-	}
+#ifdef AUDIO_STREAM_DEBUG_BUFFERS
+	fprintf(stderr, "[callback] buffer state AFTER (%d)\n", speaker_entry_pos);
+	audio_stream_print_all_entries();
+#endif
 
 	audio_prev_time = audio_curr_time;
 }
