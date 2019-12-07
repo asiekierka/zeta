@@ -988,8 +988,12 @@ int zzt_load_palette(u32 *colors) {
 }
 
 void zzt_init(int memory_kbs) {
-/*	for (int i = 0; i < MAX_ALLOC; i++)
-		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
+	if (memory_kbs < 0) {
+		// theoretical ZZT maximum!
+		// we do this here to faciliate development and large file
+		// directories (as ZZT doesn't always free that part of memory)
+		memory_kbs = MAX_MEMORY_KBS;
+	}
 
 	zzt.key.qke = -1;
 	for (int i = 0; i < KEYBUF_SIZE; i++) {

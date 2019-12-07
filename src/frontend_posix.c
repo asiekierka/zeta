@@ -60,7 +60,7 @@ static int posix_zzt_init(int argc, char **argv) {
 	int load_count = 0;
 	int c;
 	int skip_kc = 0;
-	int memory_kbs = 640;
+	int memory_kbs = -1;
 
 #ifdef USE_GETOPT
 	while ((c = getopt(argc, argv, "D:be:hl:m:t")) >= 0) {
