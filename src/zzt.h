@@ -56,7 +56,7 @@ void zzt_mouse_axis(int axis, int value /* delta, in pixels */);
 USER_FUNCTION
 void zzt_mouse_clear(int button);
 USER_FUNCTION
-void zzt_init(void);
+void zzt_init(int memory_kbs);
 USER_FUNCTION
 void zzt_load_binary(int handle, const char *arg);
 USER_FUNCTION

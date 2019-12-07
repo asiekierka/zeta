@@ -98,6 +98,10 @@ typedef struct {
 
 zzt_state zzt;
 
+static int zzt_memory_seg_limit() {
+	return (zzt.cpu.ram[0x413] | (zzt.cpu.ram[0x414] << 8)) << 6;
+}
+
 void zzt_kmod_set(int mod) {
 	zzt.kmod |= mod;
 }
@@ -899,7 +903,7 @@ static void zzt_load_exe(int handle, const char *arg) {
 //	int size_pars = 40400;
 //	int offset_pars = mem_alloc(size_pars, 0);
 	int offset_pars = 0x100;
-	int size_pars = 0xB800 - 0x100;
+	int size_pars = zzt_memory_seg_limit() - 0x100;
 
 	// location
 	zzt.cpu.seg[SEG_CS] = vfs_read16(handle, 0x16) + offset_pars + 0x10;
@@ -945,7 +949,7 @@ void zzt_load_binary(int handle, const char *arg) {
 
 	// assume com file
 	int offset_pars = 0x100;
-	int size_pars = 0xB800 - 0x100;
+	int size_pars = zzt_memory_seg_limit() - 0x100;
 	zzt_load_build_psp(offset_pars, offset_pars + size_pars, arg);
 
 	zzt.cpu.seg[SEG_CS] = offset_pars;
@@ -983,7 +987,7 @@ int zzt_load_palette(u32 *colors) {
 	return 0;
 }
 
-void zzt_init(void) {
+void zzt_init(int memory_kbs) {
 /*	for (int i = 0; i < MAX_ALLOC; i++)
 		seg_allocs[i] = (i < 256) ? (256-i) : 0; */
 
@@ -1013,8 +1017,8 @@ void zzt_init(void) {
 
 	zzt.cpu.ram[0x410] = 0x61;
 	zzt.cpu.ram[0x411] = 0x00;
-	zzt.cpu.ram[0x413] = (640) & 255;
-	zzt.cpu.ram[0x414] = (640) >> 8;
+	zzt.cpu.ram[0x413] = memory_kbs & 0xFF;
+	zzt.cpu.ram[0x414] = memory_kbs >> 8;
 	zzt.cpu.ram[0xFFFFE] = 0xFB;
 
 	// video constants

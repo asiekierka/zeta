@@ -44,6 +44,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "         - palette:\n");
 	fprintf(stderr, "             - pal (MegaZeux-like; 16 colors ranged 00-3F)\n");
 	fprintf(stderr, "             - pld (Toshiba UPAL; 64 EGA colors ranged 00-3F)\n");
+	fprintf(stderr, "  -m []  set memory limit, in KB (64-640)\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
@@ -59,9 +60,10 @@ static int posix_zzt_init(int argc, char **argv) {
 	int load_count = 0;
 	int c;
 	int skip_kc = 0;
+	int memory_kbs = 640;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "D:be:hl:t")) >= 0) {
+	while ((c = getopt(argc, argv, "D:be:hl:m:t")) >= 0) {
 		switch(c) {
 			case 'D':
 				posix_zzt_arg_note_delay = atof(optarg);
@@ -87,6 +89,14 @@ static int posix_zzt_init(int argc, char **argv) {
 				posix_zzt_help(argc, argv);
 				exit(0);
 				return -1;
+			case 'm':
+				memory_kbs = atoi(optarg);
+				// intentional - going above 640K ought to be undocumented
+				if (memory_kbs < 64 || memory_kbs > 1024) {
+					fprintf(stderr, "Invalid memory amount specified!\n");
+					return -1;
+				}
+				break;
 			case 't':
 				skip_kc = 1;
 				break;
@@ -98,7 +108,7 @@ static int posix_zzt_init(int argc, char **argv) {
 	}
 #endif
 
-	zzt_init();
+	zzt_init(memory_kbs);
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {
