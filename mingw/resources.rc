@@ -1,3 +1,4 @@
 #include "winuser.h"
 
+1 ICON "iconwin.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
