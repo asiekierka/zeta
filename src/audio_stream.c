@@ -126,23 +126,20 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	} else {
 		double last_ms = audio_prev_time;
 		for (i = 0; i < speaker_entry_pos; i++) {
+			// Skip notes played *after* the last note we've played.
+			if (speaker_entries[i].ms >= audio_curr_time) break;
 			// Skip notes played *before* the last note we've played.
 			if (speaker_entries[i].ms < last_ms) continue;
 			last_ms = speaker_entries[i].ms;
 
 			// Adjust to (0..sample) range.
 			audio_dfrom = speaker_entries[i].ms - audio_prev_time;
-			audio_dto = speaker_entries[i+1].ms - audio_prev_time;
+			if (i == speaker_entry_pos - 1) audio_dto = audio_res;
+			else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
 			// Fill out gaps, if any, on the final note.
-			if (i == speaker_entry_pos - 1 && audio_dto < audio_res) audio_dto = audio_res;
 			// Adjust.
 			audio_from = (long) (audio_dfrom * res_to_samples);
 			audio_to = (long) (audio_dto * res_to_samples);
-
-			// Ensure the duration is at least 1 sample.
-			if (audio_dfrom >= audio_dto) continue;
-			if (audio_from < audio_last_to) audio_from = audio_last_to;
-			if (audio_to <= audio_from) audio_to = audio_from + 1;
 
 			#ifdef AUDIO_STREAM_DEBUG
 			if (speaker_entries[i].enabled) {
@@ -151,6 +148,11 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 				fprintf(stderr, "[callback] testing off (%ld, %ld)\n", audio_from, audio_to);
 			}
 			#endif
+
+			// Ensure the duration is at least 1 sample.
+			if (audio_dfrom >= audio_dto) continue;
+			if (audio_from < audio_last_to) audio_from = audio_last_to;
+			if (audio_to <= audio_from) audio_to = audio_from + 1;
 
 			// Filter rough edges, and end if we've gone past the buffer area (so we can remember the notes).
 			if (audio_from < 0) audio_from = 0;
