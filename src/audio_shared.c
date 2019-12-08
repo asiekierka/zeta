@@ -34,7 +34,7 @@ void audio_set_note_delay(double delay) {
 }
 
 u8 audio_should_insert_pause(speaker_entry* entries, int pos) {
-	if (pos == 0) return 0;
+	if (pos <= 0) return 0;
 
 	// ZZT always immediately disables a note... except for drums!
 	if (entries[pos - 1].enabled) {

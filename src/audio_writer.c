@@ -33,28 +33,21 @@ static double audio_time_offset;
 static int audio_freq;
 
 // states
-typedef struct {
-	u8 enabled;
-	int cycles;
-	double freq;
-	long ms;
-} audio_writer_entry;
-
-static audio_writer_entry* audio_entries;
+static speaker_entry* audio_entries;
 static u32 audio_entries_size, audio_entries_count;
 static int audio_note_counter;
 static u8 audio_note_enabled; // last
 static int audio_note_cycles; // last
 static double audio_note_freq; // last
 
-static audio_writer_entry* audio_writer_allocate_entry(void) {
+static speaker_entry* audio_writer_allocate_entry(void) {
 	if (audio_entries_count >= audio_entries_size) {
 		if (audio_entries_size == 0) {
 			audio_entries_size = 4096;
-			audio_entries = malloc(sizeof(audio_writer_entry) * audio_entries_size);
+			audio_entries = malloc(sizeof(speaker_entry) * audio_entries_size);
 		} else {
 			audio_entries_size *= 2;
-			audio_entries = realloc(audio_entries, sizeof(audio_writer_entry) * audio_entries_size);
+			audio_entries = realloc(audio_entries, sizeof(speaker_entry) * audio_entries_size);
 		}
 	}
 
@@ -95,11 +88,11 @@ int audio_writer_start(const char *filename, long time, int freq) {
 	return 0;
 }
 
-static void audio_writer_advance(long time, int cycles, u8 enabled, double freq) {
+static void audio_writer_advance(int pos, long time, int cycles, u8 enabled, double freq) {
 	long i, samples;
 	int freq_samples_fixed, pos_samples_fixed;
 
-	if (audio_note_enabled) {
+	if (audio_should_insert_pause(audio_entries, pos)) {
 		long shortest_time = audio_time_offset + audio_local_delay_time(audio_note_cycles, cycles, audio_freq);
 		if (time < shortest_time) {
 			time = shortest_time;
@@ -135,12 +128,12 @@ static void audio_writer_advance(long time, int cycles, u8 enabled, double freq)
 }
 
 void audio_writer_stop(long time, int cycles) {
-	audio_writer_entry *e;
+	speaker_entry *e;
 	audio_writer_speaker_off(time, cycles);
 	// write... uhh... all data
 	e = audio_entries;
 	for (int i = 0; i < audio_entries_count; i++, e++) {
-		audio_writer_advance(e->ms, e->cycles, e->enabled, e->freq);
+		audio_writer_advance(i, e->ms, e->cycles, e->enabled, e->freq);
 	}
 	// get filesize
 	fseek(audio_file, 0, SEEK_END);
@@ -162,7 +155,7 @@ void audio_writer_stop(long time, int cycles) {
 }
 
 void audio_writer_speaker_on(long time, int cycles, double freq) {
-	audio_writer_entry *e = audio_writer_allocate_entry();
+	speaker_entry *e = audio_writer_allocate_entry();
 	e->enabled = 1;
 	e->freq = freq;
 	e->ms = time;
@@ -170,7 +163,7 @@ void audio_writer_speaker_on(long time, int cycles, double freq) {
 }
 
 void audio_writer_speaker_off(long time, int cycles) {
-	audio_writer_entry *e = audio_writer_allocate_entry();
+	speaker_entry *e = audio_writer_allocate_entry();
 	e->enabled = 0;
 	e->ms = time;
 	e->cycles = cycles;
