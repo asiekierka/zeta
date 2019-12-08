@@ -157,7 +157,7 @@ export class BufferBasedAudio {
 		this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
 
 		if (this.noteDelay) {
-			this.emu._audio_stream_set_note_delay(this.noteDelay);
+			this.emu._audio_set_note_delay(this.noteDelay);
 		}
 
 		this._queueBufferSource(() => {});
@@ -167,7 +167,7 @@ export class BufferBasedAudio {
 	setNoteDelay(delay) {
 		this.noteDelay = delay;
 		if (this.initialized) {
-			this.emu._audio_stream_set_note_delay(delay);
+			this.emu._audio_set_note_delay(delay);
 		}
 	}
 
