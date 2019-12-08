@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include "types.h"
 #include "util.h"
+#include "audio_shared.h"
 #include "audio_writer.h"
 
 #define AUDIO_MIN_SAMPLE 25
@@ -99,7 +100,7 @@ static void audio_writer_advance(long time, int cycles, u8 enabled, double freq)
 	int freq_samples_fixed, pos_samples_fixed;
 
 	if (audio_note_enabled) {
-		long shortest_time = audio_time_offset + audio_local_delay_time(audio_note_cycles, cycles);
+		long shortest_time = audio_time_offset + audio_local_delay_time(audio_note_cycles, cycles, audio_freq);
 		if (time < shortest_time) {
 			time = shortest_time;
 		}

@@ -393,7 +393,7 @@ export function createEmulator(render, audio, vfs, options) {
 
             const emuObj = new Emulator(options.render.canvas, emu, render(emu), audio(emu), vfs, options);
 
-            emu._zzt_init();
+            emu._zzt_init((options && options.engine && options.engine.memory_limit) || -1);
             emu._zzt_set_timer_offset(Date.now() % 86400000)
 
             if (options && options.commands) {

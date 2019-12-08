@@ -22,6 +22,7 @@
 
 #include "cpu.h"
 
+#define MAX_MEMORY_KBS 736
 #define MAX_FILES 16
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
 

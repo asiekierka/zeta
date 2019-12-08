@@ -21,7 +21,8 @@ emcc -O3 --js-library src/emscripten_glue.js \
   -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
   -DNO_MEMSET -o zeta_native.js \
-  src/cpu.c src/zzt.c res/8x14.c src/audio_stream.c
+  src/cpu.c src/zzt.c res/8x14.c src/audio_stream.c \
+  src/audio_shared.c
 
 mv zeta_native.js build/zeta_native.js
 mv zeta_native.wasm build/zeta_native.wasm

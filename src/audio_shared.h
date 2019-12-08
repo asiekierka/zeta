@@ -17,24 +17,25 @@
  * along with Zeta.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __AUDIO_STREAM_H__
-#define __AUDIO_STREAM_H__
+#ifndef __AUDIO_SHARED_H__
+#define __AUDIO_SHARED_H__
 
 #include "types.h"
 
+typedef struct {
+	u8 enabled;
+	int cycles;
+	double freq;
+	double ms;
+} speaker_entry;
+
 USER_FUNCTION
-void audio_stream_init(long time, int freq);
+double audio_get_note_delay();
 USER_FUNCTION
-u8 audio_stream_get_volume();
+void audio_set_note_delay(double delay);
 USER_FUNCTION
-u8 audio_stream_get_max_volume();
+double audio_local_delay_time(int cycles_prev, int cycles_curr, int global_frequency);
 USER_FUNCTION
-void audio_stream_set_volume(u8 volume);
-USER_FUNCTION
-void audio_stream_generate_u8(long time, u8 *stream, int len);
-USER_FUNCTION
-void audio_stream_append_on(long time, int cycles, double freq);
-USER_FUNCTION
-void audio_stream_append_off(long time, int cycles);
+u8 audio_should_insert_pause(speaker_entry* entries, int pos);
 
 #endif

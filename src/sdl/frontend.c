@@ -34,6 +34,7 @@
 #include <SDL2/SDL_main.h>
 #include "../util.h"
 #include "../zzt.h"
+#include "../audio_shared.h"
 #include "../audio_stream.h"
 #include "../posix_vfs.h"
 #include "../render_software.h"
@@ -346,7 +347,7 @@ int main(int argc, char **argv) {
 	if (audio_device != 0) {
 		audio_stream_init(zeta_time_ms(), audio_spec.freq);
 		if (posix_zzt_arg_note_delay >= 0.0) {
-			audio_stream_set_note_delay(posix_zzt_arg_note_delay);
+			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}
 		audio_stream_set_volume(audio_stream_get_max_volume() >> 1);
 		SDL_PauseAudioDevice(audio_device, 0);

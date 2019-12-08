@@ -20,18 +20,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "audio_shared.h"
 #include "audio_stream.h"
 #include "logging.h"
 
-// #define AUDIO_STREAM_DEBUG
-// #define AUDIO_STREAM_DEBUG_BUFFERS
-
-typedef struct {
-	u8 enabled;
-	int cycles;
-	double freq;
-	double ms;
-} speaker_entry;
+#define AUDIO_STREAM_DEBUG
+#define AUDIO_STREAM_DEBUG_BUFFERS
 
 #define AUDIO_VOLUME_MAX 127
 #define SPEAKER_ENTRY_LEN 64
@@ -41,7 +35,6 @@ static u8 speaker_overrun_flagged = 0;
 static long speaker_freq_ctr = 0;
 static u8 audio_volume = AUDIO_VOLUME_MAX;
 static double audio_prev_time;
-static double audio_delay_time;
 static int audio_freq;
 
 #ifdef AUDIO_STREAM_DEBUG
@@ -75,35 +68,14 @@ static void audio_stream_flag_speaker_overrun(void) {
 	}
 }
 
-double audio_local_delay_time(int cycles_prev, int cycles_curr) {
-	if (cycles_prev >= cycles_curr) {
-		return 0;
-	} else {
-		if ((cycles_curr - cycles_prev) > 3600) {
-			return audio_delay_time;
-		} else {
-			return (cycles_curr - cycles_prev) * audio_delay_time / 3600.0;
-		}
-	}
-}
-
 void audio_stream_init(long time, int freq) {
-	audio_prev_time = -1;
-	audio_delay_time = 1.0;
-	audio_freq = freq;
 	speaker_overrun_flagged = 0;
+	audio_prev_time = -1;
+	audio_freq = freq;
 }
 
 u8 audio_stream_get_volume() {
 	return audio_volume;
-}
-
-double audio_stream_get_note_delay() {
-	return audio_delay_time;
-}
-
-void audio_stream_set_note_delay(double delay) {
-	audio_delay_time = delay;
 }
 
 u8 audio_stream_get_max_volume() {
@@ -120,12 +92,12 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	int freq_samples_fixed;
 	int pos_samples_fixed;
 	int k;
-	double audio_curr_time = audio_prev_time + (len / (double) audio_freq * 1000);
+	double audio_res = (len / (double) audio_freq * 1000);
+	double audio_curr_time = audio_prev_time + audio_res;
 //	double audio_curr_time = time;
-	double audio_res = (audio_curr_time - audio_prev_time);
 	double res_to_samples = len / audio_res;
 	double audio_dfrom, audio_dto;
-	long audio_from, audio_to;
+	long audio_from, audio_to, audio_last_to = 0;
 
 	// handle the first
 	if (audio_prev_time < 0) {
@@ -152,32 +124,45 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 		audio_curr_time = time;
 		memset(stream, 128, len);
 	} else {
+		double last_ms = audio_prev_time;
 		for (i = 0; i < speaker_entry_pos; i++) {
+			// Skip notes played *before* the last note we've played.
+			if (speaker_entries[i].ms < last_ms) continue;
+			last_ms = speaker_entries[i].ms;
+
+			// Adjust to (0..sample) range.
 			audio_dfrom = speaker_entries[i].ms - audio_prev_time;
-
-			if (i == speaker_entry_pos - 1) audio_dto = audio_res;
-			else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
-
-			// convert
+			audio_dto = speaker_entries[i+1].ms - audio_prev_time;
+			// Fill out gaps, if any, on the final note.
+			if (i == speaker_entry_pos - 1 && audio_dto < audio_res) audio_dto = audio_res;
+			// Adjust.
 			audio_from = (long) (audio_dfrom * res_to_samples);
 			audio_to = (long) (audio_dto * res_to_samples);
+
+			// Ensure the duration is at least 1 sample.
+			if (audio_dfrom >= audio_dto) continue;
+			if (audio_from < audio_last_to) audio_from = audio_last_to;
+			if (audio_to <= audio_from) audio_to = audio_from + 1;
 
 			#ifdef AUDIO_STREAM_DEBUG
 			if (speaker_entries[i].enabled) {
 				fprintf(stderr, "[callback] testing note @ %.2f Hz (%ld, %ld)\n", speaker_entries[i].freq, audio_from, audio_to);
+			} else {
+				fprintf(stderr, "[callback] testing off (%ld, %ld)\n", audio_from, audio_to);
 			}
 			#endif
 
+			// Filter rough edges, and end if we've gone past the buffer area (so we can remember the notes).
 			if (audio_from < 0) audio_from = 0;
 			else if (audio_from >= len) break;
 			if (audio_to < 0) audio_to = 0;
 			else if (audio_to > len) audio_to = len;
 
-			// emit
+			// Emit the actual note.
 			if (audio_to > audio_from) {
 				if (speaker_entries[i].enabled) {
 					#ifdef AUDIO_STREAM_DEBUG
-					fprintf(stderr, "[callback] emitting note @ %.2f Hz\n", speaker_entries[i].freq);
+					fprintf(stderr, "[callback] emitting note @ %.2f Hz (%ld, %ld)\n", speaker_entries[i].freq, audio_from, audio_to);
 					#endif
 					freq_samples_fixed = (int) ((audio_freq << 8) / (speaker_entries[i].freq * 2));
 					pos_samples_fixed = (speaker_freq_ctr << 8) % (freq_samples_fixed << 1);
@@ -190,26 +175,34 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 					}
 					speaker_freq_ctr += audio_to - audio_from;
 				} else {
+					#ifdef AUDIO_STREAM_DEBUG
+					fprintf(stderr, "[callback] emitting off (%ld, %ld)\n", audio_from, audio_to);
+					#endif
 					speaker_freq_ctr = 0;
 					memset(stream + audio_from, 128, audio_to - audio_from);
 				}
 			}
+
+			audio_last_to = audio_to;
 		}
 
+		// Remove played notes.
 		if (speaker_entry_pos > 0) {
 			k = i - 1;
-			if (k >= speaker_entry_pos) k = speaker_entry_pos - 1;
 			for (i = k; i < speaker_entry_pos; i++) {
 				speaker_entries[i - k] = speaker_entries[i];
 			}
 			speaker_entry_pos -= k;
-			speaker_overrun_flagged = 0;
 			if (speaker_entry_pos == 1) {
-				// sync
+				// If we only have one note, we can synchronize the
+				// internal timer with the external timer.
 				audio_curr_time = time;
 			}
 			speaker_entries[0].ms = audio_curr_time;
 		}
+
+		// Clear debug/error flags.
+		speaker_overrun_flagged = 0;
 	}
 
 #ifdef AUDIO_STREAM_DEBUG_BUFFERS
@@ -218,6 +211,15 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 #endif
 
 	audio_prev_time = audio_curr_time;
+}
+
+static void audio_stream_adjust_entry_timing(long time, int cycles) {
+	if (speaker_entry_pos > 0) {
+		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_local_delay_time(speaker_entries[speaker_entry_pos - 1].cycles, cycles, audio_freq);
+		if (audio_should_insert_pause(speaker_entries, speaker_entry_pos) && last_ms >= time) {
+			speaker_entries[speaker_entry_pos].ms = last_ms;
+		}
+	}
 }
 
 void audio_stream_append_on(long time, int cycles, double freq) {
@@ -232,20 +234,13 @@ void audio_stream_append_on(long time, int cycles, double freq) {
 	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos].cycles = cycles;
 	speaker_entries[speaker_entry_pos].freq = freq;
+	speaker_entries[speaker_entry_pos].enabled = 1;
+	audio_stream_adjust_entry_timing(time, cycles);
 
-	if (speaker_entry_pos > 0) {
-		// ZZT always immediately disables a note... except for drums!
-		u8 last_en = speaker_entries[speaker_entry_pos - 1].enabled;
-		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_local_delay_time(speaker_entries[speaker_entry_pos - 1].cycles, cycles);
-		if (last_en && last_ms >= time) {
-			speaker_entries[speaker_entry_pos].ms = last_ms;
-		}
-	}
-
-	speaker_entries[speaker_entry_pos++].enabled = 1;
 #ifdef AUDIO_STREAM_DEBUG
-	audio_stream_print(speaker_entry_pos - 1);
+	audio_stream_print(speaker_entry_pos);
 #endif
+	speaker_entry_pos++;
 }
 
 void audio_stream_append_off(long time, int cycles) {
@@ -259,18 +254,11 @@ void audio_stream_append_off(long time, int cycles) {
 
 	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos].cycles = cycles;
+	speaker_entries[speaker_entry_pos].enabled = 0;
+	audio_stream_adjust_entry_timing(time, cycles);
 
-	if (speaker_entry_pos > 0) {
-		// we let notes play for at least the delay time
-		u8 last_en = speaker_entries[speaker_entry_pos - 1].enabled;
-		double last_ms = speaker_entries[speaker_entry_pos - 1].ms + audio_local_delay_time(speaker_entries[speaker_entry_pos - 1].cycles, cycles);
-		if (last_en && last_ms >= time) {
-			speaker_entries[speaker_entry_pos].ms = last_ms;
-		}
-	}
-
-	speaker_entries[speaker_entry_pos++].enabled = 0;
 #ifdef AUDIO_STREAM_DEBUG
-	audio_stream_print(speaker_entry_pos - 1);
+	audio_stream_print(speaker_entry_pos);
 #endif
+	speaker_entry_pos++;
 }
