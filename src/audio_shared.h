@@ -22,6 +22,8 @@
 
 #include "types.h"
 
+#define MINIMUM_NOTE_DELAY 2
+
 typedef struct {
 	u8 enabled;
 	int cycles;

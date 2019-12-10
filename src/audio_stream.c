@@ -24,8 +24,8 @@
 #include "audio_stream.h"
 #include "logging.h"
 
-#define AUDIO_STREAM_DEBUG
-#define AUDIO_STREAM_DEBUG_BUFFERS
+// #define AUDIO_STREAM_DEBUG
+// #define AUDIO_STREAM_DEBUG_BUFFERS
 
 #define AUDIO_VOLUME_MAX 127
 #define SPEAKER_ENTRY_LEN 64
@@ -152,7 +152,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 			// Ensure the duration is at least 1 sample.
 			if (audio_dfrom >= audio_dto) continue;
 			if (audio_from < audio_last_to) audio_from = audio_last_to;
-			if (audio_to <= audio_from) audio_to = audio_from + 1;
+			if (audio_to <= (audio_from + MINIMUM_NOTE_DELAY - 1)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
 
 			// Filter rough edges, and end if we've gone past the buffer area (so we can remember the notes).
 			if (audio_from < 0) audio_from = 0;

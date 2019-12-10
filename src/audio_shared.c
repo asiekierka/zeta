@@ -59,7 +59,7 @@ u8 audio_should_insert_pause(speaker_entry* entries, int pos) {
 }
 
 double audio_local_delay_time(int cycles_prev, int cycles_curr, int global_frequency) {
-	double min_delay = 1000.0 / global_frequency;
+	double min_delay = 1000.0 * MINIMUM_NOTE_DELAY / global_frequency;
 	if (cycles_prev >= cycles_curr) {
 		return 0;
 	} else {
