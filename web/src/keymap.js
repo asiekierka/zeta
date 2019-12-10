@@ -47,6 +47,13 @@ let ZetaKbdmap = {
 	" ": 57
 };
 
+let ZetaKbdChrMap = {
+	8: 8,
+	9: 9,
+	13: 13,
+	27: 27
+}
+
 let addCharsInOrder = function(c, off) {
 	for(var i = 0; i < c.length; i++) {
 		ZetaKbdmap[c.charAt(i)]=off + i;
@@ -66,3 +73,4 @@ for (var i = 1; i <= 10; i++) {
 }
 
 export const keymap = ZetaKbdmap;
+export const keychrmap = ZetaKbdChrMap;

@@ -18,7 +18,7 @@
  */
 
 import { time_ms, drawErrorMessage } from "./util.js";
-import { keymap } from "./keymap.js";
+import { keymap, keychrmap } from "./keymap.js";
 import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
 /* var check_modifiers = function(event) {
@@ -93,12 +93,17 @@ class Emulator {
             if (event.target != element) return false;
             let ret = false;
 
+            // workaround for Shift "up" being sent outside window focus
+            if (!event.shiftKey) emu._zzt_kmod_clear(0x01);
+            if (!event.ctrlKey) emu._zzt_kmod_clear(0x04);
+            if (!event.altKey) emu._zzt_kmod_clear(0x08);
+
             if (event.key == "Shift") emu._zzt_kmod_set(0x01);
             else if (event.key == "Control") emu._zzt_kmod_set(0x04);
             else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_set(0x08);
             else ret = false;
 
-            let chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (event.keyCode < 32 ? event.keyCode : 0);
+            let chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (keychrmap[event.keyCode] || 0);
             let key = keymap[event.key] || 0;
             if (key >= 0x46 && key <= 0x53) chr = 0;
             if (chr > 0 || key > 0) {
