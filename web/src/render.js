@@ -68,13 +68,12 @@ export class CanvasBasedRenderer {
 			this.video_mode = val;
 		}
 
-		this.drawChrWidth = this.chrWidth * (80 / this.scrWidth);
-
+		this.drawChrWidth = this.chrWidth * Math.round(80 / this.scrWidth);
 		this.pw = this.scrWidth*this.drawChrWidth;
 		this.ph = this.scrHeight*this.chrHeight;
 		this.cw = this.canvas.width;
 		this.ch = this.canvas.height;
-		this.scale = Math.min(Math.floor(this.cw / this.pw), Math.floor(this.ch / this.ph));
+		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));
 
 		if (this.video_blink) {
 			if ((time % this.blink_duration) >= (this.blink_duration / 2)) {
@@ -86,8 +85,8 @@ export class CanvasBasedRenderer {
 			this.blink_state = 0;
 		}
 
-		this.x_offset = ((this.cw - this.pw*this.scale) / 2);
-		this.y_offset = ((this.ch - this.ph*this.scale) / 2);
+		this.x_offset = Math.round((this.cw - this.pw*this.scale) / 2);
+		this.y_offset = Math.round((this.ch - this.ph*this.scale) / 2);
 	}
 
 	_drawChar(x, y, chr, col) {
@@ -124,7 +123,7 @@ export class CanvasBasedRenderer {
 
 		this.ctx.fillStyle = this.palette[bg];
 		this.ctx.fillRect(x, y, rw, rh);
-		
+
 		if (bg != fg) {
 			this.ctx.drawImage(this.asciiFg[fg], (chr & 15) * this.chrWidth, ((chr >> 4) & 15) * this.chrHeight, this.chrWidth, this.chrHeight, x, y, rw, rh);
 		}
