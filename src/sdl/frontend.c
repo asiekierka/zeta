@@ -111,6 +111,7 @@ static u8 zzt_vram_copy[80*25*2];
 static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 video_blink = 1;
+static u8 zzt_turbo = 0;
 
 static long first_timer_tick;
 static double timer_time;
@@ -171,7 +172,8 @@ static int zzt_thread_func(void *ptr) {
 			}
 			SDL_CondBroadcast(zzt_thread_cond);
 			if (rcode == STATE_WAIT) {
-				SDL_CondWaitTimeout(zzt_thread_cond, zzt_thread_lock, 20);
+				if (zzt_turbo) zzt_mark_timer_turbo();
+				else SDL_CondWaitTimeout(zzt_thread_cond, zzt_thread_lock, 20);
 			} else if (rcode == STATE_END) {
 				zzt_thread_running = 0;
 			}
@@ -424,6 +426,9 @@ int main(int argc, char **argv) {
 						break;
 					}
 #endif
+					if (event.key.keysym.sym == SDLK_F9) {
+						zzt_turbo = 1;
+					}
 					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
 						// audio writer
 						if (!audio_writer_enabled) {
@@ -475,6 +480,9 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_KEYUP:
+					if (event.key.keysym.sym == SDLK_F9) {
+						zzt_turbo = 0;
+					}
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {

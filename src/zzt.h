@@ -69,6 +69,8 @@ void zzt_mark_frame(void);
 USER_FUNCTION
 void zzt_mark_timer(void);
 USER_FUNCTION
+void zzt_mark_timer_turbo(void);
+USER_FUNCTION
 int zzt_key_get_delay(void);
 USER_FUNCTION
 int zzt_key_get_repeat_delay(void);

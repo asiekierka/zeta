@@ -58,7 +58,6 @@ static u32 def_palette[] = {
 
 typedef struct {
 	cpu_state cpu;
-	long real_time;
 	long timer_time_offset;
 	double timer_time;
 
@@ -112,7 +111,6 @@ void zzt_kmod_clear(int mod) {
 
 static long zzt_internal_time(void) {
 	return zzt.timer_time_offset + ((long) zzt.timer_time);
-//	return (long) (zzt.timer_time + (zeta_time_ms() - zzt.real_time));
 }
 
 static int zzt_key_append(int qch, int qke) {
@@ -1003,7 +1001,6 @@ void zzt_init(int memory_kbs) {
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
 
-	zzt.real_time = 0;
 	zzt.timer_time = 0;
 	zzt.joy_xstrobe_val = -1;
 	zzt.joy_ystrobe_val = -1;
@@ -1064,9 +1061,13 @@ static void zzt_update_keys(void) {
 }
 
 void zzt_mark_timer(void) {
-	zzt.real_time = zeta_time_ms();
 	zzt.timer_time += SYS_TIMER_TIME;
 	zzt_update_keys();
+	cpu_emit_interrupt(&(zzt.cpu), 0x08);
+}
+
+void zzt_mark_timer_turbo(void) {
+	zzt.timer_time += SYS_TIMER_TIME;
 	cpu_emit_interrupt(&(zzt.cpu), 0x08);
 }
 
