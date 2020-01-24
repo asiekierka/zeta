@@ -23,9 +23,11 @@
 #include "types.h"
 #include "audio_stream.h"
 
-int audio_writer_start(const char *filename, long time, int freq);
-void audio_writer_stop(long time, int cycles);
-void audio_writer_speaker_on(long time, int cycles, double freq);
-void audio_writer_speaker_off(long time, int cycles);
+typedef struct s_audio_writer_state audio_writer_state;
+
+audio_writer_state *audio_writer_start(const char *filename, long time, int freq);
+void audio_writer_stop(audio_writer_state *s, long time, int cycles);
+void audio_writer_speaker_on(audio_writer_state *s, long time, int cycles, double freq);
+void audio_writer_speaker_off(audio_writer_state *s, long time, int cycles);
 
 #endif
