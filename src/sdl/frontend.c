@@ -79,7 +79,7 @@ static SDL_AudioSpec audio_spec;
 static SDL_mutex *audio_mutex;
 
 static double audio_time;
-static u8 audio_writer_enabled = 0;
+static audio_writer_state *audio_writer_s = NULL;
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_LockMutex(audio_mutex);
@@ -91,8 +91,8 @@ void speaker_on(int cycles, double freq) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_on(audio_time, cycles, freq);
 	SDL_UnlockMutex(audio_mutex);
-	if (audio_writer_enabled) {
-		audio_writer_speaker_on(audio_time, cycles, freq);
+	if (audio_writer_s != NULL) {
+		audio_writer_speaker_on(audio_writer_s, audio_time, cycles, freq);
 	}
 }
 
@@ -100,8 +100,8 @@ void speaker_off(int cycles) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_off(audio_time, cycles);
 	SDL_UnlockMutex(audio_mutex);
-	if (audio_writer_enabled) {
-		audio_writer_speaker_off(audio_time, cycles);
+	if (audio_writer_s != NULL) {
+		audio_writer_speaker_off(audio_writer_s, audio_time, cycles);
 	}
 }
 
@@ -431,22 +431,21 @@ int main(int argc, char **argv) {
 					}
 					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
 						// audio writer
-						if (!audio_writer_enabled) {
+						if (audio_writer_s == NULL) {
 							FILE *file;
 							char filename[24];
 							file = create_inc_file(filename, 23, "audio%d.wav", "wb");
 							if (file != NULL) {
 								fclose(file);
-								if (audio_writer_start(filename, audio_time, 48000) >= 0) {
-									audio_writer_enabled = 1;
+								if ((audio_writer_s = audio_writer_start(filename, audio_time, 48000)) != NULL) {
 									fprintf(stderr, "Audio writing started [%s].\n", filename);
 								} else {
 									fprintf(stderr, "Could not start audio writing - internal error!\n");
 								}
 							}
 						} else {
-							audio_writer_enabled = 0;
-							audio_writer_stop(audio_time, 0);
+							audio_writer_stop(audio_writer_s, audio_time, 0);
+							audio_writer_s = NULL;
 							fprintf(stderr, "Audio writing stopped.\n");
 						}
 						break;
@@ -535,9 +534,9 @@ int main(int argc, char **argv) {
 		renderer->draw(zzt_vram_copy, blink_mode);
 	}
 
-	if (audio_writer_enabled) {
-		audio_writer_enabled = 0;
-		audio_writer_stop(audio_time, 0);
+	if (audio_writer_s != NULL) {
+		audio_writer_stop(audio_writer_s, audio_time, 0);
+		audio_writer_s = NULL;
 	}
 
 	zzt_thread_running = 0;

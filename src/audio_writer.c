@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "types.h"
 #include "util.h"
 #include "audio_shared.h"
@@ -26,144 +27,142 @@
 
 #define AUDIO_MIN_SAMPLE 25
 #define AUDIO_MAX_SAMPLE 231
+#define AUDIO_WRITER_MIN_ENTRIES_SIZE 4096
 
-static FILE *audio_file;
-static char *audio_vbuf;
-static double audio_time_offset;
-static int audio_freq;
+typedef struct s_audio_writer_state {
+	FILE *file;
+	char *vbuf;
 
-// states
-static speaker_entry* audio_entries;
-static u32 audio_entries_size, audio_entries_count;
-static int audio_note_counter;
-static u8 audio_note_enabled; // last
-static int audio_note_cycles; // last
-static double audio_note_freq; // last
+	double time_offset;
+	int freq;
 
-static speaker_entry* audio_writer_allocate_entry(void) {
-	if (audio_entries_count >= audio_entries_size) {
-		if (audio_entries_size == 0) {
-			audio_entries_size = 4096;
-			audio_entries = malloc(sizeof(speaker_entry) * audio_entries_size);
+	speaker_entry *entries;
+	u32 entries_count;
+	u32 entries_size;
+	int note_counter;
+	u8 note_enabled; // last
+	int note_cycles; // last
+	double note_freq; // last
+} audio_writer_state;
+
+static speaker_entry* audio_writer_allocate_entry(audio_writer_state *s) {
+	if (s->entries_count >= s->entries_size) {
+		if (s->entries_size == 0) {
+			s->entries_size = AUDIO_WRITER_MIN_ENTRIES_SIZE;
+			s->entries = malloc(sizeof(speaker_entry) * s->entries_size);
 		} else {
-			audio_entries_size *= 2;
-			audio_entries = realloc(audio_entries, sizeof(speaker_entry) * audio_entries_size);
+			s->entries_size *= 2;
+			s->entries = realloc(s->entries, sizeof(speaker_entry) * s->entries_size);
 		}
 	}
-
-	return &(audio_entries[audio_entries_count++]);
+	return &(s->entries[s->entries_count++]);
 }
 
-int audio_writer_start(const char *filename, long time, int freq) {
-	if (audio_file != NULL) return -1;
-	audio_file = fopen(filename, "wb");
-	if (audio_file == NULL) return -1;
-	setvbuf(audio_file, audio_vbuf, _IOFBF, 65536);
-	// clean up fields
-	audio_entries = NULL;
-	audio_entries_size = 0;
-	audio_entries_count = 0;
-	audio_note_counter = 0;
-	audio_note_enabled = 0;
-	audio_note_freq = 0.0;
-	audio_note_cycles = 0;
-	audio_time_offset = time;
-	audio_freq = freq;
+audio_writer_state *audio_writer_start(const char *filename, long time, int freq) {
+	FILE *file = fopen(filename, "wb");
+	if (file == NULL) return NULL;
+
+	audio_writer_state *s = malloc(sizeof(audio_writer_state));
+	memset(s, 0, sizeof(audio_writer_state));
+
+	s->file = file;
+	setvbuf(s->file, s->vbuf, _IOFBF, 65536);
+
+	s->time_offset = time;
+	s->freq = freq;
+
 	// write header
-	fwrite("RIFF", 4, 1, audio_file);
-	fput32le(audio_file, 0); // file size - 8, see audio_writer_stop
-	fwrite("WAVE", 4, 1, audio_file);
+	fwrite("RIFF", 4, 1, s->file);
+	fput32le(s->file, 0); // file size - 8, see audio_writer_stop
+	fwrite("WAVE", 4, 1, s->file);
 	// - fmt
-	fwrite("fmt ", 4, 1, audio_file);
-	fput32le(audio_file, 16); // chunk size
-	fput16le(audio_file, 1); // format (PCM)
-	fput16le(audio_file, 1); // channels (1)
-	fput32le(audio_file, freq); // frequency
-	fput32le(audio_file, freq); // bytes per second
-	fput16le(audio_file, 1); // bytes per full sample
-	fput16le(audio_file, 8); // bits per sample
+	fwrite("fmt ", 4, 1, s->file);
+	fput32le(s->file, 16); // chunk size
+	fput16le(s->file, 1); // format (PCM)
+	fput16le(s->file, 1); // channels (1)
+	fput32le(s->file, s->freq); // frequency
+	fput32le(s->file, s->freq); // bytes per second
+	fput16le(s->file, 1); // bytes per full sample
+	fput16le(s->file, 8); // bits per sample
 	// - data
-	fwrite("data", 4, 1, audio_file);
-	fput32le(audio_file, 0); // file size - 44, see audio_writer_stop
-	return 0;
+	fwrite("data", 4, 1, s->file);
+	fput32le(s->file, 0); // file size - 44, see audio_writer_stop
+
+	return s;
 }
 
-static void audio_writer_advance(int pos, long time, int cycles, u8 enabled, double freq) {
+static void audio_writer_advance(audio_writer_state *s, int pos, long time, int cycles, u8 enabled, double freq) {
 	long i, samples;
 	int freq_samples_fixed, pos_samples_fixed;
 
-	if (audio_should_insert_pause(audio_entries, pos)) {
-		long shortest_time = audio_time_offset + audio_local_delay_time(audio_note_cycles, cycles, audio_freq);
+	if (audio_should_insert_pause(s->entries, pos)) {
+		long shortest_time = s->time_offset + audio_local_delay_time(s->note_cycles, cycles, s->freq);
 		if (time < shortest_time) {
 			time = shortest_time;
 		}
 	}
-	// write [audio_time_offset..time] with audio_note values
-	// rounded, as we adjust audio_time_offset based on this
-	samples = (long) (((time - audio_time_offset) * audio_freq / 1000.0) + 0.5);
-	if (audio_note_enabled) {
+	// write [s->time_offset..time] with audio_note values
+	// rounded, as we adjust s->time_offset based on this
+	samples = (long) (((time - s->time_offset) * s->freq / 1000.0) + 0.5);
+	if (s->note_enabled) {
 		// see audio_stream.c
-		freq_samples_fixed = (int) ((audio_freq << 8) / (audio_note_freq * 2));
-		pos_samples_fixed = (audio_note_counter << 8) % (freq_samples_fixed << 1);
+		freq_samples_fixed = (int) ((s->freq << 8) / (s->note_freq * 2));
+		pos_samples_fixed = (s->note_counter << 8) % (freq_samples_fixed << 1);
 		for (i = 0; i < samples; i++) {
 			if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
-				fputc(AUDIO_MAX_SAMPLE, audio_file);
+				fputc(AUDIO_MAX_SAMPLE, s->file);
 			else
-				fputc(AUDIO_MIN_SAMPLE, audio_file);
+				fputc(AUDIO_MIN_SAMPLE, s->file);
 			pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
 		}
 	} else {
 		// write silence
 		for (i = 0; i < samples; i++)
-			fputc(128, audio_file);
+			fputc(128, s->file);
 	}
 	// set new note as last
 	// audio_time_offset = time;
-	audio_time_offset += (samples * 1000.0 / audio_freq);
-	audio_note_enabled = enabled;
-	audio_note_freq = freq;
-	audio_note_cycles = cycles;
-	if (!enabled) audio_note_counter = 0;
-	else audio_note_counter += samples;
+	s->time_offset += (samples * 1000.0 / s->freq);
+	s->note_enabled = enabled;
+	s->note_freq = freq;
+	s->note_cycles = cycles;
+	if (!enabled) s->note_counter = 0;
+	else s->note_counter += samples;
 }
 
-void audio_writer_stop(long time, int cycles) {
+void audio_writer_stop(audio_writer_state *s, long time, int cycles) {
 	speaker_entry *e;
-	audio_writer_speaker_off(time, cycles);
+	audio_writer_speaker_off(s, time, cycles);
 	// write... uhh... all data
-	e = audio_entries;
-	for (int i = 0; i < audio_entries_count; i++, e++) {
-		audio_writer_advance(i, e->ms, e->cycles, e->enabled, e->freq);
+	e = s->entries;
+	for (int i = 0; i < s->entries_count; i++, e++) {
+		audio_writer_advance(s, i, e->ms, e->cycles, e->enabled, e->freq);
 	}
 	// get filesize
-	fseek(audio_file, 0, SEEK_END);
-	int filesize = (int) ftell(audio_file);
+	fseek(s->file, 0, SEEK_END);
+	int filesize = (int) ftell(s->file);
 	// fix WAV sizes
-	fseek(audio_file, 4, SEEK_SET);
-	fput32le(audio_file, filesize - 8);
-	fseek(audio_file, 40, SEEK_SET);
-	fput32le(audio_file, filesize - 44);
+	fseek(s->file, 4, SEEK_SET);
+	fput32le(s->file, filesize - 8);
+	fseek(s->file, 40, SEEK_SET);
+	fput32le(s->file, filesize - 44);
 	// clean up
-	fclose(audio_file);
-	audio_file = NULL;
-	free(audio_vbuf);
-	audio_vbuf = NULL;
-	free(audio_entries);
-	audio_entries = NULL;
-	audio_entries_size = 0;
-	audio_entries_count = 0;
+	fclose(s->file);
+	free(s->vbuf);
+	free(s->entries);
+	free(s);
 }
 
-void audio_writer_speaker_on(long time, int cycles, double freq) {
-	speaker_entry *e = audio_writer_allocate_entry();
+void audio_writer_speaker_on(audio_writer_state *s, long time, int cycles, double freq) {
+	speaker_entry *e = audio_writer_allocate_entry(s);
 	e->enabled = 1;
 	e->freq = freq;
 	e->ms = time;
 	e->cycles = cycles;
 }
 
-void audio_writer_speaker_off(long time, int cycles) {
-	speaker_entry *e = audio_writer_allocate_entry();
+void audio_writer_speaker_off(audio_writer_state *s, long time, int cycles) {
+	speaker_entry *e = audio_writer_allocate_entry(s);
 	e->enabled = 0;
 	e->ms = time;
 	e->cycles = cycles;
