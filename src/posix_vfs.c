@@ -39,6 +39,7 @@ static FILE* file_pointers[MAX_FILES];
 static char vfs_fnbuf[MAX_FNLEN+1];
 static char vfs_fndir[MAX_FNLEN+1];
 static int vfs_fnprefsize;
+static int vfs_initialized = 0;
 
 #ifdef NO_OPENDIR
 static void vfs_fix_case(char *fn) { }
@@ -105,6 +106,15 @@ static void vfs_fix_case(char *fn) {
 #endif
 
 void init_posix_vfs(const char* path) {
+	if (vfs_initialized > 0) {
+		for (int i = 0; i < MAX_FILES; i++) {
+			if (file_pointers[i] != NULL) {
+				fclose(file_pointers[i]);
+				file_pointers[i] = NULL;
+			}
+		}
+	}
+
 	strncpy(vfs_fnbuf, path, MAX_FNLEN);
 	vfs_fnprefsize = strlen(vfs_fnbuf);
 	for (int i = 0; i < MAX_FILES; i++) {
