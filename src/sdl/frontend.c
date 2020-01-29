@@ -243,15 +243,32 @@ void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	while (((scale+1)*iw <= w) && ((scale+1)*ih <= h)) scale++;
 	if (scale_out != NULL) *scale_out = scale;
 
-	w /= scale;
-	h /= scale;
+	if (rect != NULL) {
+		w /= scale;
+		h /= scale;
 
-	if (flags & AREA_WITHOUT_SCALE) scale = 1;
+		if (flags & AREA_WITHOUT_SCALE) scale = 1;
 
-	rect->x = ((w - iw) * scale) / 2;
-	rect->y = ((h - ih) * scale) / 2;
-	rect->w = iw * scale;
-	rect->h = ih * scale;
+		rect->x = ((w - iw) * scale) / 2;
+		rect->y = ((h - ih) * scale) / 2;
+		rect->w = iw * scale;
+		rect->h = ih * scale;
+	}
+}
+
+static void sdl_resize_window(int delta) {
+	int iw = 80*charw;
+	int ih = 25*charh;
+	int w, h, scale;
+
+	SDL_GetWindowSize(window, &w, &h);
+	calc_render_area(NULL, w, h, &scale, 0);
+	scale += delta;
+	if (scale < 1) scale = 1;
+
+	iw *= scale;
+	ih *= scale;
+	SDL_SetWindowSize(window, iw, ih);
 }
 
 void zeta_update_charset(int width, int height, u8* data) {
@@ -428,6 +445,7 @@ int main(int argc, char **argv) {
 #endif
 					if (event.key.keysym.sym == SDLK_F9) {
 						zzt_turbo = 1;
+						break;
 					}
 					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
 						// audio writer
@@ -479,8 +497,20 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_KEYUP:
+					if (KEYMOD_CTRL(event.key.keysym.mod)) {
+						kcode = event.key.keysym.sym;
+						if (KEYMOD_SHIFT(event.key.keysym.mod)) kcode = as_shifted(kcode);
+						if (kcode == '-') {
+							sdl_resize_window(-1);
+							break;
+						} else if (kcode == '+') {
+							sdl_resize_window(1);
+							break;
+						}
+					}
 					if (event.key.keysym.sym == SDLK_F9) {
 						zzt_turbo = 0;
+						break;
 					}
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;

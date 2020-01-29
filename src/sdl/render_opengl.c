@@ -398,17 +398,24 @@ static void sdl_render_opengl_draw(u8 *vram, int blink_mode) {
 }
 
 static SDL_Window *sdl_render_opengl_get_window(void) {
-    return window;
+	return window;
+}
+
+static sdl_render_size sdl_render_opengl_get_render_size(void) {
+	sdl_render_size s;
+	SDL_GL_GetDrawableSize(window, &s.w, &s.h);
+	return s;
 }
 
 sdl_renderer sdl_renderer_opengl = {
-    sdl_render_opengl_init,
-    sdl_render_opengl_deinit,
-    sdl_render_opengl_update_charset,
-    sdl_render_opengl_update_palette,
+	sdl_render_opengl_init,
+	sdl_render_opengl_deinit,
+	sdl_render_opengl_update_charset,
+	sdl_render_opengl_update_palette,
 	sdl_render_opengl_update_vram,
-    sdl_render_opengl_draw,
-	sdl_render_opengl_get_window
+	sdl_render_opengl_draw,
+	sdl_render_opengl_get_window,
+	sdl_render_opengl_get_render_size
 };
 
 #endif /* USE_OPENGL */

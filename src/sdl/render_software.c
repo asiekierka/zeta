@@ -133,6 +133,12 @@ static void sdl_render_software_update_vram(u8 *vram) {
     // pass
 }
 
+static sdl_render_size sdl_render_software_get_render_size(void) {
+	sdl_render_size s;
+	SDL_GetRendererOutputSize(renderer, &s.w, &s.h);
+	return s;
+}
+
 sdl_renderer sdl_renderer_software = {
     sdl_render_software_init,
     sdl_render_software_deinit,
@@ -140,5 +146,6 @@ sdl_renderer sdl_renderer_software = {
     sdl_render_software_update_palette,
     sdl_render_software_update_vram,
     sdl_render_software_draw,
-    sdl_render_software_get_window
+    sdl_render_software_get_window,
+    sdl_render_software_get_render_size
 };

@@ -37,6 +37,10 @@ enum {
 };
 
 typedef struct {
+	int w, h;
+} sdl_render_size;
+
+typedef struct {
     int (*init)(void);
     void (*deinit)(void);
     void (*update_charset)(int, int, u8*);
@@ -44,6 +48,7 @@ typedef struct {
     void (*update_vram)(u8*);
     void (*draw)(u8*, int);
     SDL_Window *(*get_window)(void);
+    sdl_render_size (*get_render_size)(void);
 } sdl_renderer;
 
 // provided by frontend.c
