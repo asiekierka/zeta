@@ -126,6 +126,7 @@ void init_posix_vfs(const char* path) {
 	} else {
 		strncpy(vfs_fndir, path, MAX_FNLEN);
 	}
+	vfs_initialized = 1;
 }
 
 int vfs_open(const char* filename, int mode) {

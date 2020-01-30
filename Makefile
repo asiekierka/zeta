@@ -13,7 +13,7 @@ OBJDIR = ${BUILDDIR}/obj
 CFLAGS = -g -O3 -flto -std=c18 -Wall
 LDFLAGS = -g -O3 -flto -std=c18 -Wall
 
-ifeq (${PLATFORM},mingw-sdl)
+ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
 CC = ${ARCH}-w64-mingw32-gcc
 CFLAGS += -mwindows
