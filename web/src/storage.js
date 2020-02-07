@@ -64,7 +64,7 @@ class BaseStorage {
 					}
 					i = i + 1;
 					if (i >= 1000) {
-						throw "Too many filenames! (at " + key + ")";
+						throw new Error("Too many filenames! (at " + key + ")");
 					}
 				}
 			} else {
@@ -253,7 +253,7 @@ class IndexedDbBackedAsyncStorage {
 				resolve();
 			}
 			dbRequest.onerror = event => {
-				reject();
+				reject("Could not open IndexedDB! Upgrade your browser or disable private/incognito mode.");
 			}
 		});
 	}

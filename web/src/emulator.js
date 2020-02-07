@@ -411,7 +411,7 @@ export function createEmulator(render, audio, vfs, options) {
 
                     let handle = vfsg_open(command[0].toLowerCase(), 0);
                     if (handle < 0) {
-                        throw "Could not find executable " + command[0] + " (command #" + (i+1) + ")!";
+                        throw new Error("Could not find executable " + command[0] + " (command #" + (i+1) + ")!");
                     }
 
                     emuObj._str2buffer(command[1], arg_buffer => {
@@ -436,7 +436,7 @@ export function createEmulator(render, audio, vfs, options) {
                 }
 
                 if (handle < 0) {
-                    throw "Could not find ZZT/Super ZZT executable!";
+                    throw new Error("Could not find ZZT/Super ZZT executable!");
                 }
 
                 let vfs_arg = "";
