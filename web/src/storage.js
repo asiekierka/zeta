@@ -1,4 +1,4 @@
-/*!
+/*
  * Copyright (c) 2018, 2019, 2020 Adrian Siekierka
  *
  * This file is part of Zeta.
