@@ -228,8 +228,11 @@ static int posix_zzt_init(int argc, char **argv) {
 
 	if (skip_kc) {
 		zzt_key('k', 0x25);
+		zzt_keyup(0x25);
 		zzt_key('c', 0x2E);
+		zzt_keyup(0x2E);
 		zzt_key('\r', 0x1C);
+		zzt_keyup(0x1C);
 	}
 	return 0;
 }

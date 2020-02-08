@@ -43,7 +43,7 @@ CFLAGS = -O3 --js-library src/emscripten_glue.js \
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
-$(error Please specify PLATFORM: mingw32-sdl, unix-sdl, unix-curses, wasm)
+$(error Please specify PLATFORM: mingw32-sdl, unix-curses, unix-sdl, wasm)
 endif
 
 OBJS =	$(OBJDIR)/8x14.o \

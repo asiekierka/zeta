@@ -23,9 +23,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "zzt.h"
-#include "posix_vfs.h"
-#include "audio_stream.h"
+#include "../zzt.h"
+#include "../posix_vfs.h"
+#include "../audio_stream.h"
 
 #include <pspkernel.h>
 #include <pspgu.h>
@@ -41,11 +41,14 @@ static u32 __attribute__((aligned(16))) gu_clut4[16];
 static u32 __attribute__((aligned(16))) gu_list[262144];
 static u32 palette_colors[16];
 
-#include "frontend_curses_tables.c"
-#include "../obj/6x10_psp.c"
+#include "../frontend_curses_tables.c"
+
+extern unsigned char build_psp_obj_6x10_psp_bin[];
 
 PSP_MODULE_INFO("Zeta", 0, 1, 1);
-PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
+PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU);
+PSP_HEAP_SIZE_KB(4096);
+PSP_MAIN_THREAD_STACK_SIZE_KB(64);
 
 long zeta_time_ms(void) {
 	clock_t c = clock();
@@ -180,7 +183,7 @@ int psp_timer_thread(SceSize args, void *argp) {
 }
 
 static void psp_timer_init(void) {
-	int thid = sceKernelCreateThread("timer", psp_timer_thread, 0x11, 0xFA0, PSP_THREAD_ATTR_USER, NULL);
+	int thid = sceKernelCreateThread("timer", psp_timer_thread, 0x11, 0x800, PSP_THREAD_ATTR_USER, NULL);
 	if (thid >= 0) {
 		sceKernelStartThread(thid, 0, 0);
 	}
@@ -282,12 +285,12 @@ void psp_audio_callback(void *stream, unsigned int len, void *userdata) {
 	}
 }
 
-void speaker_on(double freq) {
-	audio_stream_append_on(zeta_time_ms(), freq);
+void speaker_on(int cycles, double freq) {
+	audio_stream_append_on(zeta_time_ms(), cycles, freq);
 }
 
-void speaker_off(void) {
-	audio_stream_append_off(zeta_time_ms());
+void speaker_off(int cycles) {
+	audio_stream_append_off(zeta_time_ms(), cycles);
 }
 
 static void psp_init_vfs(void) {
@@ -311,7 +314,7 @@ int main(int argc, char** argv) {
 
 	{
 		psp_init_vfs();
-		zzt_init();
+		zzt_init(-1);
 
 		int exeh = vfs_open("zzt.exe", 0);
 		if (exeh < 0) return -1;
@@ -320,8 +323,11 @@ int main(int argc, char** argv) {
 
 		zzt_set_timer_offset((time(NULL) % 86400) * 1000L);
 		zzt_key('k', 0x25);
+		zzt_keyup(0x25);
 		zzt_key('c', 0x2E);
+		zzt_keyup(0x2E);
 		zzt_key(13, 0x1C);
+		zzt_keyup(0x1C);
 
 		init_map_char_to_key();
 	}
@@ -349,7 +355,7 @@ int main(int argc, char** argv) {
 		sceGuClutMode(GU_PSM_8888, 0, 0x0F, 0);
 		sceGuClutLoad(2, gu_clut4);
 		sceGuTexMode(GU_PSM_T4, 0, 0, 0);
-		sceGuTexImage(0, 256, 128, 256, obj_6x10_psp_bin);
+		sceGuTexImage(0, 256, 128, 256, build_psp_obj_6x10_psp_bin);
 		sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
 		sceGuTexEnvColor(0x0);
 		sceGuTexOffset(0.0f, 0.0f);
@@ -367,7 +373,7 @@ int main(int argc, char** argv) {
 	scePowerSetClockFrequency(300, 300, 150);
 
 	{
-		int thid = sceKernelCreateThread("zzt", psp_zzt_thread, 0x1C, 0xFA0, PSP_THREAD_ATTR_USER, NULL);
+		int thid = sceKernelCreateThread("zzt", psp_zzt_thread, 0x1C, 0x10000, PSP_THREAD_ATTR_USER, NULL);
 		if (thid >= 0) {
 			sceKernelStartThread(thid, 0, 0);
 		} else {
@@ -376,7 +382,7 @@ int main(int argc, char** argv) {
 	}
 
 	{
-		int thid = sceKernelCreateThread("exit handler", psp_exit_thread, 0x1E, 0xFA0, PSP_THREAD_ATTR_USER, NULL);
+		int thid = sceKernelCreateThread("exit handler", psp_exit_thread, 0x1E, 0x800, PSP_THREAD_ATTR_USER, NULL);
 		if (thid >= 0) {
 			sceKernelStartThread(thid, 0, 0);
 		} else {
@@ -412,7 +418,15 @@ int main(int argc, char** argv) {
 			if (bp & PSP_CTRL_RIGHT) zzt_key(0, 0x4D);
 			if (bp & PSP_CTRL_CROSS) zzt_kmod_set(0x01);
 			if (bp & PSP_CTRL_CIRCLE) zzt_key(13, 0x1C);
-			if (bp & PSP_CTRL_SELECT) zzt_key('w', 16);
+			if (bp & PSP_CTRL_SELECT) {
+				if (pad.Buttons & PSP_CTRL_LTRIGGER) {
+					zzt_key('y', 20);
+					zzt_keyup(20);
+				} else {
+					zzt_key('w', 16);
+					zzt_keyup(16);
+				}
+			}
 			if (bp & PSP_CTRL_START) {
 				if (pad.Buttons & PSP_CTRL_LTRIGGER) {
 					zzt_key('q', 15);
@@ -449,8 +463,8 @@ int main(int argc, char** argv) {
 			if (br & PSP_CTRL_RIGHT) zzt_keyup(0x4D);
 			if (br & PSP_CTRL_CROSS) zzt_kmod_clear(0x01);
 			if (br & PSP_CTRL_CIRCLE) zzt_keyup(0x1C);
-			if (br & PSP_CTRL_SELECT) zzt_keyup(16);
 			if (br & PSP_CTRL_RTRIGGER && osk_text[0] == 0) {
+				scePowerSetClockFrequency(222, 222, 111);
 				psp_osk_open = 1;
 				unsigned short desctext[33];
 				unsigned short intext[65];
@@ -512,6 +526,8 @@ int main(int argc, char** argv) {
 					sceDisplayWaitVblankStartCB();
 					sceGuSwapBuffers();
 				}
+				// TODO: likewise - dynamic changing
+				scePowerSetClockFrequency(300, 300, 150);
 
 				if (data[0].result != PSP_UTILITY_OSK_RESULT_CHANGED) {
 					osk_text[0] = 0;
