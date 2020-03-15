@@ -1,39 +1,29 @@
 # Zeta
 
-Zeta consists of:
+Zeta is a small emulator, implementing a fraction of a DOS-compatible environment just large enough to run ZZT and Super ZZT, allowing user-friendly and accurate usage 
+of them in modern environments, as well as easy packaging, distribution and embedding of ZZT games.
 
-* an 8086/80186 emulation core, based on lunatic86,
-* an emulation environment geared specifically towards running ZZT and Super ZZT.
+## Compiling
 
-Currently, it has the following front-ends:
+Use `make PLATFORM=platform`, where platform is generally of the form platform-frontend.
 
-* *curses* - use ZZT in a terminal (sort of),
-* *sdl* - primary desktop frontend,
-* *web* - utilizes the WASM-compiled version of Zeta to allow using Zeta inside a web browser.
+### Recommended platforms
 
-## Directory structure
+* mingw32-sdl - SDL frontend, Windows
+* unix-sdl - SDL frontend, Linux
+* wasm - WebAssembly library
 
-* build/ - contains build output files,
-* src/ - contains the source code to the Zeta emulator, as well as the Curse 
+### Unsupported
 
-## Implementing your own front-end
+* unix-curses - Curses frontend, Linux
 
-Refer to src/zzt.h. Functions marked USER_FUNCTION are accessible to you to interface with
-the emulator core, while functions marked IMPLEMENT_FUNCTION should be implemented.
+### HTML5 version
 
-Certain methods can be dummied out:
+On top of building the WebAssembly library, some extra files are required:
 
-* vfs_write - if you don't need file writing,
-* speaker_on/speaker_off - if you don't emulate the PC Speaker,
-* vfs_findfirst/vfs_findnext - if you don't want file lookup to work.
-
-There is, unfortunately, little documentation at this time.
+ * zeta.js (renamed to zeta.min.js) - compiled by running `npm run build` in web/
+ * index.html, loader, libraries - available in web/res/
 
 ## License
 
-The source code release of Zeta generally available under the terms of the GPLv3 license.
-For different licensing terms, please contact me directly.
-
-The binary copy available [here](https://github.com/asiekierka/zeta-z2) is for usage by
-the [Museum of ZZT](http://museumofzzt.com/). It may not be used by any other entity, however it is used
-by the Museum with explicit permission.
+Zeta is available under the terms of the MIT license, as described in `LICENSE`.
