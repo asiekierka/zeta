@@ -52,9 +52,9 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 
 			for (int cy = 0; cy < char_height; cy++, co++) {
 				int line = *co;
-				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * row_length) + ((x * char_width + cx) * pos_mul);
-					int col = palette[(line & 0x80) ? fg : bg];
+				int bpos = ((y * char_height + cy) * row_length) + ((x * char_width) * pos_mul);
+				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos += pos_mul) {
+					u32 col = palette[(line & 0x80) ? fg : bg];
 					buffer[bpos] = col;
 					if (pos_mul == 2) buffer[bpos+1] = col;
 				}
@@ -89,8 +89,8 @@ void render_software_paletted(u8 *buffer, int scr_width, int row_length, int fla
 
 			for (int cy = 0; cy < char_height; cy++, co++) {
 				int line = *co;
-				for (int cx = 0; cx < char_width; cx++, line <<= 1) {
-					int bpos = ((y * char_height + cy) * row_length) + ((x * char_width + cx) * pos_mul);
+				int bpos = ((y * char_height + cy) * row_length) + ((x * char_width) * pos_mul);
+				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos += pos_mul) {
 					buffer[bpos] = (line & 0x80) ? fg : bg;
 					if (pos_mul == 2) {
 						buffer[bpos+1] = (line & 0x80) ? fg : bg;
