@@ -503,10 +503,10 @@ int main(int argc, char **argv) {
 					if (KEYMOD_CTRL(event.key.keysym.mod)) {
 						kcode = event.key.keysym.sym;
 						if (KEYMOD_SHIFT(event.key.keysym.mod)) kcode = as_shifted(kcode);
-						if (kcode == '-') {
+						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
 							sdl_resize_window(-1);
 							break;
-						} else if (kcode == '+') {
+						} else if (kcode == '+' || kcode == '=' || kcode == SDLK_KP_PLUS) {
 							sdl_resize_window(1);
 							break;
 						}
