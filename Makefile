@@ -30,7 +30,7 @@ TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
 CC = emcc
 CFLAGS = -O3 --js-library src/emscripten_glue.js \
-  -s WASM_OBJECT_FILES=0 --llvm-lto 1 \
+  -s WASM_OBJECT_FILES=0 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc","_free"]' \
   -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
