@@ -99,7 +99,7 @@ window.ZetaInitialize = function(options, callback) {
     var vfsObjects = [];
 
     try {
-    for (var s in options.files) {
+        for (var s in options.files) {
             vfsProgresses.push(0);
 
             (function(i, file) {
