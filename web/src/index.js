@@ -23,7 +23,7 @@
 import { OscillatorBasedAudio, BufferBasedAudio } from "./audio.js";
 import { CanvasBasedRenderer } from "./render.js";
 import { createEmulator } from "./emulator.js";
-import { getIndexedDB, getLocalStorage, drawErrorMessage } from "./util.js";
+import { getIndexedDB, getLocalStorage, drawErrorMessage, xhrFetchAsArrayBuffer } from "./util.js";
 import { createInMemoryStorage, createBrowserBackedStorage, wrapAsyncStorage, createIndexedDbBackedAsyncStorage, createCompositeStorage, createZipStorage } from "./storage.js";
 
 const VERSION = "@VERSION@";
@@ -98,35 +98,52 @@ window.ZetaInitialize = function(options, callback) {
     var vfsProgresses = [];
     var vfsObjects = [];
 
+    try {
     for (var s in options.files) {
-        vfsProgresses.push(0);
-        const file = options.files[s];
-        const i = vfsProgresses.length - 1;
-        const progressUpdater = function(p) {
-            vfsProgresses[i] = Math.min(p, 1);
-            loadingScreen.progress(vfsProgresses.reduce((p, c) => p + c) / options.files.length);            
-        }
+            vfsProgresses.push(0);
 
-        if (Array.isArray(file)) {
-            var opts = file[1];
-            if (!opts.hasOwnProperty("readonly")) {
-                opts.readonly = true;
-            }
-            if (!opts.hasOwnProperty("ignoreCase")) {
-                opts.ignoreCase = "upper";
-            }
-            opts.use83Names = true;
-            vfsPromises.push(
-                createZipStorage(file[0], opts, progressUpdater)
-                    .then(o => vfsObjects.push(o))
-            );
-        } else {
-            vfsPromises.push(
-                createZipStorage(file, {"readonly": true, "ignoreCase": "upper"}, progressUpdater)
-                    .then(o => vfsObjects.push(o))
-            );
+            (function(i, file) {
+                const progressUpdater = function(p) {
+                    vfsProgresses[i] = Math.min(p, 1);
+                    loadingScreen.progress(vfsProgresses.reduce((p, c) => p + c) / options.files.length);
+                }
+
+                var opts = file;
+                if (!opts.hasOwnProperty("type")) throw new Error("Missing option: files.type!");
+                if (!opts.hasOwnProperty("readonly")) opts.readonly = true;
+                if (!opts.hasOwnProperty("ignoreCase")) opts.ignoreCase = "upper";
+                opts.use83Names = true;
+
+                if (opts.type == "zip") {
+                    if (!opts.hasOwnProperty("url")) throw new Error("Missing option: files.url!");
+                    vfsPromises.push(
+                        createZipStorage(opts.url, opts, progressUpdater)
+                        .then(o => vfsObjects.push(o))
+                    );
+                } else if (opts.type == "array") {
+                    if (!opts.hasOwnProperty("filename")) throw new Error("Missing option: files.filename!");
+                    if (!opts.hasOwnProperty("data")) throw new Error("Missing option: files.data!");
+                    var inMemoryData = {}
+                    inMemoryData[opts.filename] = new Uint8Array(opts.data);
+                    vfsObjects.push(createInMemoryStorage(inMemoryData, opts))
+                } else if (opts.type == "file") {
+                    if (!opts.hasOwnProperty("url")) throw new Error("Missing option: files.url!");
+                    if (!opts.hasOwnProperty("filename")) throw new Error("Missing option: files.filename!");
+                    vfsPromises.push(
+                        xhrFetchAsArrayBuffer(opts.url, progressUpdater)
+                        .then(xhr => {
+                            var inMemoryData = {}
+                            inMemoryData[opts.filename] = new Uint8Array(xhr.response);
+                            vfsObjects.push(createInMemoryStorage(inMemoryData, opts))
+                        })
+                    )
+                }
+            })(vfsProgresses.length - 1, options.files[s]);
         }
-	}
+    } catch (e) {
+        drawErrorMessage(canvas, ctx, e);
+        return Promise.reject(e);
+    }
 
     loadingScreen._drawBackground().then(_ => Promise.all(vfsPromises)).then(_ => {
         // add storage vfs

@@ -53,16 +53,29 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
     * noteDelay: the minimum note delay, in milliseconds; 1 is default
     * volume: the volume of the outputted audio stream (range 0.0 - 1.0); 0.2 by default
 
-File entries can be either a string (denoting the relative or absolute path to a .ZIP file), or an array of a string and an options object containing the following optional keys:
+File entries are stored in the form of an object containing the following keys:
 
-* filenameFilter: function which returns true if a given filename should be accepted. This runs after filenameMap.
-* filenameMap: filename mapping - can be in one of three forms:
-    * string - describes a subdirectory whose contents are loaded (paths are /-separated, like on Unix)
-    * object - describes a mapping of ZIP filenames to target filesystem filenames; no other files are loaded
-    * function - accepts a ZIP filename and returns a target filesystem filename; return "undefined" to not load a file
+* type:
+  - array: local file to be directly added
+  - file: remote file to be directly added
+  - zip: remote .ZIP file to be unpacked into the VFS
+* url: For remotely-acquired types, denotes the URL leading to the file.
+* filename: For single-file types, denotes the target filename.
+* data: For the "array" type, a byte array containing the file's data.
+* filenameMapper: For ZIPs, this can take the form of either:
+  - a function which receives an input filename and returns:
+    - a string, containing the output filename,
+    - null, if the file should not be loaded.
+  - an object, containing key->value mappings of all the files to be loaded,
+  - a string, containing the name of the directory that should be loaded.
+* filenameFilter: For ZIPs, a function which returns true or false to decide
+  whether or not a file should be loaded.
+  - Note that filenameFilter runs after filenameMapper.
 
 ## Public emulator methods
 
+* emu.getFile(filename) - Returns a byte array, if a given file exists.
+* emu.listFiles() - Returns an array of all filenames stored in the virtual filesystem.
 * emu.loadCharset(charset) - argument format as in options.emulator.charset. Returns true upon success.
 * emu.loadPalette(palette) - argument format as in options.emulator.palette. Returns true upon success.
 * emu.setBlinkCycleDuration(duration) - sets blink cycle duration in seconds. Returns true upon success.

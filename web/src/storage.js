@@ -374,11 +374,11 @@ export function createZipStorage(url, options, progressCallback) {
 			for (var key in files) {
 				const keyOrig = key;
 
-				if (options && options.filenameMap) {
-					if (typeof(options.filenameMap) === "object") {
-						key = options.filenameMap[key] || undefined;
-					} else if (typeof(options.filenameMap) === "string" && options.filenameMap.length > 0) {
-						let cmpStr = options.filenameMap.toLowerCase();
+				if (options && options.filenameMapper) {
+					if (typeof(options.filenameMapper) === "object") {
+						key = options.filenameMapper[key] || undefined;
+					} else if (typeof(options.filenameMapper) === "string" && options.filenameMapper.length > 0) {
+						let cmpStr = options.filenameMapper.toLowerCase();
 						if (!cmpStr.endsWith("/")) cmpStr += "/";
 
 						if (key.toLowerCase().startsWith(cmpStr)) {
@@ -386,7 +386,7 @@ export function createZipStorage(url, options, progressCallback) {
 						} else {
 							key = undefined;
 						}
-					} else if (typeof(options.filenameMap) === "function") {
+					} else if (typeof(options.filenameMapper) === "function") {
 						key = options.filenameMap(key);
 					}
 				}
@@ -405,6 +405,6 @@ export function createZipStorage(url, options, progressCallback) {
 				}
 			}
 
-			resolve(new InMemoryStorage(fileMap, options));
+			resolve(createInMemoryStorage(fileMap, options));
 		}));
 }

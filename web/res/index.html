@@ -22,13 +22,18 @@ ZetaLoad({
 	path: "./",
 	arg: "MY_GAME.ZZT", // optional
 	files: [
-		["zzt.zip", {
-			"filenameFilter": function(f) {
+		{
+			"type": "zip",
+			"url": "zzt.zip",
+			"filenameMapper": function(f) {
 				let fl = f.toLowerCase();
-				return fl.startsWith("zzt.");
+				return fl.startsWith("zzt.") ? f : null;
 			}
-		}],
-		"my_game.zip"
+		},
+		{
+			"type": "zip",
+			"url": "my_game.zip"
+		}
 	]
 });
 </script>

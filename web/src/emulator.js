@@ -290,6 +290,14 @@ class Emulator {
         return true;
     }
 
+    getFile(filename) {
+        return this.vfs.get(filename);
+    }
+
+    listFiles() {
+        return this.vfs.list();
+    }
+
     _frame() {
         this._pollGamepads();
 
