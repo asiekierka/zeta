@@ -160,12 +160,16 @@ class Emulator {
             element.requestPointerLock();
 
             if (emu == undefined) return;
-            emu._zzt_mouse_set(e.button);
+            if (e.button == 0) emu._zzt_mouse_set(0);
+            else if (e.button == 2) emu._zzt_mouse_set(1);
+            else if (e.button == 1) emu._zzt_mouse_set(2);
         });
 
         this.element.addEventListener("mouseup", function(e) {
             if (emu == undefined) return;
-            emu._zzt_mouse_clear(e.button);
+            if (e.button == 0) emu._zzt_mouse_clear(0);
+            else if (e.button == 2) emu._zzt_mouse_clear(1);
+            else if (e.button == 1) emu._zzt_mouse_clear(2);
         });
     }
 

@@ -527,11 +527,23 @@ int main(int argc, char **argv) {
 							SDL_SetRelativeMouseMode(1);
 						}
 					} else {
-						zzt_mouse_set(event.button.button);
+						if (event.button.button == SDL_BUTTON_LEFT) {
+							zzt_mouse_set(0);
+						} else if (event.button.button == SDL_BUTTON_RIGHT) {
+							zzt_mouse_set(1);
+						} else if (event.button.button == SDL_BUTTON_MIDDLE) {
+							zzt_mouse_set(2);
+						}
 					}
 					break;
 				case SDL_MOUSEBUTTONUP:
-					zzt_mouse_clear(event.button.button);
+					if (event.button.button == SDL_BUTTON_LEFT) {
+						zzt_mouse_clear(0);
+					} else if (event.button.button == SDL_BUTTON_RIGHT) {
+						zzt_mouse_clear(1);
+					} else if (event.button.button == SDL_BUTTON_MIDDLE) {
+						zzt_mouse_clear(2);
+					}
 					break;
 				case SDL_MOUSEMOTION:
 					if (SDL_GetRelativeMouseMode() != 0) {
