@@ -26,7 +26,7 @@
 #include "types.h"
 
 USER_FUNCTION
-void audio_stream_init(long time, int freq);
+void audio_stream_init(long time, int freq, bool asigned);
 USER_FUNCTION
 u8 audio_stream_get_volume();
 USER_FUNCTION

@@ -156,7 +156,7 @@ export class BufferBasedAudio {
 
 		this.time = audioCtx.currentTime;
 
-		this.emu._audio_stream_init(time_ms(), this.sampleRate);
+		this.emu._audio_stream_init(time_ms(), this.sampleRate, false);
 		this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
 
 		if (this.noteDelay) {

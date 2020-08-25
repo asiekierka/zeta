@@ -276,12 +276,11 @@ void psp_audio_callback(void *stream, unsigned int len, void *userdata) {
 		return;
 	}
 
-	u8 *stream_u8 = ((u8*) stream) + (len * 3);
+	s8 *stream_s8 = ((s8*) stream) + (len * 3);
 	s16 *stream_s16 = ((s16*) stream);
 
-	audio_stream_generate_u8(zeta_time_ms(), stream_u8, len);
-	for (int i = 0; i < len; i++, stream_u8++, stream_s16+=2) {
-		s8 sample_s8 = (s8) (stream_u8[0] ^ 0x80);
+	audio_stream_generate_u8(zeta_time_ms(), (u8*) stream_s8, len);
+	for (int i = 0; i < len; i++, stream_s8++, stream_s16+=2) {
 		s16 val = ((s16) sample_s8) << 8;
 		stream_s16[0] = (s16) val;
 		stream_s16[1] = (s16) val;

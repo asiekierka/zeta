@@ -39,6 +39,7 @@ static long speaker_freq_ctr = 0;
 static u8 audio_volume = AUDIO_VOLUME_MAX;
 static double audio_prev_time;
 static int audio_freq;
+static bool audio_signed;
 
 #ifdef AUDIO_STREAM_DEBUG
 static void audio_stream_print(int pos) {
@@ -71,10 +72,11 @@ static void audio_stream_flag_speaker_overrun(void) {
 	}
 }
 
-void audio_stream_init(long time, int freq) {
+void audio_stream_init(long time, int freq, bool asigned) {
 	speaker_overrun_flagged = 0;
 	audio_prev_time = -1;
 	audio_freq = freq;
+	audio_signed = asigned;
 }
 
 u8 audio_stream_get_volume() {
@@ -102,10 +104,14 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	double audio_dfrom, audio_dto;
 	long audio_from, audio_to, audio_last_to = 0;
 
+	u8 audio_smp_min = audio_signed ? (-audio_volume) : (128 - audio_volume);
+	u8 audio_smp_max = audio_signed ? audio_volume : (128 + audio_volume);
+	u8 audio_smp_center = audio_signed ? 0 : 128;
+
 	// handle the first
 	if (audio_prev_time < 0) {
 		audio_prev_time = time;
-		memset(stream, 128, len);
+		memset(stream, audio_smp_center, len);
 		speaker_entry_pos = 0;
 		return;
 	}
@@ -125,7 +131,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 
 	if (speaker_entry_pos == 0) {
 		audio_curr_time = time;
-		memset(stream, 128, len);
+		memset(stream, audio_smp_center, len);
 	} else {
 		double last_ms = audio_prev_time;
 		for (i = 0; i < speaker_entry_pos; i++) {
@@ -173,9 +179,9 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 					pos_samples_fixed = (speaker_freq_ctr << 8) % (freq_samples_fixed << 1);
 					for (j = audio_from; j < audio_to; j++) {
 						if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
-							stream[j] = 128+audio_volume;
+							stream[j] = audio_smp_max;
 						else
-							stream[j] = 128-audio_volume;
+							stream[j] = audio_smp_min;
 						pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
 					}
 					speaker_freq_ctr += audio_to - audio_from;
@@ -184,7 +190,7 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 					fprintf(stderr, "[callback] emitting off (%ld, %ld)\n", audio_from, audio_to);
 					#endif
 					speaker_freq_ctr = 0;
-					memset(stream + audio_from, 128, audio_to - audio_from);
+					memset(stream + audio_from, audio_smp_center, audio_to - audio_from);
 				}
 			}
 

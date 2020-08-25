@@ -367,7 +367,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (audio_device != 0) {
-		audio_stream_init(zeta_time_ms(), audio_spec.freq);
+		audio_stream_init(zeta_time_ms(), audio_spec.freq, audio_spec.format == AUDIO_S8);
 		if (posix_zzt_arg_note_delay >= 0.0) {
 			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}

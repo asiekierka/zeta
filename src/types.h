@@ -23,6 +23,8 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+#include <stdbool.h>
+
 #ifdef __EMSCRIPTEN__
 #define USER_FUNCTION EMSCRIPTEN_KEEPALIVE
 #define IMPLEMENT_FUNCTION
