@@ -44,19 +44,115 @@ static char vfs_fndir[MAX_FNLEN+1];
 static int vfs_fnprefsize;
 static int vfs_initialized = 0;
 
-#ifdef NO_OPENDIR
+#if defined(NO_OPENDIR)
 static void vfs_fix_case(char *fn) { }
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) { return -1; }
 int vfs_findnext(u8* ptr) { return -1; }
 #else
+static void vfs_fix_case(char *fn) {
+	DIR *dir;
+	struct dirent *entry;
+
+	dir = opendir(vfs_fndir);
+	while ((entry = readdir(dir)) != NULL) {
+		if (strcasecmp(fn, entry->d_name) == 0) {
+			strncpy(fn, entry->d_name, strlen(fn));
+			break;
+		}
+	}
+
+	closedir(dir);
+}
+
+static int vfs_find_filter(const struct dirent *entry, const char *spec) {
+	const char *name = entry->d_name;
+	int name_len = strlen(name);
+	if (name_len > 12) {
+		// skip too large names
+		return 0;
+	}
+	int spec_len = strlen(spec);
+	return strlen(name) >= spec_len && strcasecmp(name + strlen(name) - spec_len, spec) == 0;
+}
+
+#if defined(POSIX_VFS_SORTED_DIRS)
+
+static int vfs_dirent_size;
+static int vfs_dirent_count;
+static int vfs_dirent_pos;
+static char** vfs_dirents = NULL;
+
+static int vfs_find_strcmp(const void *a, const void *b) {
+	return strcasecmp(*((const char **)a), *((const char **)b));
+}
+
+int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
+	DIR *dir;
+	struct dirent *entry;
+	int i;
+	char** vfs_dirents_new;
+
+	if (strncmp(spec, "*.", 2) == 0) {
+		if (strlen(spec + 1) > MAX_SPECLEN) {
+			return -1;
+		}
+		if (vfs_dirent_size == 0) {
+			// initial allocation
+			vfs_dirent_size = 64;
+			vfs_dirents = malloc(vfs_dirent_size * sizeof(char*));
+		} else {
+			// freeing
+			for (i = 0; i < vfs_dirent_size; i++) {
+				if (vfs_dirents[i] != NULL) {
+					free(vfs_dirents[i]);
+					vfs_dirents[i] = NULL;
+				}
+			}
+		}
+		vfs_dirent_count = 0;
+		dir = opendir(vfs_fndir);
+		while ((entry = readdir(dir)) != NULL) {
+			if (vfs_find_filter(entry, spec + 1) != 0) {
+				vfs_dirents[vfs_dirent_count++] = strdup(entry->d_name);
+				if (vfs_dirent_count >= vfs_dirent_size) {
+					vfs_dirent_size *= 2;
+					vfs_dirents_new = realloc(vfs_dirents, vfs_dirent_size * sizeof(char*));
+					if (vfs_dirents_new != NULL) {
+						vfs_dirents = vfs_dirents_new;
+					} else {
+						goto FindFirstDirentEarlyExit;
+					}
+				}
+			}
+		}
+FindFirstDirentEarlyExit:
+		closedir(dir);
+		vfs_dirent_pos = 0;
+
+		qsort(vfs_dirents, vfs_dirent_count, sizeof(char*), vfs_find_strcmp);
+
+		return vfs_findnext(ptr);
+	} else {
+		return -1;
+	}
+}
+
+int vfs_findnext(u8* ptr) {
+	if (vfs_dirent_pos < vfs_dirent_count) {
+		memset(ptr + 0x15, 0, 0x1E - 0x15);
+		strcpy((char*) (ptr + 0x1E), vfs_dirents[vfs_dirent_pos++]);
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+#else
+
+// on-demand implementation
+
 static DIR *vfs_finddir;
 static char vfs_findspec[MAX_SPECLEN+1];
-
-static int vfs_find_filter(const struct dirent *entry) {
-	const char *name = entry->d_name;
-	int spec_len = strlen(vfs_findspec);
-	return strlen(name) >= spec_len && strcasecmp(name + strlen(name) - spec_len, vfs_findspec) == 0;
-}
 
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
 	vfs_findspec[0] = 0; // clear findspec
@@ -80,7 +176,7 @@ int vfs_findnext(u8* ptr) {
 	}
 
 	while ((entry = readdir(vfs_finddir)) != NULL) {
-		if (vfs_find_filter(entry) != 0) {
+		if (vfs_find_filter(entry, vfs_findspec) != 0) {
 			memset(ptr + 0x15, 0, 0x1E - 0x15);
 			strcpy((char*) (ptr + 0x1E), entry->d_name);
 			return 0;
@@ -91,22 +187,8 @@ int vfs_findnext(u8* ptr) {
 	vfs_finddir = NULL;
 	return -1;
 }
-
-static void vfs_fix_case(char *fn) {
-	DIR *dir;
-	struct dirent *entry;
-
-	dir = opendir(vfs_fndir);
-	while ((entry = readdir(dir)) != NULL) {
-		if (strcasecmp(fn, entry->d_name) == 0) {
-			strncpy(fn, entry->d_name, strlen(fn));
-			break;
-		}
-	}
-
-	closedir(dir);
-}
 #endif
+#endif /* !NO_OPENDIR */
 
 void init_posix_vfs(const char* path) {
 	if (vfs_initialized > 0) {

@@ -37,6 +37,7 @@
 #define USE_LIBPNG
 #define USE_OPENGL
 // #define USE_OPENGL_ES /* GLES 1.1, not production ready */
+#define POSIX_VFS_SORTED_DIRS
 
 // #define DEBUG_OPENGL
 
