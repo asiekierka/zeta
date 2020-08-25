@@ -25,6 +25,11 @@ export class CanvasBasedRenderer {
 		this.canvas = canvas;
 		this.ctx = canvas.getContext('2d', {alpha: false});
 		this.ctx.imageSmoothingEnabled = false;
+		this.offscreenCanvas = document.createElement('canvas');
+		this.offscreenCanvas.width = 640;
+		this.offscreenCanvas.height = 350;
+		this.offscreenCtx = this.offscreenCanvas.getContext('2d', {alpha: false});
+		this.offscreenCtx.imageSmoothingEnabled = false;
 
 		this.blink_duration = Math.round(((options && options.blink_cycle_duration) || 0.534) * 1000);
 		this.video_blink = this.blink_duration > 0;
@@ -92,7 +97,7 @@ export class CanvasBasedRenderer {
 		this.y_offset = Math.round((this.ch - this.ph*this.scale) / 2);
 	}
 
-	_drawChar(x, y, chr, col) {
+	_drawChar(targetCtx, x, y, chr, col) {
 		switch (this.blink_state) {
 			case 0:
 				break;
@@ -115,20 +120,17 @@ export class CanvasBasedRenderer {
 			this.chrBuf[y * 80 + x] = bufcmp;
 		}
 
-		x = x * this.drawChrWidth * this.scale + this.x_offset;
-		y = y * this.chrHeight * this.scale + this.y_offset;
+		x = x * this.chrWidth;
+		y = y * this.chrHeight;
 
 		const bg = (col >> 4) & 0x0F;
 		const fg = (col & 15);
 
-		let rw = this.drawChrWidth * this.scale;
-		let rh = this.chrHeight * this.scale;
-
-		this.ctx.fillStyle = this.palette[bg];
-		this.ctx.fillRect(x, y, rw, rh);
+		targetCtx.fillStyle = this.palette[bg];
+		targetCtx.fillRect(x, y, this.chrWidth, this.chrHeight);
 
 		if (bg != fg) {
-			this.ctx.drawImage(this.asciiFg[fg], (chr & 15) * this.chrWidth, ((chr >> 4) & 15) * this.chrHeight, this.chrWidth, this.chrHeight, x, y, rw, rh);
+			targetCtx.drawImage(this.asciiFg[fg], (chr & 15) * this.chrWidth, ((chr >> 4) & 15) * this.chrHeight, this.chrWidth, this.chrHeight, x, y, this.chrWidth, this.chrHeight);
 		}
 	}
 
@@ -198,13 +200,25 @@ export class CanvasBasedRenderer {
 		this._updVideoMode(mode, time);
 
 		let pos = 0;
+		var targetCanvas = this.canvas;
+		var targetCtx = this.ctx;
+
+		if (this.scale > 1) {
+			targetCanvas = this.offscreenCanvas;
+			targetCtx = this.offscreenCtx;
+		}
 
 		if (this.asciiFg != null && this.palette != null) {
 			for (var y = 0; y < 25; y++) {
 				for (var x = 0; x < this.scrWidth; x++, pos+=2) {
-					this._drawChar(x, y, heap[pos], heap[pos+1]);
+					this._drawChar(targetCtx, x, y, heap[pos], heap[pos+1]);
 				}
 			}
+		}
+
+		if (this.scale > 1) {
+			let xScale = Math.floor(80 / this.scrWidth);
+			this.ctx.drawImage(targetCanvas, 0, 0, 640 / xScale, 350, this.x_offset, this.y_offset, 640 * this.scale, 350 * this.scale);
 		}
 	}
 

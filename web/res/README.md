@@ -4,6 +4,12 @@
 
 index.html provides an effective template of a Zeta instance which will span the whole browser frame.
 
+Please note that index.html must be edited - by default, it points to "my_game.zip", which should be replaced
+with the name of your game's ZIP file.
+
+I highly recommend using the Reconstruction of ZZT and the Reconstruction of Super ZZT, which are 
+available at https://zeta.asie.pl/, for bundling with your game worlds.
+
 ## Basic requirements
 
 * A canvas object with a width of or larger than 640x350, specified in options.render.canvas.

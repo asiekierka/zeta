@@ -23,7 +23,7 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #define USER_FUNCTION EMSCRIPTEN_KEEPALIVE
 #define IMPLEMENT_FUNCTION
 #include <emscripten.h>
