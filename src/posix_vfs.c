@@ -100,16 +100,17 @@ int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
 			// initial allocation
 			vfs_dirent_size = 64;
 			vfs_dirents = malloc(vfs_dirent_size * sizeof(char*));
+			vfs_dirent_count = 0;
 		} else {
 			// freeing
-			for (i = 0; i < vfs_dirent_size; i++) {
+			for (i = 0; i < vfs_dirent_count; i++) {
 				if (vfs_dirents[i] != NULL) {
 					free(vfs_dirents[i]);
 					vfs_dirents[i] = NULL;
 				}
 			}
+			vfs_dirent_count = 0;
 		}
-		vfs_dirent_count = 0;
 		dir = opendir(vfs_fndir);
 		while ((entry = readdir(dir)) != NULL) {
 			if (vfs_find_filter(entry, spec + 1) != 0) {
