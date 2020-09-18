@@ -72,6 +72,10 @@ class Emulator {
         	render.setPalette(data);
         }
 
+        window.zetag_update_blink = function(blink) {
+		render.setBlinkEnabled(blink);
+        }
+
         window.speakerg_on = function(cycles, freq) {
         	if (!document.hasFocus()) {
 		        speakerg_off();

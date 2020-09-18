@@ -35,8 +35,6 @@
 
 #include <ncurses.h>
 
-static int video_blink;
-
 long zeta_time_ms(void) {
 	struct timespec spec;
 

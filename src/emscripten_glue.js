@@ -35,6 +35,9 @@ mergeInto(LibraryManager.library, {
 	zeta_update_palette: function(data_ptr) {
 		return zetag_update_palette(data_ptr);
 	},
+	zeta_update_blink: function(blink) {
+		return zetag_update_blink(blink);
+	},
 	speaker_on: function(cycles, freq) {
 		speakerg_on(cycles, freq);
 	},

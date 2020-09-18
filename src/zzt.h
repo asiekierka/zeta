@@ -25,6 +25,7 @@
 
 #include "cpu.h"
 
+#define PALETTE_COLOR_COUNT 16
 #define MAX_MEMORY_KBS 736
 #define MAX_FILES 16
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
@@ -86,6 +87,8 @@ USER_FUNCTION
 int zzt_load_charset(int width, int height, u8* data);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
+USER_FUNCTION
+int zzt_load_blink(int blink);
 
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);
@@ -122,6 +125,8 @@ IMPLEMENT_FUNCTION
 void zeta_update_charset(int width, int height, u8* data);
 IMPLEMENT_FUNCTION
 void zeta_update_palette(u32* colors);
+IMPLEMENT_FUNCTION
+void zeta_update_blink(int blink);
 
 IMPLEMENT_FUNCTION
 void speaker_on(int cycle, double freq);

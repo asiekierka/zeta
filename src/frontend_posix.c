@@ -64,6 +64,7 @@ static int posix_zzt_init(int argc, char **argv) {
 	int c;
 	int skip_kc = 0;
 	int memory_kbs = -1;
+	int video_blink = 1;
 
 #ifdef USE_GETOPT
 	while ((c = getopt(argc, argv, "D:be:hl:m:t")) >= 0) {
@@ -112,6 +113,7 @@ static int posix_zzt_init(int argc, char **argv) {
 #endif
 
 	zzt_init(memory_kbs);
+	zzt_load_blink(video_blink);
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {

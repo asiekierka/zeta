@@ -222,6 +222,10 @@ export class CanvasBasedRenderer {
 		}
 	}
 
+	setBlinkEnabled(blink) {
+		this.video_blink = blink != 0;
+	}
+
 	setBlinkCycleDuration(duration) {
 		this.blink_duration = Math.round(duration * 1000);
 		this.video_blink = this.blink_duration > 0;

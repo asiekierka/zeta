@@ -113,7 +113,6 @@ static SDL_cond *zzt_thread_cond;
 static u8 zzt_vram_copy[80*25*2];
 static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
-static u8 video_blink = 1;
 static u8 zzt_turbo = 0;
 
 static long first_timer_tick;
@@ -272,6 +271,12 @@ static void sdl_resize_window(int delta) {
 	iw *= scale;
 	ih *= scale;
 	SDL_SetWindowSize(window, iw, ih);
+}
+
+static u8 video_blink = 1;
+
+void zeta_update_blink(int blink) {
+	video_blink = (blink != 0) ? 1 : 0;
 }
 
 void zeta_update_charset(int width, int height, u8* data) {
