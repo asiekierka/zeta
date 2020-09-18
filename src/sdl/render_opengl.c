@@ -356,6 +356,7 @@ static int sdl_render_opengl_init(void) {
         return -1;
     }
 
+	force_update = 1;
 	return 0;
 }
 

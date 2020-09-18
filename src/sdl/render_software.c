@@ -40,7 +40,10 @@ static int pformat = SDL_PIXELFORMAT_ARGB32;
 static int pformat = SDL_PIXELFORMAT_BGRA32;
 #endif
 
-static int sdl_render_software_init(void) { 
+static int force_update;
+static int last_blink_mode;
+
+static int sdl_render_software_init(void) {
 	window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		640, 350, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (window == NULL) {
@@ -56,7 +59,8 @@ static int sdl_render_software_init(void) {
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-    return 0;
+	force_update = 1;
+	return 0;
 }
 
 static void sdl_render_software_deinit(void) {
@@ -78,13 +82,16 @@ static void sdl_render_software_update_charset(int charw_arg, int charh_arg, u8 
         if (playfieldtex != NULL) {
             SDL_DestroyTexture(playfieldtex);
         }
-        
+
         playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
     }
+
+    force_update = 1;
 }
 
 static void sdl_render_software_update_palette(u32 *data_arg) {
     palette_update_data = data_arg;
+    force_update = 1;
 }
 
 static void sdl_render_software_draw(u8 *vram, int blink_mode) {
@@ -94,46 +101,52 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 
 	int swidth = (zzt_video_mode() & 2) ? 80 : 40;
 	int sflags = 0;
+	int should_render = force_update || (blink_mode != last_blink_mode);
 
 	if (palette_update_data == NULL || charset_update_data == NULL) {
 		return;
 	}
 
-    switch (blink_mode) {
-        case BLINK_MODE_NONE:
-            sflags |= RENDER_BLINK_OFF;
-            break;
-        case BLINK_MODE_2:
-            sflags |= RENDER_BLINK_PHASE;
-            break;
-    }
+	switch (blink_mode) {
+		case BLINK_MODE_NONE:
+			sflags |= RENDER_BLINK_OFF;
+			break;
+		case BLINK_MODE_2:
+			sflags |= RENDER_BLINK_PHASE;
+			break;
+	}
 
 	SDL_GetRendererOutputSize(renderer, &w, &h);
 	calc_render_area(&dest, w, h, NULL, 0);
 
-	SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
-	render_software_rgb(
-		buffer,
-		swidth, pitch / 4, sflags,
-		vram, charset_update_data,
-		charw, charh,
-		palette_update_data
-	);
-	SDL_UnlockTexture(playfieldtex);
+	if (should_render) {
+		SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
+		render_software_rgb(
+			buffer,
+			swidth, pitch / 4, sflags,
+			vram, charset_update_data,
+			charw, charh,
+			palette_update_data
+		);
+		SDL_UnlockTexture(playfieldtex);
+	}
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, playfieldtex, NULL, &dest);
 
-    SDL_RenderPresent(renderer);
+	SDL_RenderPresent(renderer);
+
+	last_blink_mode = blink_mode;
+	force_update = 0;
 }
 
 static SDL_Window *sdl_render_software_get_window(void) {
-    return window;
+	return window;
 }
 
 static void sdl_render_software_update_vram(u8 *vram) {
-    // pass
+	force_update = 1;
 }
 
 static sdl_render_size sdl_render_software_get_render_size(void) {
