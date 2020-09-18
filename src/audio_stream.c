@@ -30,16 +30,27 @@
 // #define AUDIO_STREAM_DEBUG
 // #define AUDIO_STREAM_DEBUG_BUFFERS
 
+#ifdef AVOID_MALLOC
+#define AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
+#endif
+
 #define AUDIO_VOLUME_MAX 127
-#define SPEAKER_ENTRY_LEN 64
-static int speaker_entry_pos = 0;
-static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
 static u8 speaker_overrun_flagged = 0;
 static long speaker_freq_ctr = 0;
 static u8 audio_volume = AUDIO_VOLUME_MAX;
 static double audio_prev_time;
 static int audio_freq;
 static bool audio_signed;
+
+#define DEFAULT_SPEAKER_ENTRY_LEN 128
+static int speaker_entry_pos = 0;
+#ifdef AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
+#define SPEAKER_ENTRY_LEN DEFAULT_SPEAKER_ENTRY_LEN
+static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
+#else
+static speaker_entry *speaker_entries;
+static int speaker_entry_len = 0;
+#endif
 
 #ifdef AUDIO_STREAM_DEBUG
 static void audio_stream_print(int pos) {
@@ -233,14 +244,46 @@ static void audio_stream_adjust_entry_timing(long time, int cycles) {
 	}
 }
 
+#ifndef AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
+static bool audio_stream_ensure_size(int len) {
+	int old_speaker_len = speaker_entry_len;
+	speaker_entry *old_speaker_entries = speaker_entries;
+
+	if (speaker_entry_len == 0) {
+		speaker_entry_len = DEFAULT_SPEAKER_ENTRY_LEN;
+		speaker_entries = malloc(sizeof(speaker_entry) * speaker_entry_len);
+	} else if (len > speaker_entry_len) {
+		while (len > speaker_entry_len) {
+			speaker_entry_len *= 2;
+		}
+		fprintf(stderr, "speaker buffer overrun! scaling (%d -> %d)\n", old_speaker_len, speaker_entry_len);
+		speaker_entries = realloc(speaker_entries, sizeof(speaker_entry) * speaker_entry_len);
+		if (speaker_entries == NULL) {
+			speaker_entry_len = old_speaker_len;
+			speaker_entries = old_speaker_entries;
+			return false;
+		}
+	}
+
+	return true;
+}
+#endif
+
 void audio_stream_append_on(long time, int cycles, double freq) {
 	// we want to reserve one extra speaker entry for an "off" command
 	// otherwise, large on-off-on-off-on... cycles could end on an "on"
 	// causing a permanent speaker noise
+#ifdef AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
 	if (speaker_entry_pos >= (SPEAKER_ENTRY_LEN - 1)) {
 		audio_stream_flag_speaker_overrun();
 		return;
 	}
+#else
+	if (!audio_stream_ensure_size(speaker_entry_pos + 2)) {
+		audio_stream_flag_speaker_overrun();
+		return;
+	}
+#endif
 
 	speaker_entries[speaker_entry_pos].ms = time;
 	speaker_entries[speaker_entry_pos].cycles = cycles;
@@ -255,10 +298,17 @@ void audio_stream_append_on(long time, int cycles, double freq) {
 }
 
 void audio_stream_append_off(long time, int cycles) {
+#ifdef AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
 	if (speaker_entry_pos >= SPEAKER_ENTRY_LEN) {
 		audio_stream_flag_speaker_overrun();
 		return;
 	}
+#else
+	if (!audio_stream_ensure_size(speaker_entry_pos + 1)) {
+		audio_stream_flag_speaker_overrun();
+		return;
+	}
+#endif
 
 	if (time < audio_prev_time)
 		time = audio_prev_time;

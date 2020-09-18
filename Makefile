@@ -39,7 +39,7 @@ CFLAGS = -O3 --js-library src/emscripten_glue.js \
   -s 'MALLOC="emmalloc"' -s NO_FILESYSTEM=1 \
   -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
-  -DNO_MEMSET
+  -DNO_MEMSET -DAVOID_MALLOC
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
