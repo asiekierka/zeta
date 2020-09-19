@@ -387,7 +387,7 @@ export function createZipStorage(url, options, progressCallback) {
 							key = undefined;
 						}
 					} else if (typeof(options.filenameMapper) === "function") {
-						key = options.filenameMap(key);
+						key = options.filenameMapper(key);
 					}
 				}
 
