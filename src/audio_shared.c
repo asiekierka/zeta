@@ -66,12 +66,10 @@ double audio_local_delay_time(int cycles_prev, int cycles_curr, int global_frequ
 	if (cycles_prev >= cycles_curr) {
 		return 0;
 	} else {
-                if ((cycles_curr - cycles_prev) > 3600) {
+                if ((cycles_curr - cycles_prev) <= 31) {
+			return min_delay;
+		} else {
                         return audio_delay_time;
-                } else {
-                        double delay = (cycles_curr - cycles_prev) * audio_delay_time / 3600.0;
-			if (delay < min_delay) delay = min_delay;
-			return delay;
-                }
+		}
 	}
 }
