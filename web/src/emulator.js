@@ -32,6 +32,12 @@ import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
 // see zzt.h "SYS_TIMER_TIME"
 const TIMER_DURATION = 54.92457871;
+const CPU_STATE_END = 0;
+const CPU_STATE_CONTINUE = 1;
+const CPU_STATE_BLOCK = 2;
+const CPU_STATE_WAIT_FRAME = 3;
+const CPU_STATE_WAIT_PIT = 4;
+const CPU_STATE_WAIT_TIMER = 5;
 
 const PLD_TO_PAL = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
 
@@ -47,6 +53,7 @@ class Emulator {
 
         this.frameQueued = false;
         this.time_ms_cached = time_ms();
+        this.time_ms_delay = undefined;
         this.last_timer_time = 0;
         this.opcodes = 1000;
 
@@ -336,8 +343,8 @@ class Emulator {
 
         const rcode = this.emu._zzt_execute(this.opcodes);
         const duration = time_ms() - this.time_ms_cached;
-        if (rcode) {
-            if (duration < 5 && rcode == 1) {
+        if (rcode != CPU_STATE_END) {
+            if (duration < 5 && rcode == CPU_STATE_CONTINUE) {
                 this.opcodes = (this.opcodes * 20 / 19);
             } else if (duration > 10) {
                 this.opcodes = (this.opcodes * 19 / 20);
@@ -349,10 +356,14 @@ class Emulator {
             }
 
             const time_to_timer = TIMER_DURATION - ((this.time_ms_cached + duration) - this.last_timer_time);
-            if (rcode != 3 || time_to_timer <= 1) {
+            if (rcode < CPU_STATE_WAIT_FRAME || time_to_timer <= 1) {
                 window.postMessage("zzt_tick", "*");
-            } else {
+            } else if (rcode >= CPU_STATE_WAIT_TIMER) {
+                setTimeout(() => this._tick(), Math.min(rcode - CPU_STATE_WAIT_TIMER, time_to_timer));
+            } else if (rcode == CPU_STATE_WAIT_PIT || time_to_timer < 20) {
                 setTimeout(() => this._tick(), time_to_timer);
+            } else { // CPU_STATE_WAIT_FRAME
+                window.requestAnimationFrame(() => this._tick());
             }
         } else {
             drawErrorMessage(this.render.canvas, this.render.ctx, "Emulation stopped.");

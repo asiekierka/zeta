@@ -157,6 +157,7 @@ static int sdl_is_blink_phase(long curr_time) {
 
 static int zzt_thread_func(void *ptr) {
 	int opcodes = 1000;
+
 	while (zzt_thread_running) {
 		if (SDL_LockMutex(zzt_thread_lock) == 0) {
 			while (zzt_renderer_waiting > 0) {
@@ -173,9 +174,12 @@ static int zzt_thread_func(void *ptr) {
 				}
 			}
 			SDL_CondBroadcast(zzt_thread_cond);
-			if (rcode == STATE_WAIT) {
+			if (rcode >= STATE_WAIT_FRAME) {
+				// TODO: Make the counting code more accurate.
+				int timeout_time = STATE_WAIT_PIT ? 20 : 10;
+				if (rcode >= STATE_WAIT_TIMER) timeout_time = rcode - STATE_WAIT_TIMER;
 				if (zzt_turbo) zzt_mark_timer_turbo();
-				else SDL_CondWaitTimeout(zzt_thread_cond, zzt_thread_lock, 20);
+				else SDL_CondWaitTimeout(zzt_thread_cond, zzt_thread_lock, timeout_time);
 			} else if (rcode == STATE_END) {
 				zzt_thread_running = 0;
 			}

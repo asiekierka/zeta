@@ -1576,7 +1576,7 @@ cpu->seg[2], cpu->seg[3], cpu->flags, ram_u8(cpu, SEG(SEG_CS, cpu->ip)));
 		last_state = cpu_run_one(cpu, 0, 1);
 	}
 
-	if (last_state == STATE_WAIT) {
+	if (last_state >= STATE_WAIT_FRAME) {
 		// try to avoid overflow
 		cpu->cycles = 0;
 	}

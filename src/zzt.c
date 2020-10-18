@@ -34,6 +34,7 @@
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
+// #define DEBUG_ZETA_A5_INTERRUPTS
 
 #define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
 #define STR_DS_SI (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->si])
@@ -100,6 +101,7 @@ typedef struct {
 	u32 palette[PALETTE_COLOR_COUNT];
 	int blink;
 
+	u8 disable_idle_hacks;
 } zzt_state;
 
 zzt_state zzt;
@@ -193,6 +195,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu);
 static void cpu_func_intr_0x13(cpu_state* cpu);
 static int cpu_func_intr_0x16(cpu_state* cpu);
 static int cpu_func_intr_0x21(cpu_state* cpu);
+static int cpu_func_intr_0xa5(cpu_state* cpu);
 
 void zzt_mark_frame(void) {
 	zzt.cga_status |= 0x8;
@@ -397,6 +400,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x20: return STATE_END;
 		case 0x21: return cpu_func_intr_0x21(cpu);
 		case 0x33: cpu_func_intr_0x33(cpu); break;
+		case 0xa5: return cpu_func_intr_0xa5(cpu);
 		case 0x15:
 			fprintf(stderr, "sysconf %04X\n", cpu->ax);
 			cpu->ah = 0x86;
@@ -647,13 +651,15 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 			cpu->al = zzt->keybuf[0].qch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
-			if (kbd_call_time != zzt_internal_time()) {
-				kbd_call_time = zzt_internal_time();
-				kbd_call_count = 0;
-			}
-			if ((++kbd_call_count) >= 4) {
-				kbd_call_count = 0;
-				return STATE_WAIT;
+			if (!zzt->disable_idle_hacks) {
+				if (kbd_call_time != zzt_internal_time()) {
+					kbd_call_time = zzt_internal_time();
+					kbd_call_count = 0;
+				}
+				if ((++kbd_call_count) >= 4) {
+					kbd_call_count = 0;
+					return STATE_WAIT_FRAME;
+				}
 			}
 		}
 		return STATE_CONTINUE;
@@ -688,6 +694,40 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 	}
 	fprintf(stderr, "int 0x16 AX=%04X\n", cpu->ax);
 	return STATE_CONTINUE;
+}
+
+#define A5_DETCHECK { if (is_detecting) { cpu->cx = 0x1515; cpu->flags &= ~FLAG_CARRY; return STATE_CONTINUE; } }
+
+static int cpu_func_intr_0xa5(cpu_state* cpu) {
+	// Zeta proprietary extensions
+	zzt_state* zzt = (zzt_state*) cpu;
+
+	bool is_detecting = (cpu->cx == 0xBABA);
+	bool is_running = (cpu->cx == 0x1515);
+	if (is_detecting == is_running) return STATE_CONTINUE;
+
+#ifdef DEBUG_ZETA_A5_INTERRUPTS
+	fprintf(stderr, "dbg: zeta proprietary interrupt %02X (%s)\n", cpu->ah, is_detecting ? "detecting" : "running");
+#endif
+
+	cpu->flags &= ~FLAG_CARRY;
+	switch (cpu->ah) {
+		case 0x01: { // SET IDLE HACK MODE = AL=0x00 disables, AL=0x01 enables
+			A5_DETCHECK;
+			zzt->disable_idle_hacks = (cpu->al == 0x00);
+		} return STATE_CONTINUE;
+		case 0x02: { // FORCE IDLE WAIT = AL:
+			// 0x00 = frame
+			// 0x01 = PIT
+			A5_DETCHECK;
+		} return (cpu->al == 0x01) ? STATE_WAIT_PIT : STATE_WAIT_FRAME;
+		case 0x03: { // DELAY = DX: delay in milliseconds
+			A5_DETCHECK;
+		} return STATE_WAIT_TIMER + cpu->dx;
+		default: {
+			cpu->flags |= FLAG_CARRY;
+		} return STATE_CONTINUE;
+	}
 }
 
 static int cpu_func_intr_0x21(cpu_state* cpu) {
@@ -734,7 +774,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
-		} return STATE_WAIT;
+		} return zzt->disable_idle_hacks ? STATE_CONTINUE : STATE_WAIT_FRAME;
 		case 0x2D: { // systime set
 			long ms = cpu->dl * 10 + cpu->dh * 1000 + cpu->cl * 60000 + cpu->ch * 3600000;
 			zzt->timer_time_offset = ms - zzt->timer_time;
@@ -1096,6 +1136,7 @@ void zzt_init(int memory_kbs) {
 	zzt.cpu.ram[0x411] = 0x00;
 	zzt.cpu.ram[0x413] = memory_kbs & 0xFF;
 	zzt.cpu.ram[0x414] = memory_kbs >> 8;
+	strcpy((char*) (zzt.cpu.ram + 0xFFFF5), "ZetaEmu");
 	zzt.cpu.ram[0xFFFFE] = 0xFB;
 
 	// video constants
