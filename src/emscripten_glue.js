@@ -26,6 +26,12 @@ mergeInto(LibraryManager.library, {
 	vfs_findnext: function(ptr) {
 		return vfsg_findnext(ptr);
 	},
+	vfs_getcwd: function(ptr, size) {
+		return vfsg_getcwd(ptr, size);
+	},
+	vfs_chdir: function(ptr) {
+		return vfsg_chdir(ptr);
+	},
 	zeta_has_feature: function(id) {
 		return vfsg_has_feature(id);
 	},

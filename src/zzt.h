@@ -115,6 +115,10 @@ IMPLEMENT_FUNCTION
 int vfs_findfirst(u8* ptr, u16 mask, char* spec);
 IMPLEMENT_FUNCTION
 int vfs_findnext(u8* ptr);
+IMPLEMENT_FUNCTION
+int vfs_getcwd(char *ptr, int size);
+IMPLEMENT_FUNCTION
+int vfs_chdir(const char *path);
 
 #define FEATURE_JOY_CONNECTED 1
 #define FEATURE_MOUSE_CONNECTED 2

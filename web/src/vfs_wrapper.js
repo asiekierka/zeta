@@ -35,15 +35,27 @@ export function setWrappedVfs(inputVfs) {
 }
 
 export function initVfsWrapper() {
+	window.vfsg_getcwd = function(ptr, size) {
+		if (size > 0) {
+			let heap = new Uint8Array(emu.HEAPU8.buffer, ptr, size);
+			heap[0] = 0;
+		}
+		return 0;
+	}
+
+	window.vfsg_chdir = function(ptr, size) {
+		return -1;
+	}
+
 	window.vfsg_open = function(fn, mode) {
 		if (typeof fn !== "string") {
 			fn = emu.AsciiToString(fn);
 		}
-	
+
 		fn = fn.toUpperCase();
 		let data = vfs.get(fn);
 		const is_write = (mode & 0x3) == 1;
-	
+
 		if (is_write) {
 			if (!vfs.canSet(fn)) return -1;
 			if (data == null || ((mode & 0x10000) != 0)) {
@@ -52,15 +64,15 @@ export function initVfsWrapper() {
 		} else {
 			if (data == null) return -1;
 		}
-	
+
 		console.log("opening " + fn);
 		let i = 1;
 		while (i in handles) i++;
 		handles[i] = {fn: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
-	
+
 		return i;
 	}
-	
+
 	window.vfsg_close = function(h) {
 		if (h in handles) {
 			if (handles[h].write_on_close) {
@@ -70,7 +82,7 @@ export function initVfsWrapper() {
 			return 0;
 		} else return -1;
 	}
-	
+
 	window.vfsg_seek = function(h, offset, type) {
 		if (!(h in handles)) return -1;
 		let newpos;
@@ -93,7 +105,7 @@ export function initVfsWrapper() {
 		handles[h].pos = newpos;
 		return 0;
 	}
-	
+
 	window.vfsg_read = function(h, ptr, amount) {
 		if (!(h in handles)) return -1;
 		h = handles[h];
@@ -107,7 +119,7 @@ export function initVfsWrapper() {
 		h.pos += maxlen;
 		return maxlen;
 	}
-	
+
 	window.vfsg_write = function(h, ptr, amount) {
 		if (!(h in handles)) return -1;
 		h = handles[h];
@@ -127,15 +139,15 @@ export function initVfsWrapper() {
 		h.pos += amount;
 		return amount;
 	}
-	
+
 	var ff_list = [];
 	var ff_pos = 0;
-	
+
 	var vfs_list = function(spec) {
 		spec = spec.toUpperCase();
-		if (spec.startsWith("*.")) {
+		if (spec.startsWith("*")) {
 			let suffix = spec.substring(1);
-			let list = vfs.list(key => key.endsWith(suffix));
+			let list = vfs.list(key => (suffix.length == 0) || key.endsWith(suffix));
 			list.sort((a, b) => {
 				const lenDiff = a.length - b.length;
 				if (lenDiff != 0) return lenDiff;
@@ -147,7 +159,7 @@ export function initVfsWrapper() {
 			return null;
 		}
 	}
-	
+
 	window.vfsg_findfirst = function(ptr, mask, spec) {
 		spec = emu.AsciiToString(spec);
 		ff_list = [];
@@ -157,31 +169,31 @@ export function initVfsWrapper() {
 		ff_pos = 0;
 		return vfsg_findnext(ptr);
 	}
-	
+
 	window.vfsg_findnext = function(ptr) {
 		if (ff_pos >= ff_list.length) return -1;
 		const finddata = new Uint8Array(emu.HEAPU8.buffer, ptr, 0x100);
-	
+
 		// write documented fields
 		finddata[0x15] = 0;
 		finddata[0x16] = 0;
 		finddata[0x17] = 0;
 		finddata[0x18] = 0;
 		finddata[0x19] = 0;
-	
+
 		let fn = ff_list[ff_pos];
 		let size = vfs.get(fn).byteLength;
 		finddata[0x1A] = size & 0xFF;
 		finddata[0x1B] = (size >> 8) & 0xFF;
 		finddata[0x1C] = (size >> 16) & 0xFF;
 		finddata[0x1D] = (size >> 24) & 0xFF;
-	
+
 		for (var i = 0; i < fn.length; i++) {
 			finddata[0x1E + i] = fn.charCodeAt(i);
 		}
 		finddata[0x1E + fn.length] = 0;
-	
+
 		ff_pos = ff_pos + 1;
 		return 0;
-	}	
+	}
 }

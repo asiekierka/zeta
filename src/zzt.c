@@ -36,8 +36,10 @@
 // #define DEBUG_KEYSTROKES
 
 #define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
+#define STR_DS_SI (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->si])
 #define U8_ES_BP (u8*)(&cpu->ram[cpu->seg[SEG_ES]*16 + cpu->bp])
 #define U8_ES_DX (u8*)(&cpu->ram[cpu->seg[SEG_ES]*16 + cpu->dx])
+#define UPDATE_CARRY_RESULT(res) { if ((res) < 0) { cpu->flags |= FLAG_CARRY; } else { cpu->flags &= ~FLAG_CARRY; } }
 
 typedef struct {
 	int qch;
@@ -777,6 +779,21 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			} else {
 				cpu->flags &= ~FLAG_CARRY;
 			}
+		} return STATE_CONTINUE;
+		case 0x0E: { // set disk number
+			// ignored
+		} return STATE_CONTINUE;
+		case 0x19: { // get disk number
+			cpu->al = 2; // C: drive
+			cpu->flags &= ~FLAG_CARRY;
+		} return STATE_CONTINUE;
+		case 0x3B: { // chdir
+			int res = vfs_chdir(STR_DS_DX);
+			UPDATE_CARRY_RESULT(res);
+		} return STATE_CONTINUE;
+		case 0x47: { // getcwd
+			int res = vfs_getcwd(STR_DS_SI, 64);
+			UPDATE_CARRY_RESULT(res);
 		} return STATE_CONTINUE;
 		case 0x3F: { // read
 #ifdef DEBUG_FS_ACCESS
