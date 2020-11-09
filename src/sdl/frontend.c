@@ -63,6 +63,22 @@ static const u8 sdl_to_pc_scancode[] = {
 	0x4D, 0x4B, 0x50, 0x48, 0x45
 };
 
+static const u8 kcode_to_scode_32[] = {
+	0x39, // 32
+	0x02, 0x03, 0x04, 0x05, 0x06, 0x08, 0x28, 0x0A, 0x0B, 0x09, 0x0D, 0x33, 0x0C, 0x34, // 46
+	0x35, 0x0B, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, // 57
+	0x27, 0x27, 0x33, 0x0D, 0x34, 0x35, // 63
+	0x03, // 64
+	0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, /* A-I */
+	0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, /* J-R */
+	0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C,       /* S-Z */
+	0x1A, 0x2B, 0x1B, 0x07, 0x0C, 0x29, // 96
+	0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, /* A-I */
+	0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, /* J-R */
+	0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C,       /* S-Z */
+	0x1A, 0x2B, 0x1B, 0x29 // 126
+};
+
 static const int sdl_to_pc_scancode_max = sizeof(sdl_to_pc_scancode) - 1;
 
 long zeta_time_ms(void) {
@@ -200,35 +216,6 @@ static void update_keymod(SDL_Keymod keymod) {
 	if (KEYMOD_ALT(keymod)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
 }
 
-static char as_shifted(char kcode) {
-	if (kcode >= 'a' && kcode <= 'z') {
-		return kcode - 32;
-	} else switch(kcode) {
-		case '1': return '!';
-		case '2': return '@';
-		case '3': return '#';
-		case '4': return '$';
-		case '5': return '%';
-		case '6': return '^';
-		case '7': return '&';
-		case '8': return '*';
-		case '9': return '(';
-		case '0': return ')';
-		case '-': return '_';
-		case '=': return '+';
-		case '[': return '{';
-		case ']': return '}';
-		case ';': return ':';
-		case '\'': return '"';
-		case '\\': return '|';
-		case ',': return '<';
-		case '.': return '>';
-		case '/': return '?';
-		case '`': return '~';
-		default: return kcode;
-	}
-}
-
 static SDL_Window *window;
 static int charw, charh;
 
@@ -325,6 +312,7 @@ int main(int argc, char **argv) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		return 1;
 	}
+	SDL_StartTextInput();
 
 	render_data_update_mutex = SDL_CreateMutex();
 	zzt_thread_lock = SDL_CreateMutex();
@@ -411,6 +399,13 @@ int main(int argc, char **argv) {
 
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
+				case SDL_TEXTINPUT:
+					kcode = event.text.text[0];
+					if (kcode >= 32 && kcode < 127) {
+						zzt_key(kcode, kcode_to_scode_32[kcode - 32]);
+						zzt_keyup(kcode_to_scode_32[kcode - 32]);
+					}
+					break;
 				case SDL_KEYDOWN:
 					if (windowed && (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)) {
 						if (SDL_GetRelativeMouseMode() != 0) {
@@ -502,16 +497,16 @@ int main(int argc, char **argv) {
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
+					// 32-126 characters are handled via SDL_TEXTINPUT
+					if (kcode >= 32 && kcode <= 126) break;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
-						if (KEYMOD_SHIFT(event.key.keysym.mod)) kcode = as_shifted(kcode);
 						zzt_key(kcode, sdl_to_pc_scancode[scode]);
 					}
 					break;
 				case SDL_KEYUP:
 					if (KEYMOD_CTRL(event.key.keysym.mod)) {
 						kcode = event.key.keysym.sym;
-						if (KEYMOD_SHIFT(event.key.keysym.mod)) kcode = as_shifted(kcode);
 						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
 							sdl_resize_window(-1);
 							break;
@@ -526,8 +521,11 @@ int main(int argc, char **argv) {
 					}
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
+					kcode = event.key.keysym.sym;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
-						scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
+						if (!(kcode >= 32 && kcode <= 126)) {
+							scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
+						}
 					}
 					break;
 				case SDL_MOUSEBUTTONDOWN:
@@ -598,6 +596,7 @@ int main(int argc, char **argv) {
 		SDL_CloseAudioDevice(audio_device);
 	}
 	renderer->deinit();
+	SDL_StopTextInput();
 	SDL_Quit();
 	return 0;
 }
