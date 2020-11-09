@@ -14,11 +14,11 @@
     "@babel/preset-env": "^7.11.0",
     "@rollup/plugin-babel": "^5.1.0",
     "@rollup/plugin-node-resolve": "^8.4.0",
-    "rollup": "^2.23.0",
+    "rollup": "^2.33.1",
     "rollup-plugin-banner2": "^1.0.0",
     "rollup-plugin-terser": "^6.1.0"
   },
   "dependencies": {
-    "core-js": "^3.6.5"
+    "core-js": "^3.7.0"
   }
 }
