@@ -30,16 +30,15 @@ TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
 CC = emcc
 CFLAGS = -O3 --js-library src/emscripten_glue.js \
-  -s WASM_OBJECT_FILES=0 \
+  -s STRICT=1 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc","_free"]' \
   -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
   -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
-  -s 'MALLOC="emmalloc"' -s NO_FILESYSTEM=1 \
-  -s TOTAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
-  -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="[]" \
-  -DNO_MEMSET -DAVOID_MALLOC
+  -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
+  -s INITIAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
+  -DNO_MEMSET -DAVOID_MALLOC --no-entry
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
