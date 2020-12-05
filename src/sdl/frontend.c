@@ -294,6 +294,8 @@ extern sdl_renderer sdl_renderer_opengl;
 #endif
 extern sdl_renderer sdl_renderer_software;
 
+static char window_name[65];
+
 int main(int argc, char **argv) {
 	int scancodes_lifted[sdl_to_pc_scancode_max + 1];
 	int slc = 0;
@@ -325,17 +327,20 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	snprintf(window_name, sizeof(window_name), "Zeta %s", ZETA_VERSION);
+	window_name[64] = 0;
+
 	sdl_renderer *renderer = NULL;
 #ifdef USE_OPENGL
 	renderer = &sdl_renderer_opengl;
-	if (renderer->init() < 0) {
+	if (renderer->init(window_name) < 0) {
 		fprintf(stderr, "Could not initialize OpenGL (%s), using software renderer...", SDL_GetError());
 		renderer = NULL;
 	}
 #endif
 	if (renderer == NULL) {
 		renderer = &sdl_renderer_software;
-		if (renderer->init() < 0) {
+		if (renderer->init(window_name) < 0) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open video device!");
 			return 1;
 		}

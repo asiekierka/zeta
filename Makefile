@@ -6,11 +6,13 @@ BUILDDIR = build/${PLATFORM}
 CC = gcc
 endif
 
+VERSION ?= unknown
+
 RESDIR = res
 SRCDIR = src
 OBJDIR = ${BUILDDIR}/obj
 
-CFLAGS = -g -O3 -flto -std=c18 -Wall
+CFLAGS = -g -O3 -flto -std=c18 -Wall -DZETA_VERSION=\"${VERSION}\"
 LDFLAGS = -g -O3 -flto -std=c18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)

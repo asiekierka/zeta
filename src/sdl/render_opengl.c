@@ -323,7 +323,7 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 	}
 }
 
-static int sdl_render_opengl_init(void) {
+static int sdl_render_opengl_init(const char *window_name) {
 	init_opengl_tables();
 
 #ifdef USE_OPENGL_ES
@@ -337,7 +337,7 @@ static int sdl_render_opengl_init(void) {
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
-	window = SDL_CreateWindow("Zeta", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+	window = SDL_CreateWindow(window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		640, 350, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	if (window == NULL) {
 		return -1;
