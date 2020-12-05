@@ -102,7 +102,7 @@ static audio_writer_state *audio_writer_s = NULL;
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_LockMutex(audio_mutex);
-	audio_stream_generate_u8(zeta_time_ms(), stream, len);
+	audio_stream_generate(zeta_time_ms(), stream, len);
 	SDL_UnlockMutex(audio_mutex);
 }
 
@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
 
 	SDL_zero(requested_audio_spec);
 	requested_audio_spec.freq = 48000;
-	requested_audio_spec.format = AUDIO_U8;
+	requested_audio_spec.format = AUDIO_S16;
 	requested_audio_spec.channels = 1;
 	requested_audio_spec.samples = 4096;
 	requested_audio_spec.callback = audio_callback;
@@ -363,8 +363,11 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	audio_generate_init();
 	if (audio_device != 0) {
-		audio_stream_init(zeta_time_ms(), audio_spec.freq, audio_spec.format == AUDIO_S8);
+		audio_stream_init(zeta_time_ms(), audio_spec.freq,
+			audio_spec.format == AUDIO_S8 || audio_spec.format == AUDIO_S16,
+			audio_spec.format == AUDIO_U16 || audio_spec.format == AUDIO_S16);
 		if (posix_zzt_arg_note_delay >= 0.0) {
 			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}

@@ -26,7 +26,7 @@
 #include "types.h"
 
 USER_FUNCTION
-void audio_stream_init(long time, int freq, bool asigned);
+void audio_stream_init(long time, int freq, bool asigned, bool a16bit);
 USER_FUNCTION
 u8 audio_stream_get_volume();
 USER_FUNCTION
@@ -34,7 +34,7 @@ u8 audio_stream_get_max_volume();
 USER_FUNCTION
 void audio_stream_set_volume(u8 volume);
 USER_FUNCTION
-void audio_stream_generate_u8(long time, u8 *stream, int len);
+void audio_stream_generate(long time, u8 *stream, int len);
 USER_FUNCTION
 void audio_stream_append_on(long time, int cycles, double freq);
 USER_FUNCTION

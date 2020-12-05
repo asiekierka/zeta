@@ -28,12 +28,13 @@
 #include "audio_shared.h"
 #include "audio_writer.h"
 
-#define AUDIO_MIN_SAMPLE 25
-#define AUDIO_MAX_SAMPLE 231
+#define AUDIO_MIN_SAMPLE (25 << 8)
+#define AUDIO_MAX_SAMPLE (231 << 8)
 #define AUDIO_WRITER_MIN_ENTRIES_SIZE 4096
 
 typedef struct s_audio_writer_state {
 	FILE *file;
+	u8 bits_per_sample;
 	char *vbuf;
 
 	double time_offset;
@@ -73,6 +74,7 @@ audio_writer_state *audio_writer_start(const char *filename, long time, int freq
 
 	s->time_offset = time;
 	s->freq = freq;
+	s->bits_per_sample = 16;
 
 	// write header
 	fwrite("RIFF", 4, 1, s->file);
@@ -86,7 +88,7 @@ audio_writer_state *audio_writer_start(const char *filename, long time, int freq
 	fput32le(s->file, s->freq); // frequency
 	fput32le(s->file, s->freq); // bytes per second
 	fput16le(s->file, 1); // bytes per full sample
-	fput16le(s->file, 8); // bits per sample
+	fput16le(s->file, s->bits_per_sample); // bits per sample
 	// - data
 	fwrite("data", 4, 1, s->file);
 	fput32le(s->file, 0); // file size - 44, see audio_writer_stop
@@ -110,18 +112,26 @@ static void audio_writer_advance(audio_writer_state *s, int pos, long time, int 
 	if (s->note_enabled) {
 		// see audio_stream.c
 		freq_samples_fixed = (int) ((s->freq << 8) / (s->note_freq * 2));
-		pos_samples_fixed = (s->note_counter << 8) % (freq_samples_fixed << 1);
+		pos_samples_fixed = (s->note_counter << 8);
 		for (i = 0; i < samples; i++) {
-			if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
-				fputc(AUDIO_MAX_SAMPLE, s->file);
-			else
-				fputc(AUDIO_MIN_SAMPLE, s->file);
-			pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
+			u16 sample = audio_generate_sample(AUDIO_MIN_SAMPLE, AUDIO_MAX_SAMPLE, freq_samples_fixed, s->note_freq, pos_samples_fixed, s->freq);
+			sample >>= (16 - s->bits_per_sample);
+			if (s->bits_per_sample == 16) {
+				fput16le(s->file, sample ^ 0x8000);
+			} else {
+				fputc(sample, s->file);
+			}
+			pos_samples_fixed += (1 << 8);
 		}
 	} else {
 		// write silence
-		for (i = 0; i < samples; i++)
-			fputc(128, s->file);
+		for (i = 0; i < samples; i++) {
+			if (s->bits_per_sample == 16) {
+				fput16le(s->file, 0);
+			} else {
+				fputc(128, s->file);
+			}
+		}
 	}
 	// set new note as last
 	// audio_time_offset = time;

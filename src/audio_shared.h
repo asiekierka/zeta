@@ -34,6 +34,9 @@ typedef struct {
 	double ms;
 } speaker_entry;
 
+void audio_generate_init(void);
+u16 audio_generate_sample(u16 min, u16 max, int freq_fixed, double freq_real, int pos_fixed, int freq_aud);
+
 USER_FUNCTION
 double audio_get_note_delay();
 USER_FUNCTION

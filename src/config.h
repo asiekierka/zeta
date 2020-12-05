@@ -28,6 +28,15 @@
 //#define BIG_ENDIAN
 #define UNALIGNED_OK
 
+// Audio configuration
+
+// RESAMPLE_NEAREST, RESAMPLE_LINEAR, RESAMPLE_BANDLIMITED
+#ifdef __EMSCRIPTEN__
+#define RESAMPLE_LINEAR
+#else
+#define RESAMPLE_BANDLIMITED /* change if too slow */
+#endif
+
 // SDL port configuration
 
 // 60/16 Hz (blink every 16 frames at 60 Hz)

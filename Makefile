@@ -17,15 +17,15 @@ ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
 CC = ${ARCH}-w64-mingw32-gcc
 CFLAGS += -mwindows
-LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lgcc -lSDL2main -lpng -lz -Wl,-Bdynamic -lSDL2 -lopengl32
+LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
 else ifeq (${PLATFORM},unix-sdl)
 USE_SDL = 1
-LIBS = -lGL -lSDL2 -lSDL2main -lpng
+LIBS = -lGL -lSDL2 -lSDL2main -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},unix-curses)
 USE_CURSES = 1
-LIBS = -lncursesw
+LIBS = -lncursesw -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
 CC = emcc

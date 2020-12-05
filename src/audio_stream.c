@@ -41,6 +41,7 @@ static u8 audio_volume = AUDIO_VOLUME_MAX;
 static double audio_prev_time;
 static int audio_freq;
 static bool audio_signed;
+static bool audio_16bit;
 
 #define DEFAULT_SPEAKER_ENTRY_LEN 128
 static int speaker_entry_pos = 0;
@@ -83,11 +84,12 @@ static void audio_stream_flag_speaker_overrun(void) {
 	}
 }
 
-void audio_stream_init(long time, int freq, bool asigned) {
+void audio_stream_init(long time, int freq, bool asigned, bool a16bit) {
 	speaker_overrun_flagged = 0;
 	audio_prev_time = -1;
 	audio_freq = freq;
 	audio_signed = asigned;
+	audio_16bit = a16bit;
 }
 
 u8 audio_stream_get_volume() {
@@ -103,7 +105,7 @@ void audio_stream_set_volume(u8 volume) {
 	audio_volume = volume;
 }
 
-void audio_stream_generate_u8(long time, u8 *stream, int len) {
+void audio_stream_generate(long time, u8 *stream, int len) {
 	int i; long j;
 	int freq_samples_fixed;
 	int pos_samples_fixed;
@@ -114,10 +116,18 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 	double res_to_samples = len / audio_res;
 	double audio_dfrom, audio_dto;
 	long audio_from, audio_to, audio_last_to = 0;
+	u16* stream16 = (u16*) stream;
 
-	u8 audio_smp_min = audio_signed ? (-audio_volume) : (128 - audio_volume);
-	u8 audio_smp_max = audio_signed ? audio_volume : (128 + audio_volume);
-	u8 audio_smp_center = audio_signed ? 0 : 128;
+	u16 audio_smp_min = (128 - audio_volume);
+	u16 audio_smp_max = (128 + audio_volume);
+	u16 audio_smp_center = audio_signed ? 0 : 128;
+
+	if (audio_16bit) {
+		audio_smp_min <<= 8;
+		audio_smp_max <<= 8;
+		audio_smp_center <<= 8;
+		len >>= 1;
+	}
 
 	// handle the first
 	if (audio_prev_time < 0) {
@@ -187,13 +197,31 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 					fprintf(stderr, "[callback] emitting note @ %.2f Hz (%ld, %ld)\n", speaker_entries[i].freq, audio_from, audio_to);
 					#endif
 					freq_samples_fixed = (int) ((audio_freq << 8) / (speaker_entries[i].freq * 2));
-					pos_samples_fixed = (speaker_freq_ctr << 8) % (freq_samples_fixed << 1);
-					for (j = audio_from; j < audio_to; j++) {
-						if ((pos_samples_fixed & 0xFFFFFF00) < (freq_samples_fixed & 0xFFFFFF00))
-							stream[j] = audio_smp_max;
-						else
-							stream[j] = audio_smp_min;
-						pos_samples_fixed = (pos_samples_fixed + 256) % (freq_samples_fixed << 1);
+					pos_samples_fixed = (speaker_freq_ctr << 8);
+					if (audio_signed) {
+						if (audio_16bit) {
+							for (j = audio_from; j < audio_to; j++) {
+								stream16[j] = audio_generate_sample(audio_smp_min, audio_smp_max, freq_samples_fixed, speaker_entries[i].freq, pos_samples_fixed, audio_freq) ^ 0x8000;
+								pos_samples_fixed += 256;
+							}
+						} else {
+							for (j = audio_from; j < audio_to; j++) {
+								stream[j] = audio_generate_sample(audio_smp_min, audio_smp_max, freq_samples_fixed, speaker_entries[i].freq, pos_samples_fixed, audio_freq) ^ 0x80;
+								pos_samples_fixed += 256;
+							}
+						}
+					} else {
+						if (audio_16bit) {
+							for (j = audio_from; j < audio_to; j++) {
+								stream16[j] = audio_generate_sample(audio_smp_min, audio_smp_max, freq_samples_fixed, speaker_entries[i].freq, pos_samples_fixed, audio_freq);
+								pos_samples_fixed += 256;
+							}
+						} else {
+							for (j = audio_from; j < audio_to; j++) {
+								stream[j] = audio_generate_sample(audio_smp_min, audio_smp_max, freq_samples_fixed, speaker_entries[i].freq, pos_samples_fixed, audio_freq);
+								pos_samples_fixed += 256;
+							}
+						}
 					}
 					speaker_freq_ctr += audio_to - audio_from;
 				} else {
@@ -201,7 +229,13 @@ void audio_stream_generate_u8(long time, u8 *stream, int len) {
 					fprintf(stderr, "[callback] emitting off (%ld, %ld)\n", audio_from, audio_to);
 					#endif
 					speaker_freq_ctr = 0;
-					memset(stream + audio_from, audio_smp_center, audio_to - audio_from);
+					if (audio_16bit) {
+						for (j = audio_from; j < audio_to; j++) {
+							stream16[j] = audio_smp_center;
+						}
+					} else {
+						memset(stream + audio_from, audio_smp_center, audio_to - audio_from);
+					}
 				}
 			}
 
