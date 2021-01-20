@@ -56,10 +56,11 @@ export class CanvasBasedRenderer {
 		this.charset_override = null;
 		if (this.charset_override_enabled) {
 			let coImg = new Image();
+			let self = this;
 			coImg.src = options.charset_override;
 			coImg.onload = function() {
-				this.charset_override = coImg;
-				this.rdDirty = true;
+				self.charset_override = coImg;
+				self.rdDirty = true;
 			};
 		}
 	}
