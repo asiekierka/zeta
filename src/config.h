@@ -34,7 +34,9 @@
 #ifdef __EMSCRIPTEN__
 #define RESAMPLE_LINEAR
 #else
-#define RESAMPLE_BANDLIMITED /* change if too slow */
+// users report stuttering issues due to overly low performance
+//#define RESAMPLE_BANDLIMITED
+#define RESAMPLE_LINEAR // still better than NEAREST at least!
 #endif
 
 // SDL port configuration

@@ -200,10 +200,11 @@ export class CanvasBasedRenderer {
 		this._updVideoMode(mode, time);
 
 		let pos = 0;
+		let xScale = Math.floor(80 / this.scrWidth);
 		var targetCanvas = this.canvas;
 		var targetCtx = this.ctx;
 
-		if (this.scale > 1) {
+		if (this.scale > 1 || xScale > 1) {
 			targetCanvas = this.offscreenCanvas;
 			targetCtx = this.offscreenCtx;
 		}
@@ -216,8 +217,7 @@ export class CanvasBasedRenderer {
 			}
 		}
 
-		if (this.scale > 1) {
-			let xScale = Math.floor(80 / this.scrWidth);
+		if (this.scale > 1 || xScale > 1) {
 			this.ctx.drawImage(targetCanvas, 0, 0, 640 / xScale, 350, this.x_offset, this.y_offset, 640 * this.scale, 350 * this.scale);
 		}
 	}
