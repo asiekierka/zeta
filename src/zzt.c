@@ -25,7 +25,7 @@
 
 #include "logging.h"
 
-#if defined(ANDROID) || defined(HAS_OSK)
+#if defined(HAS_OSK)
 #define KEYBUF_SIZE 192
 #else
 #define KEYBUF_SIZE 8
