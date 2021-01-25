@@ -75,6 +75,7 @@ typedef struct {
 	int key_delay, key_repeat_delay;
 	zzt_key_entry key;
 	zzt_keybuf_entry keybuf[KEYBUF_SIZE];
+	zzt_keybuf_entry repeatbuf[KEYBUF_SIZE];
 	int kmod;
 
 	// joystick
@@ -100,6 +101,7 @@ typedef struct {
 	u8 charset[256*16];
 	u32 palette[PALETTE_COLOR_COUNT];
 	int blink;
+	int multikey;
 
 	u8 disable_idle_hacks;
 } zzt_state;
@@ -108,6 +110,35 @@ zzt_state zzt;
 
 static int zzt_memory_seg_limit() {
 	return (zzt.cpu.ram[0x413] | (zzt.cpu.ram[0x414] << 8)) << 6;
+}
+
+void zzt_key_add_to_repeatbuf(int qch, int qke) {
+	for (int j = 0; j < KEYBUF_SIZE; j++) {
+		if (zzt.repeatbuf[j].qke == qke) {
+			return;
+		}
+	}
+	for (int j = 0; j < KEYBUF_SIZE; j++) {
+		if (zzt.repeatbuf[j].qke == -1) {
+			zzt.repeatbuf[j].qch = qch;
+			zzt.repeatbuf[j].qke = qke;
+#ifdef DEBUG_KEYSTROKES
+			fprintf(stderr, "key buffered %d %d\n", zzt.repeatbuf[j].qch, zzt.repeatbuf[j].qke);
+#endif
+			return;
+		}
+	}
+}
+
+void zzt_key_remove_from_repeatbuf(int qke) {
+	for (int j = 0; j < KEYBUF_SIZE; j++) {
+		if (zzt.repeatbuf[j].qke == qke) {
+#ifdef DEBUG_KEYSTROKES
+			fprintf(stderr, "key removebuffered %d %d @%d\n", zzt.repeatbuf[j].qch, zzt.repeatbuf[j].qke, j);
+#endif
+			zzt.repeatbuf[j].qke = -1;
+		}
+	}
 }
 
 void zzt_kmod_set(int mod) {
@@ -120,6 +151,26 @@ void zzt_kmod_clear(int mod) {
 
 static long zzt_internal_time(void) {
 	return zzt.timer_time_offset + ((long) zzt.timer_time);
+}
+
+static int zzt_add_repeatbuf() {
+	int appended = 0;
+	for (int i = 0; i < KEYBUF_SIZE; i++) {
+		if (zzt.repeatbuf[i].qke != -1) {
+			for (int j = 0; j < KEYBUF_SIZE; j++) {
+				if (zzt.keybuf[j].qke == -1 || zzt.keybuf[j].qke == zzt.repeatbuf[i].qke) {
+					zzt.keybuf[j].qch = zzt.repeatbuf[i].qch;
+					zzt.keybuf[j].qke = zzt.repeatbuf[i].qke;
+					appended = 1;
+#ifdef DEBUG_KEYSTROKES
+					fprintf(stderr, "key repeatbuf append %d @%d %d\n", zzt.repeatbuf[i].qke, j, i);
+#endif
+					break;
+				}
+			}
+		}
+	}
+	return appended;
 }
 
 static int zzt_key_append(int qch, int qke) {
@@ -163,10 +214,18 @@ void zzt_key(int c, int k) {
 #ifdef DEBUG_KEYSTROKES
 	fprintf(stderr, "key down %d %d\n", zzt.key.qch, zzt.key.qke);
 #endif
-	zzt_key_append(zzt.key.qch, zzt.key.qke);
+	if (zzt.multikey > 0) {
+		zzt_key_add_to_repeatbuf(zzt.key.qch, zzt.key.qke);
+		zzt_add_repeatbuf();
+	} else {
+		zzt_key_append(zzt.key.qch, zzt.key.qke);
+	}
 }
 
 void zzt_keyup(int k) {
+	if (zzt.multikey > 0) {
+		zzt_key_remove_from_repeatbuf(k);
+	}
 	int changed = 0;
 
 	if (zzt.key.qke == k) {
@@ -724,6 +783,10 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 		case 0x03: { // DELAY = DX: delay in milliseconds
 			A5_DETCHECK;
 		} return STATE_WAIT_TIMER + cpu->dx;
+		case 0x04: { // SET MULTIKEY MODE = AL=0x00 disables, AL=0x01 enables
+			A5_DETCHECK;
+			zzt_set_multikey(cpu->al & 0x01);
+		} return STATE_CONTINUE;
 		default: {
 			cpu->flags |= FLAG_CARRY;
 		} return STATE_CONTINUE;
@@ -1101,6 +1164,11 @@ int zzt_load_blink(int blink) {
 	return 0;
 }
 
+int zzt_set_multikey(int multi) {
+	zzt.multikey = multi;
+	return multi;
+}
+
 void zzt_init(int memory_kbs) {
 	if (memory_kbs < 0) {
 		// theoretical ZZT maximum!
@@ -1112,6 +1180,7 @@ void zzt_init(int memory_kbs) {
 	zzt.key.qke = -1;
 	for (int i = 0; i < KEYBUF_SIZE; i++) {
 		zzt.keybuf[i].qke = -1;
+		zzt.repeatbuf[i].qke = -1;
 	}
 
 	zzt.key_delay = 500;
@@ -1164,16 +1233,23 @@ static void zzt_update_keys(void) {
 	long ctime = zeta_time_ms();
 	zzt_key_entry* key = &(zzt.key);
 
-	if (key->qke == -1) return;
+	if (zzt.multikey == 0) && (key->qke == -1) return;
 	long dtime = ctime - key->time;
 	if (dtime >= (key->repeat ? zzt.key_repeat_delay : zzt.key_delay)) {
 		if (key->repeat && zzt.key_repeat_delay <= 0) {
 			return;
 		}
 
-		if (zzt_key_append(key->qch, key->qke)) {
-			key->time = dtime;
-			key->repeat = 1;
+		if (zzt.multikey > 0) {
+			if (zzt_add_repeatbuf()) {
+				key->time = dtime;
+				key->repeat = 1;
+			}
+		} else {
+			if (zzt_key_append(key->qch, key->qke)) {
+				key->time = dtime;
+				key->repeat = 1;
+			}
 		}
 	}
 }
