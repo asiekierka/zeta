@@ -1185,6 +1185,7 @@ void zzt_init(int memory_kbs) {
 
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
+	zzt.multikey = 0;
 
 	zzt.timer_time = 0;
 	zzt.joy_xstrobe_val = -1;
@@ -1233,7 +1234,7 @@ static void zzt_update_keys(void) {
 	long ctime = zeta_time_ms();
 	zzt_key_entry* key = &(zzt.key);
 
-	if (zzt.multikey == 0) && (key->qke == -1) return;
+	if (zzt.multikey == 0 && key->qke == -1) return;
 	long dtime = ctime - key->time;
 	if (dtime >= (key->repeat ? zzt.key_repeat_delay : zzt.key_delay)) {
 		if (key->repeat && zzt.key_repeat_delay <= 0) {
