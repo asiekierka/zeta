@@ -193,6 +193,7 @@ export class CanvasBasedRenderer {
 			this.asciiFg[i] = charCanvas;
 		}
 
+		this.chrBuf = [];
 		this.rdDirty = false;
 	};
 
