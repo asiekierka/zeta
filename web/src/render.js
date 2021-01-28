@@ -179,8 +179,11 @@ export class CanvasBasedRenderer {
 			srcImg = charCanvas;
 		}
 
-		this.asciiFg[15] = srcImg;
-		for (var i = 0; i < 15; i++) {
+		for (var i = 0; i < 16; i++) {
+			if (this.palette[i].toLowerCase() == '#ffffff') {
+				this.asciiFg[i] = srcImg;
+				continue;
+			}
 			let charCanvas = document.createElement('canvas');
 			charCanvas.width = 16 * this.chrWidth;
 			charCanvas.height = 16 * this.chrHeight;
