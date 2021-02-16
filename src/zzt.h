@@ -89,6 +89,8 @@ USER_FUNCTION
 int zzt_load_palette(u32* colors);
 USER_FUNCTION
 int zzt_load_blink(int blink);
+USER_FUNCTION
+int zzt_set_multikey(int multi);
 
 IMPLEMENT_FUNCTION
 long zeta_time_ms(void);
