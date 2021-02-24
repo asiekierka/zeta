@@ -678,7 +678,7 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 				zzt->key_repeat_delay = 0;
 				break;
 			case 0x05:
-				zzt->key_delay = 250 * (cpu->bh & 0x03);
+				zzt->key_delay = 250 * (1 + (cpu->bh & 0x03));
 				double krd_tmp = 1.0 / ((8 + (cpu->bl & 7)) * (1 << ((cpu->bl >> 3) & 3)) * 0.00417);
 				zzt->key_repeat_delay = (int) (1000 / krd_tmp);
 				break;
