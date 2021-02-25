@@ -80,7 +80,7 @@ static const char* map_char_to_unicode[] = {
  "\u2642",
  "\u2640",
  "\u266A",
- "\u266C",
+ "\u266B",
  "\u263C",
  "\u25BA",
  "\u25C4",
