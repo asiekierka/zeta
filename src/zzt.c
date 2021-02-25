@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include "zzt.h"
+#include "zzt_ems.h"
 
 #include "logging.h"
 
@@ -98,6 +99,9 @@ typedef struct {
 
 	// DOS
 	u32 dos_dta;
+#ifdef USE_EMS_EMULATION
+	ems_state ems;
+#endif
 
 	u8 disable_idle_hacks;
 } zzt_state;
@@ -369,6 +373,8 @@ void zzt_set_timer_offset(long time) {
 }
 
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
+	zzt_state *state = (zzt_state*) cpu;
+	
 #ifdef DEBUG_INTERRUPTS
 	fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
 #endif
@@ -403,6 +409,9 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x20: return STATE_END;
 		case 0x21: return cpu_func_intr_0x21(cpu);
 		case 0x33: cpu_func_intr_0x33(cpu); break;
+#ifdef USE_EMS_EMULATION
+		case 0x67: cpu_func_intr_ems(cpu, &(state->ems));
+#endif
 #ifdef USE_ZETA_INTERRUPT_EXTENSIONS
 		case 0xa5: return cpu_func_intr_0xa5(cpu);
 #endif
@@ -727,6 +736,15 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 		case 0x03: { // DELAY = DX: delay in milliseconds
 			A5_DETCHECK;
 		} return STATE_WAIT_TIMER + cpu->dx;
+		case 0x04: { // SET REPEAT DELAY
+			// BX: first repeat delay, CX: subsequent repeat delay; in milliseconds
+			// setting value to 0xFFFF avoids changing it
+			A5_DETCHECK;
+			if (cpu->bx != 0xFFFF)
+				zzt->key_delay = cpu->bx;
+			if (cpu->cx != 0xFFFF)
+				zzt->key_repeat_delay = cpu->cx;
+		} return STATE_CONTINUE;
 		default: {
 			cpu->flags |= FLAG_CARRY;
 		} return STATE_CONTINUE;
@@ -734,6 +752,9 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 }
 
 #endif
+
+#define VFS_HANDLE_SPECIAL 0xF000
+#define VFS_HANDLE_DEVICE 0xF000
 
 static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
@@ -806,6 +827,13 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 #ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "open %02X %s\n", cpu->al, STR_DS_DX);
 #endif
+#ifdef USE_EMS_EMULATION
+			if (!strcmp(STR_DS_DX, "EMMXXXX0")) {
+				cpu->ax = VFS_HANDLE_DEVICE;
+				cpu->flags &= ~FLAG_CARRY;
+				return STATE_CONTINUE;
+			}
+#endif
 			int handle = vfs_open(STR_DS_DX, cpu->al);
 			if (handle < 0) {
 				fprintf(stderr, "open: file not found: %s\n", STR_DS_DX);
@@ -817,10 +845,14 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x3E: { // close
-			int res = vfs_close(cpu->bx);
-			if (res < 0) {
-				cpu->ax = 0x06;
-				cpu->flags |= FLAG_CARRY;
+			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				int res = vfs_close(cpu->bx);
+				if (res < 0) {
+					cpu->ax = 0x06;
+					cpu->flags |= FLAG_CARRY;
+				} else {
+					cpu->flags &= ~FLAG_CARRY;
+				}
 			} else {
 				cpu->flags &= ~FLAG_CARRY;
 			}
@@ -844,13 +876,18 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 #ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "read %04X\n", cpu->cx);
 #endif
-			int res = vfs_read(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
-			if (res < 0) {
+			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				int res = vfs_read(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
+				if (res < 0) {
+					cpu->ax = 0x05;
+					cpu->flags |= FLAG_CARRY;
+				} else {
+					cpu->ax = res;
+					cpu->flags &= ~FLAG_CARRY;
+				}
+			} else {
 				cpu->ax = 0x05;
 				cpu->flags |= FLAG_CARRY;
-			} else {
-				cpu->ax = res;
-				cpu->flags &= ~FLAG_CARRY;
 			}
 		} return STATE_CONTINUE;
 		case 0x40: { // write
@@ -864,32 +901,53 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 				return STATE_CONTINUE;
 			}
 
-			int res = vfs_write(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
-			if (res < 0) {
+			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				int res = vfs_write(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
+				if (res < 0) {
+					cpu->ax = 0x05;
+					cpu->flags |= FLAG_CARRY;
+				} else {
+					cpu->ax = res;
+					cpu->flags &= ~FLAG_CARRY;
+				}
+			} else {
 				cpu->ax = 0x05;
 				cpu->flags |= FLAG_CARRY;
-			} else {
-				cpu->ax = res;
-				cpu->flags &= ~FLAG_CARRY;
 			}
 		} return STATE_CONTINUE;
 		case 0x42: { // lseek
-			int res = vfs_seek(cpu->bx, (cpu->cx << 16) | cpu->dx, cpu->al);
-			if (res < 0) {
+			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				int res = vfs_seek(cpu->bx, (cpu->cx << 16) | cpu->dx, cpu->al);
+				if (res < 0) {
+					cpu->ax = 0x05;
+					cpu->flags |= FLAG_CARRY;
+				} else {
+					cpu->ax = res;
+					cpu->flags &= ~FLAG_CARRY;
+				}
+			} else {
 				cpu->ax = 0x05;
 				cpu->flags |= FLAG_CARRY;
-			} else {
-				cpu->ax = res;
-				cpu->flags &= ~FLAG_CARRY;
 			}
 		} return STATE_CONTINUE;
-		case 0x44: // 0x4400
-			if (cpu->ax == 0x4400) {
+		case 0x44: { // 0x4400
+			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				// TODO: Implement?
 				cpu->ax = 0x01;
 				cpu->flags |= FLAG_CARRY;
-				return STATE_CONTINUE;
+			} else {
+				if (cpu->ax == 0x4400) {
+					cpu->dx = 0x0080;
+					cpu->flags &= FLAG_CARRY;
+				} else if (cpu->ax == 0x4407) {
+					cpu->al = 0xFF;
+					cpu->flags &= FLAG_CARRY;
+				} else {
+					cpu->ax = 0x01;
+					cpu->flags |= FLAG_CARRY;
+				}
 			}
-			break;
+		} return STATE_CONTINUE;
 		case 0x00:
 		case 0x4C:
 			return STATE_END;
@@ -1097,6 +1155,11 @@ void zzt_init(int memory_kbs) {
 #ifdef USE_ZETA_INTERRUPT_EXTENSIONS
 	// Zeta extensions check
 	strcpy((char*) (zzt.cpu.ram + 0xFFFF5), "ZetaEmu");
+#endif
+
+#ifdef USE_EMS_EMULATION
+	// EMS state
+	ems_state_init(&(zzt.ems), 0xD000);
 #endif
 
 	// video constants

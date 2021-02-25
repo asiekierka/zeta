@@ -51,6 +51,7 @@ OBJS =	$(OBJDIR)/8x14.o \
 	\
 	$(OBJDIR)/cpu.o \
 	$(OBJDIR)/zzt.o \
+	$(OBJDIR)/zzt_ems.o \
 	$(OBJDIR)/audio_stream.o \
 	$(OBJDIR)/audio_shared.o
 

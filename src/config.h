@@ -55,6 +55,7 @@
 // Zeta emulator core configuration
 
 #define IDLEHACK_MAX_PLAYER_CLONES 8
+#define USE_EMS_EMULATION
 #define USE_ZETA_INTERRUPT_EXTENSIONS
 
 // Zeta-preconfigured CPU core settings - do not touch!
