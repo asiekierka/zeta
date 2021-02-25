@@ -48,6 +48,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
                 * 3-component arrays of range min - max (inclusive),
                 * "#012345" or "#012"-format strings.
     * memory_limit: the memory limit, in kilobytes (64-640)
+    * extended_memory_limit: the extended (EMS) memory limit, in kilobytes
 * render:
     * type: the engine to use for video rendering; can be "auto" (preferred) or "canvas"
     * blink_cycle_duration: the length of a full blink cycle, in seconds; <= 0 to disable; the default is 0.466

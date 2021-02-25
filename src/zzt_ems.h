@@ -27,6 +27,7 @@
 
 #define EMS_PAGE_SIZE 16384
 #define EMS_PHYSICAL_PAGES 4
+#define EMS_MAX_PAGES 0x4000
 #define EMS_MAX_HANDLE 0x1000
 #define EMS_HANDLE_NONE -1
 
@@ -44,12 +45,16 @@ typedef enum {
 
 typedef struct {
     u8 *data;
+#ifdef USE_EMS_REALLOC
+    u16 alloc_page_count;
+#endif
     u16 page_count;
     bool used;
 } ems_handle;
 
 typedef struct {
     ems_handle *handles;
+    u16 max_pages;
     s16 map_handle[EMS_PHYSICAL_PAGES];
     u16 map_page[EMS_PHYSICAL_PAGES];
     u16 handle_size;    
@@ -58,5 +63,6 @@ typedef struct {
 
 void cpu_func_intr_ems(cpu_state *cpu, ems_state *ems);
 void ems_state_init(ems_state *ems, u16 frame_segment);
+void ems_set_max_pages(ems_state *ems, int max_pages);
 
 #endif /* __ZZT_EMS_H__ */

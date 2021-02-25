@@ -82,6 +82,8 @@ USER_FUNCTION
 void zzt_key_set_delay(int ms, int repeat_ms);
 USER_FUNCTION
 void zzt_set_timer_offset(long ms);
+USER_FUNCTION
+void zzt_set_max_extended_memory(int kilobytes);
 
 USER_FUNCTION
 int zzt_load_charset(int width, int height, u8* data);

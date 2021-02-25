@@ -83,6 +83,10 @@ static ems_status ems_unmap_page(cpu_state *cpu, ems_state *ems, int physical_pa
     u8 *phys_data;
     int handle, logical_page;
 
+#ifdef DEBUG_EMS
+    fprintf(stderr, "ems: unmapping physical page %d\n", physical_page);
+#endif
+
     if (physical_page >= EMS_PHYSICAL_PAGES) return EMS_STATUS_INVALID_PHYSICAL_PAGE;
 
     if (ems->map_handle[physical_page] != EMS_HANDLE_NONE) {
@@ -106,12 +110,38 @@ static ems_status ems_map_page(cpu_state *cpu, ems_state *ems, u8 physical_page,
     u8 *phys_data;
     ems_status status;
 
+#ifdef DEBUG_EMS
+    fprintf(stderr, "ems: mapping page %d:%d to physical page %d\n", handle, logical_page, physical_page);
+#endif
+
     if (physical_page >= EMS_PHYSICAL_PAGES) return EMS_STATUS_INVALID_PHYSICAL_PAGE;
     if (!ems_valid_handle(ems, handle)) return EMS_STATUS_INVALID_HANDLE;
     if (logical_page >= ems->handles[handle].page_count) return EMS_STATUS_INVALID_LOGICAL_PAGE;
     if ((status = ems_unmap_page(cpu, ems, physical_page)) != EMS_STATUS_SUCCESS) return status;
 
     if (logical_page >= 0) {
+#ifdef USE_EMS_REALLOC
+        if (ems->handles[handle].alloc_page_count <= logical_page) {
+            if (ems->handles[handle].alloc_page_count == 0) {
+                ems->handles[handle].data = malloc(sizeof(u8) * (logical_page + 1) * EMS_PAGE_SIZE);
+                if (ems->handles[handle].data == NULL) {
+                    return EMS_STATUS_INTERNAL_ERROR;
+                }
+            } else {
+                phys_data = ems->handles[handle].data;
+                ems->handles[handle].data = realloc(phys_data, sizeof(u8) * (logical_page + 1) * EMS_PAGE_SIZE);
+                if (ems->handles[handle].data == NULL) {
+                    ems->handles[handle].data = phys_data;
+                    return EMS_STATUS_INTERNAL_ERROR;
+                }
+            }
+#ifdef DEBUG_EMS
+            fprintf(stderr, "ems: realloc handle %d, %d -> %d pages\n", handle, ems->handles[handle].alloc_page_count, logical_page + 1);
+#endif
+            ems->handles[handle].alloc_page_count = logical_page + 1;
+        }
+#endif
+
         phys_data = cpu->ram + (ems->frame_segment << 4) + (physical_page * EMS_PAGE_SIZE);
         memcpy(phys_data, ems->handles[handle].data + (logical_page * EMS_PAGE_SIZE), EMS_PAGE_SIZE);
     
@@ -126,10 +156,18 @@ static ems_status ems_alloc_pages(ems_state *ems, int num_pages, u16 *handle) {
     int idx = ems_find_free_handle(ems);
     if (idx < 0) return EMS_STATUS_OUT_OF_HANDLES;
 
+#ifdef DEBUG_EMS
+    fprintf(stderr, "ems: allocating %d pages\n", num_pages);
+#endif
+
+#ifdef USE_EMS_REALLOC
+    ems->handles[idx].alloc_page_count = 0;
+#else
     ems->handles[idx].data = malloc(sizeof(u8) * num_pages * EMS_PAGE_SIZE);
     if (ems->handles[idx].data == NULL) {
         return EMS_STATUS_OUT_OF_MEMORY;
     }
+#endif
     ems->handles[idx].page_count = num_pages;
     ems->handles[idx].used = true;
     *handle = idx;
@@ -138,6 +176,10 @@ static ems_status ems_alloc_pages(ems_state *ems, int num_pages, u16 *handle) {
 
 static ems_status ems_dealloc_pages(ems_state *ems, int handle) {
     int i;
+
+#ifdef DEBUG_EMS
+    fprintf(stderr, "ems: deallocating handle %d\n", handle);
+#endif
 
     if (!ems_valid_handle(ems, handle)) return EMS_STATUS_INVALID_HANDLE;
 
@@ -163,14 +205,15 @@ void cpu_func_intr_ems(cpu_state *cpu, ems_state *ems) {
 	switch (cpu->ah) {
         case 0x40: // Status
             cpu->ah = EMS_STATUS_SUCCESS;
+            break;
         case 0x41: // FrameSeg
             cpu->ah = EMS_STATUS_SUCCESS;
             cpu->bx = ems->frame_segment;
             break;
         case 0x42: // MaxPagesAvail - stub
             cpu->ah = EMS_STATUS_SUCCESS;
-            cpu->bx = 0xFFFF;
-            cpu->dx = 0xFFFF;
+            cpu->bx = ems->max_pages;
+            cpu->dx = ems->max_pages;
             break;
         case 0x43: // AllocPages
             cpu->ah = ems_alloc_pages(ems, cpu->bx, &(cpu->dx));
@@ -212,10 +255,15 @@ void ems_state_init(ems_state *ems, u16 frame_segment) {
     int i;
 
     memset(ems, 0, sizeof(ems_state));
+    ems->max_pages = EMS_MAX_PAGES;
     ems->frame_segment = frame_segment;
     for (i = 0; i < EMS_PHYSICAL_PAGES; i++) {
         ems->map_handle[i] = EMS_HANDLE_NONE;
     }
+}
+
+void ems_set_max_pages(ems_state *ems, int max_pages) {
+    ems->max_pages = (max_pages < 0 || max_pages > EMS_MAX_PAGES) ? EMS_MAX_PAGES : max_pages;
 }
 
 #endif /* USE_EMS_EMULATION */

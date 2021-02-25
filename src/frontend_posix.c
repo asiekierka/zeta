@@ -48,6 +48,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "             - pal (MegaZeux-like; 16 colors ranged 00-3F)\n");
 	fprintf(stderr, "             - pld (Toshiba UPAL; 64 EGA colors ranged 00-3F)\n");
 	fprintf(stderr, "  -m []  set memory limit, in KB (64-640)\n");
+	fprintf(stderr, "  -M []  set extended memory limit, in KB\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
@@ -64,10 +65,11 @@ static int posix_zzt_init(int argc, char **argv) {
 	int c;
 	int skip_kc = 0;
 	int memory_kbs = -1;
+	int extended_memory_kbs = -1;
 	int video_blink = 1;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "D:be:hl:m:t")) >= 0) {
+	while ((c = getopt(argc, argv, "D:be:hl:m:M:t")) >= 0) {
 		switch(c) {
 			case 'D':
 				posix_zzt_arg_note_delay = atof(optarg);
@@ -93,6 +95,9 @@ static int posix_zzt_init(int argc, char **argv) {
 				posix_zzt_help(argc, argv);
 				exit(0);
 				return -1;
+			case 'M':
+				extended_memory_kbs = atoi(optarg);
+				break;
 			case 'm':
 				memory_kbs = atoi(optarg);
 				// intentional - going above 640K ought to be undocumented
@@ -113,6 +118,7 @@ static int posix_zzt_init(int argc, char **argv) {
 #endif
 
 	zzt_init(memory_kbs);
+	zzt_set_max_extended_memory(extended_memory_kbs);
 	zzt_load_blink(video_blink);
 
 #ifdef USE_GETOPT

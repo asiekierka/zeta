@@ -372,6 +372,12 @@ void zzt_set_timer_offset(long time) {
 	zzt.timer_time_offset = time;
 }
 
+void zzt_set_max_extended_memory(int kilobytes) {
+#ifdef USE_EMS_EMULATION
+	ems_set_max_pages(&(zzt.ems), kilobytes / (EMS_PAGE_SIZE / 1024));
+#endif
+}
+
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 	zzt_state *state = (zzt_state*) cpu;
 	
