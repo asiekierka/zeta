@@ -52,6 +52,11 @@
 
 // #define DEBUG_OPENGL
 
+// Zeta emulator core configuration
+
+#define IDLEHACK_MAX_PLAYER_CLONES 8
+#define USE_ZETA_INTERRUPT_EXTENSIONS
+
 // Zeta-preconfigured CPU core settings - do not touch!
 
 #define MAX_INTQUEUE_SIZE 256
@@ -65,5 +70,6 @@
 //#define USE_OPCODES_80186
 //#define USE_OPCODES_DECIMAL
 //#define USE_OPCODES_SALC
+#define USE_CPU_PARITY_FLAG
 
 #endif /* __CONFIG_H__ */

@@ -63,7 +63,7 @@ static const u8 sdl_to_pc_scancode[] = {
 	0x4D, 0x4B, 0x50, 0x48, 0x45
 };
 
-static const u8 kcode_to_scode_32[] = {
+static const u8 text_char_to_scode_32[] = {
 	0x39, // 32
 	0x02, 0x03, 0x04, 0x05, 0x06, 0x08, 0x28, 0x0A, 0x0B, 0x09, 0x0D, 0x33, 0x0C, 0x34, // 46
 	0x35, 0x0B, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, // 57
@@ -78,6 +78,7 @@ static const u8 kcode_to_scode_32[] = {
 	0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C,       /* S-Z */
 	0x1A, 0x2B, 0x1B, 0x29 // 126
 };
+#define TEXT_CHAR_TO_SCANCODE(c) (((c) >= 32 && (c) <= 126) ? text_char_to_scode_32[(c) - 32] : 0)
 
 static const int sdl_to_pc_scancode_max = sizeof(sdl_to_pc_scancode) - 1;
 
@@ -410,8 +411,8 @@ int main(int argc, char **argv) {
 				case SDL_TEXTINPUT:
 					kcode = event.text.text[0];
 					if (kcode >= 32 && kcode < 127) {
-						zzt_key(kcode, kcode_to_scode_32[kcode - 32]);
-						zzt_keyup(kcode_to_scode_32[kcode - 32]);
+						zzt_key(kcode, TEXT_CHAR_TO_SCANCODE(kcode));
+						zzt_keyup(TEXT_CHAR_TO_SCANCODE(kcode));
 					}
 					break;
 				case SDL_KEYDOWN:

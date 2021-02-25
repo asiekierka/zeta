@@ -103,7 +103,6 @@ typedef struct {
 	int disp;
 } mrm_entry;
 
-static u8 parity_table[256];
 static mrm_entry mrm_table[2048];
 static mrm_entry mrm6_4, mrm6_5;
 
@@ -150,6 +149,30 @@ static void generate_mrm_table(void) {
 	mrm6_5.disp = 0;
 }
 
+#ifdef USE_CPU_PARITY_FLAG
+static u8 parity_table[256];
+
+#define FLAG_WRITE_PARITY(val) cpu->flags = (cpu->flags & 0xFFFB) | parity_table[((val) & 0xFF)]
+
+static void generate_parity_table(void) {
+	int i;
+	u8 p, v;
+
+	for (i = 0; i < 256; i++) {
+		p = 0;
+		v = i;
+		while (v != 0) {
+			p = p + (v & 1);
+			v >>= 1;
+		}
+		parity_table[i] = (p & 1) ? 0 : FLAG_PARITY;
+	}
+}
+#else
+#define FLAG_WRITE_PARITY(val)
+static void generate_parity_table(void) { }
+#endif /* USE_CPU_PARITY_FLAG */
+
 static u16 incdec_dir(cpu_state* cpu, u16 reg, u16 amount) {
 	if (FLAG(FLAG_DIRECTION)) {
 		return reg - amount;
@@ -164,22 +187,9 @@ void cpu_set_ip(cpu_state* cpu, u16 cs, u16 ip) {
 }
 
 void cpu_init_globals(void) {
-	int i;
-	u8 p, v;
-
 	generate_mrm_table();
-	for (i = 0; i < 256; i++) {
-		p = 0;
-		v = i;
-		while (v != 0) {
-			p = p + (v & 1);
-			v >>= 1;
-		}
-		parity_table[i] = (p & 1) ? 0 : FLAG_PARITY;
-	}
+	generate_parity_table();
 }
-
-#define FLAG_WRITE_PARITY(val) cpu->flags = (cpu->flags & 0xFFFB) | parity_table[((val) & 0xFF)];
 
 static u8 cpu_seg_rm(int v) {
 	switch (v) {

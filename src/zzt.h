@@ -41,13 +41,13 @@
 USER_FUNCTION
 int zzt_video_mode(void);
 USER_FUNCTION
-void zzt_key(int ch, int key);
+void zzt_key(int key_ch, int key_sc);
 USER_FUNCTION
-void zzt_keyup(int key);
+void zzt_keyup(int key_sc);
 USER_FUNCTION
-void zzt_kmod_set(int mod);
+void zzt_kmod_set(int mask);
 USER_FUNCTION
-void zzt_kmod_clear(int mod);
+void zzt_kmod_clear(int mask);
 USER_FUNCTION
 void zzt_joy_set(int button);
 USER_FUNCTION

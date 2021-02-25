@@ -34,7 +34,6 @@
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
-// #define DEBUG_ZETA_A5_INTERRUPTS
 
 #define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
 #define STR_DS_SI (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->si])
@@ -43,20 +42,20 @@
 #define UPDATE_CARRY_RESULT(res) { if ((res) < 0) { cpu->flags |= FLAG_CARRY; } else { cpu->flags &= ~FLAG_CARRY; } }
 
 typedef struct {
-	int qch;
-	int qke;
+	s16 key_ch; // key character
+	s16 key_sc; // key scancode
 } zzt_keybuf_entry;
 
 typedef struct {
-	int qch;
-	int qke;
 	long time;
+	s16 key_ch;
+	s16 key_sc;
 	u8 repeat;
 } zzt_key_entry;
 
 extern unsigned char res_8x14_bin[];
 
-static u32 def_palette[] = {
+static u32 default_ega_palette[] = {
 	0xff000000, 0xff0000aa, 0xff00aa00, 0xff00aaaa,
 	0xffaa0000, 0xffaa00aa, 0xffaa5500, 0xffaaaaaa,
 	0xff555555, 0xff5555ff, 0xff55ff55, 0xff55ffff,
@@ -69,13 +68,16 @@ typedef struct {
 	double timer_time;
 
 	// video
-	int chr_width, chr_height;
+	int char_width, char_height;
+	u8 charset[256*16];
+	u32 palette[PALETTE_COLOR_COUNT];
+	int blink;
 
 	// keyboard
 	int key_delay, key_repeat_delay;
 	zzt_key_entry key;
 	zzt_keybuf_entry keybuf[KEYBUF_SIZE];
-	int kmod;
+	u8 key_modifiers;
 
 	// joystick
 	u8 joy_xstrobe_val, joy_ystrobe_val;
@@ -97,10 +99,6 @@ typedef struct {
 	// DOS
 	u32 dos_dta;
 
-	u8 charset[256*16];
-	u32 palette[PALETTE_COLOR_COUNT];
-	int blink;
-
 	u8 disable_idle_hacks;
 } zzt_state;
 
@@ -110,30 +108,30 @@ static int zzt_memory_seg_limit() {
 	return (zzt.cpu.ram[0x413] | (zzt.cpu.ram[0x414] << 8)) << 6;
 }
 
-void zzt_kmod_set(int mod) {
-	zzt.kmod |= mod;
+void zzt_kmod_set(int mask) {
+	zzt.key_modifiers |= mask;
 }
 
-void zzt_kmod_clear(int mod) {
-	zzt.kmod &= ~mod;
+void zzt_kmod_clear(int mask) {
+	zzt.key_modifiers &= ~mask;
 }
 
 static long zzt_internal_time(void) {
 	return zzt.timer_time_offset + ((long) zzt.timer_time);
 }
 
-static int zzt_key_append(int qch, int qke) {
+static int zzt_key_append(int key_ch, int key_sc) {
 	for (int j = 0; j < KEYBUF_SIZE; j++) {
-		if (zzt.keybuf[j].qke == -1 || zzt.keybuf[j].qke == qke) {
+		if (zzt.keybuf[j].key_sc == -1 || zzt.keybuf[j].key_sc == key_sc) {
 #ifdef DEBUG_KEYSTROKES
-			fprintf(stderr, "key appended %d @ %d\n", qke, j);
+			fprintf(stderr, "key scancode=%d appended @ %d\n", key_sc, j);
 #endif
-			zzt.keybuf[j].qch = qch;
-			zzt.keybuf[j].qke = qke;
+			zzt.keybuf[j].key_ch = key_ch;
+			zzt.keybuf[j].key_sc = key_sc;
 			return 1;
 		}
 	}
-	fprintf(stderr, "key not appended %d\n", qke);
+	fprintf(stderr, "key scancode=%d not appended\n", key_sc);
 	return 0;
 }
 
@@ -150,41 +148,41 @@ void zzt_key_set_delay(int ms, int repeat_ms) {
 	zzt.key_repeat_delay = repeat_ms;
 }
 
-void zzt_key(int c, int k) {
+void zzt_key(int key_ch, int key_sc) {
 	// cull repeat presses
-	if (zzt.key.qke == k) {
+	if (zzt.key.key_sc == key_sc) {
 		return;
 	}
 
-	zzt.key.qch = ((c & 0x7F) == c) ? c : 0;
-	zzt.key.qke = k;
+	zzt.key.key_ch = ((key_ch & 0x7F) == key_ch) ? key_ch : 0;
+	zzt.key.key_sc = key_sc;
 	zzt.key.time = zeta_time_ms();
 	zzt.key.repeat = 0;
 #ifdef DEBUG_KEYSTROKES
-	fprintf(stderr, "key down %d %d\n", zzt.key.qch, zzt.key.qke);
+	fprintf(stderr, "key down ch=%d scancode=%d\n", zzt.key.key_ch, zzt.key.key_sc);
 #endif
-	zzt_key_append(zzt.key.qch, zzt.key.qke);
+	zzt_key_append(zzt.key.key_ch, zzt.key.key_sc);
 }
 
-void zzt_keyup(int k) {
+void zzt_keyup(int key_sc) {
 	int changed = 0;
 
-	if (zzt.key.qke == k) {
+	if (zzt.key.key_sc == key_sc) {
 #ifdef DEBUG_KEYSTROKES
-		fprintf(stderr, "key up %d %d\n", zzt.key.qch, zzt.key.qke);
+		fprintf(stderr, "key up ch=%d scancode=%d\n", zzt.key.key_ch, zzt.key.key_sc);
 #endif
-		zzt.key.qke = -1;
+		zzt.key.key_sc = -1;
 		changed |= zzt.key.repeat;
 	}
 
 	if (changed) {
 		// if the key was in repeat mode, cull existing occurences to clear up the queue
 		for (int i = 0; i < KEYBUF_SIZE; i++) {
-			if (zzt.keybuf[i].qke == k) {
+			if (zzt.keybuf[i].key_sc == key_sc) {
 				for (int j = i+1; j < KEYBUF_SIZE; j++) {
 					zzt.keybuf[j-1] = zzt.keybuf[j];
 				}
-				zzt.keybuf[KEYBUF_SIZE-1].qke = -1;
+				zzt.keybuf[KEYBUF_SIZE-1].key_sc = -1;
 				i--;
 			}
 		}
@@ -207,11 +205,11 @@ void zzt_mark_frame(void) {
 #define JOY_RANGE (JOY_MAX-JOY_MIN)
 
 void zzt_joy_set(int button) {
-	if (button < 2) zzt.port_201 &= ~(1 << (button + 4));
+	if (button < 2) zzt.port_201 &= ~(0x10 << button);
 }
 
 void zzt_joy_clear(int button) {
-	if (button < 2) zzt.port_201 |= (1 << (button + 4));
+	if (button < 2) zzt.port_201 |= (0x10 << button);
 }
 
 void zzt_joy_axis(int axis, int value) {
@@ -351,8 +349,8 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 			break;
 		case 3:
 			cpu->bx = zzt->mouse_buttons;
-			cpu->cx = zzt->mouse_x / zzt->chr_width;
-			cpu->dx = zzt->mouse_y / zzt->chr_height;
+			cpu->cx = zzt->mouse_x / zzt->char_width;
+			cpu->dx = zzt->mouse_y / zzt->char_height;
 			break;
 		case 0xB:
 			cpu->cx = zzt->mouse_xd;
@@ -375,14 +373,6 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 	fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
 #endif
 	switch (intr) {
-		case 0x11:
-			cpu->al = cpu->ram[0x410];
-			cpu->ah = cpu->ram[0x411];
-			break;
-		case 0x12:
-			cpu->al = cpu->ram[0x413];
-			cpu->ah = cpu->ram[0x414];
-			break;
 		case 0x08: {
 			u32 time = cpu->ram[0x46c] | (cpu->ram[0x46d] << 8)
 				| (cpu->ram[0x46e] << 16) | (cpu->ram[0x46f] << 24);
@@ -393,19 +383,29 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 			cpu->ram[0x46f] = (time>>24) & 0xFF;
 			cpu_emit_interrupt(cpu, 0x1C);
 		} break;
-		case 0x1C: break;
 		case 0x10: cpu_func_intr_0x10(cpu); break;
+		case 0x11:
+			cpu->al = cpu->ram[0x410];
+			cpu->ah = cpu->ram[0x411];
+			break;
+		case 0x12:
+			cpu->al = cpu->ram[0x413];
+			cpu->ah = cpu->ram[0x414];
+			break;
 		case 0x13: cpu_func_intr_0x13(cpu); break;
-		case 0x16: return cpu_func_intr_0x16(cpu);
-		case 0x20: return STATE_END;
-		case 0x21: return cpu_func_intr_0x21(cpu);
-		case 0x33: cpu_func_intr_0x33(cpu); break;
-		case 0xa5: return cpu_func_intr_0xa5(cpu);
 		case 0x15:
-			fprintf(stderr, "sysconf %04X\n", cpu->ax);
+			fprintf(stderr, "todo: sysconf interrupt %04X\n", cpu->ax);
 			cpu->ah = 0x86;
 			cpu->flags |= FLAG_CARRY;
 			break;
+		case 0x16: return cpu_func_intr_0x16(cpu);
+		case 0x1C: break;
+		case 0x20: return STATE_END;
+		case 0x21: return cpu_func_intr_0x21(cpu);
+		case 0x33: cpu_func_intr_0x33(cpu); break;
+#ifdef USE_ZETA_INTERRUPT_EXTENSIONS
+		case 0xa5: return cpu_func_intr_0xa5(cpu);
+#endif
 		default:
 			fprintf(stderr, "unknown interrupt %02X %04X\n", intr, cpu->ax);
 			break;
@@ -575,7 +575,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			switch (cpu->al) {
 				case 0x00:
 				case 0x10: {
-					if (zzt.chr_width != 8) {
+					if (zzt.char_width != 8) {
 						fprintf(stderr, "int 0x10: character loading failed - non-8-wide character set updates unsupported!\n");
 						return;
 					}
@@ -586,7 +586,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					int outpos = cpu->dx * cpu->bh;
 					u8* buffer = U8_ES_BP;
 
-					if (cpu->bh != zzt.chr_height && cpu->cx < 256 && cpu->dx != 0) {
+					if (cpu->bh != zzt.char_height && cpu->cx < 256 && cpu->dx != 0) {
 						fprintf(stderr, "int 0x10: character loading failed - partial changing of character sizes unsupported!\n");
 						return;
 					}
@@ -596,8 +596,8 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 						zzt.charset[outpos + i] = buffer[i];
 					}
 
-					zzt.chr_height = cpu->bh;
-					zeta_update_charset(zzt.chr_width, zzt.chr_height, zzt.charset);
+					zzt.char_height = cpu->bh;
+					zeta_update_charset(zzt.char_width, zzt.char_height, zzt.charset);
 				} return;
 			}
 			break;
@@ -621,8 +621,9 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 	fprintf(stderr, "int 0x13 AX=%04X\n", cpu->ax);
 }
 
-// ZZT calls this once a "frame". But let's give it a bit of a buffer,
-// in case this doesn't always hold true.
+// As per RoZ, ZZT checks for keyboard input once for every InputUpdate call
+// on the board.
+#define KEYBOARD_CHECKS_PER_TICK (IDLEHACK_MAX_PLAYER_CLONES + 1)
 static long kbd_call_time = 0;
 static int kbd_call_count = 0;
 
@@ -630,25 +631,25 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	if (cpu->ah == 0x00) {
-		if (zzt->keybuf[0].qke >= 0) {
+		if (zzt->keybuf[0].key_sc >= 0) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = zzt->keybuf[0].qke;
-			cpu->al = zzt->keybuf[0].qch;
+			cpu->ah = zzt->keybuf[0].key_sc;
+			cpu->al = zzt->keybuf[0].key_ch;
 
 			// rotate keybuf
 			for (int i = 1; i < KEYBUF_SIZE; i++) {
 				zzt->keybuf[i-1] = zzt->keybuf[i];
 			}
-			zzt->keybuf[KEYBUF_SIZE-1].qke = -1;
+			zzt->keybuf[KEYBUF_SIZE-1].key_sc = -1;
 		} else {
 			return STATE_BLOCK;
 		}
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x01) {
-		if (zzt->keybuf[0].qke >= 0) {
+		if (zzt->keybuf[0].key_sc >= 0) {
 			cpu->flags &= ~FLAG_ZERO;
-			cpu->ah = zzt->keybuf[0].qke;
-			cpu->al = zzt->keybuf[0].qch;
+			cpu->ah = zzt->keybuf[0].key_sc;
+			cpu->al = zzt->keybuf[0].key_ch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
 			if (!zzt->disable_idle_hacks) {
@@ -656,7 +657,7 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 					kbd_call_time = zzt_internal_time();
 					kbd_call_count = 0;
 				}
-				if ((++kbd_call_count) >= 4) {
+				if ((++kbd_call_count) >= KEYBOARD_CHECKS_PER_TICK) {
 					kbd_call_count = 0;
 					return STATE_WAIT_FRAME;
 				}
@@ -664,7 +665,7 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 		}
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x02) {
-		cpu->al = zzt->kmod;
+		cpu->al = zzt->key_modifiers;
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x03) {
 		// typematic control; not used by ZZT,
@@ -696,6 +697,8 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 	return STATE_CONTINUE;
 }
 
+#ifdef USE_ZETA_INTERRUPT_EXTENSIONS
+
 #define A5_DETCHECK { if (is_detecting) { cpu->cx = 0x1515; cpu->flags &= ~FLAG_CARRY; return STATE_CONTINUE; } }
 
 static int cpu_func_intr_0xa5(cpu_state* cpu) {
@@ -706,7 +709,7 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 	bool is_running = (cpu->cx == 0x1515);
 	if (is_detecting == is_running) return STATE_CONTINUE;
 
-#ifdef DEBUG_ZETA_A5_INTERRUPTS
+#ifdef DEBUG_INTERRUPTS
 	fprintf(stderr, "dbg: zeta proprietary interrupt %02X (%s)\n", cpu->ah, is_detecting ? "detecting" : "running");
 #endif
 
@@ -729,6 +732,8 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 		} return STATE_CONTINUE;
 	}
 }
+
+#endif
 
 static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
@@ -920,49 +925,6 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 	return STATE_CONTINUE;
 }
 
-/* #define MAX_ALLOC (639*64)
-static u32 seg_allocs[MAX_ALLOC];
-
-static int mem_alloc(u32 paragraphs, u8 simulate) {
-	int offset = 0;
-	while (offset < MAX_ALLOC) {
-		fprintf(stderr, "offset = %d\n", offset);
-		if (seg_allocs[offset] > 0) {
-			offset += seg_allocs[offset];
-		} else {
-			int size = 0;
-			while (seg_allocs[offset+size] == 0 && size < paragraphs) {
-				size++;
-			}
-			fprintf(stderr, "size = %d/%d\n", size, paragraphs);
-			if (size == paragraphs) {
-				if (!simulate) {
-					for (int i = 0; i < size; i++) {
-						seg_allocs[offset+i] = (size-i);
-					}
-				}
-				fprintf(stderr, "offset >= %d\n", offset);
-				return offset;
-			} else {
-				offset += size;
-			}
-		}
-	}
-
-	return -1;
-}
-
-static int mem_free(u32 addr) {
-	int v = seg_allocs[addr];
-	if (v <= 0) return 0;
-	if (addr > 0 && seg_allocs[addr - 1] > v) return 0;
-
-	for (int i = 0; i < v; i++) {
-		seg_allocs[addr+i] = 0;
-	}
-	return 1;
-} */
-
 static u8 vfs_read8(int handle, int pos) {
 	u8 v;
 	vfs_seek(handle, pos, VFS_SEEK_SET);
@@ -1002,14 +964,8 @@ static void zzt_load_exe(int handle, const char *arg) {
 	int last_page_size = vfs_read16(handle, 2);
 	int pages = vfs_read16(handle, 4);
 	int hdr_offset = vfs_read16(handle, 8);
-//	int minalloc = vfs_read16(handle, 0xA);
-//	int maxalloc = vfs_read16(handle, 0xC);
 
 	int filesize = (pages * 512) - ((last_page_size > 0) ? (512 - last_page_size) : 0) - (hdr_offset * 16);
-/*	int size_pars = (filesize + 15) / 16;
-	size_pars += 16; // PSP */
-//	int size_pars = 40400;
-//	int offset_pars = mem_alloc(size_pars, 0);
 	int offset_pars = 0x100;
 	int size_pars = zzt_memory_seg_limit() - 0x100;
 
@@ -1076,8 +1032,8 @@ void zzt_load_binary(int handle, const char *arg) {
 int zzt_load_charset(int width, int height, u8 *data) {
 	if (width != 8 || height <= 0 || height > 16) return -1;
 
-	zzt.chr_width = width;
-	zzt.chr_height = height;
+	zzt.char_width = width;
+	zzt.char_height = height;
 	for (int i = 0; i < 256*height; i++) {
 		zzt.charset[i] = data[i];
 	}
@@ -1109,9 +1065,9 @@ void zzt_init(int memory_kbs) {
 		memory_kbs = MAX_MEMORY_KBS;
 	}
 
-	zzt.key.qke = -1;
+	zzt.key.key_sc = -1;
 	for (int i = 0; i < KEYBUF_SIZE; i++) {
-		zzt.keybuf[i].qke = -1;
+		zzt.keybuf[i].key_sc = -1;
 	}
 
 	zzt.key_delay = 500;
@@ -1136,8 +1092,12 @@ void zzt_init(int memory_kbs) {
 	zzt.cpu.ram[0x411] = 0x00;
 	zzt.cpu.ram[0x413] = memory_kbs & 0xFF;
 	zzt.cpu.ram[0x414] = memory_kbs >> 8;
-	strcpy((char*) (zzt.cpu.ram + 0xFFFF5), "ZetaEmu");
 	zzt.cpu.ram[0xFFFFE] = 0xFB;
+
+#ifdef USE_ZETA_INTERRUPT_EXTENSIONS
+	// Zeta extensions check
+	strcpy((char*) (zzt.cpu.ram + 0xFFFF5), "ZetaEmu");
+#endif
 
 	// video constants
 
@@ -1152,7 +1112,7 @@ void zzt_init(int memory_kbs) {
 	// default assets
 
 	zzt_load_charset(8, 14, res_8x14_bin);
-	zzt_load_palette(def_palette);
+	zzt_load_palette(default_ega_palette);
 	zzt_load_blink(1);
 }
 
@@ -1164,14 +1124,14 @@ static void zzt_update_keys(void) {
 	long ctime = zeta_time_ms();
 	zzt_key_entry* key = &(zzt.key);
 
-	if (key->qke == -1) return;
+	if (key->key_sc == -1) return;
 	long dtime = ctime - key->time;
 	if (dtime >= (key->repeat ? zzt.key_repeat_delay : zzt.key_delay)) {
 		if (key->repeat && zzt.key_repeat_delay <= 0) {
 			return;
 		}
 
-		if (zzt_key_append(key->qch, key->qke)) {
+		if (zzt_key_append(key->key_ch, key->key_sc)) {
 			key->time = dtime;
 			key->repeat = 1;
 		}
