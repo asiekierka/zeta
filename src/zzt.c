@@ -578,7 +578,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 								| (((buffer[i * 3 + 0] * 255 / 63) & 0xFF) << 16)
 								| (((buffer[i * 3 + 1] * 255 / 63) & 0xFF) << 8)
 								| ((buffer[i * 3 + 2] * 255 / 63) & 0xFF);
-							zzt.palette[i] = color;
+							zzt.palette[pal_idx] = color;
 						}
 					}
 
