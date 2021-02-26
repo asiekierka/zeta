@@ -90,6 +90,8 @@ int zzt_load_charset(int width, int height, u8* data);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
 USER_FUNCTION
+int zzt_load_ega_palette(u8* colors);
+USER_FUNCTION
 int zzt_load_blink(int blink);
 
 IMPLEMENT_FUNCTION
