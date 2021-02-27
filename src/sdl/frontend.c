@@ -530,7 +530,7 @@ int main(int argc, char **argv) {
 							if (file != NULL) {
 								fclose(file);
 								bool optimized = !KEYMOD_SHIFT(event.key.keysym.mod);
-								if ((gif_writer_s = gif_writer_start(filename, optimized)) != NULL) {
+								if ((gif_writer_s = gif_writer_start(filename, optimized, true)) != NULL) {
 									fprintf(stderr, "GIF writing started [%s, %s].\n", filename, optimized ? "optimized" : "unoptimized");
 								} else {
 									fprintf(stderr, "Could not start GIF writing - internal error!\n");

@@ -52,6 +52,8 @@ typedef struct s_gif_writer_state {
 
 	char *vbuf;
 	bool optimize;
+	bool optimize_lcts; // Enables using LCTs as optimization. Requires pad_palette.
+	bool pad_palette; // Enables 5-bit output and transparency color.
 
 	int screen_width;
 	int screen_height;
@@ -166,15 +168,18 @@ static void lzw_finish(lzw_encode_state *lzw, FILE *file) {
 #define GIF_IMAGE_INTERLACED 0x40
 #define GIF_IMAGE_LCM_DEPTH(bits) ((bits) - 1)
 
-static void gif_write_palette(gif_writer_state *s, u32 *palette) {
-	for (int i = 0; i < 16; i++) {
+static void gif_write_palette(gif_writer_state *s, u32 *palette, int colors) {
+	for (int i = 0; i < (colors < 16 ? colors : 16); i++) {
 		fputc(palette[i] >> 16, s->file);
 		fputc(palette[i] >> 8, s->file);
 		fputc(palette[i], s->file);
 	}
+	if (colors >= 32) {
+		fwrite("\x00\x00\x00Support broken thumbnailers - 48 byte filler.", 48, 1, s->file);
+	}
 }
 
-gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
+gif_writer_state *gif_writer_start(const char *filename, bool optimize, bool pad_palette) {
 	FILE *file = fopen(filename, "wb");
 	if (file == NULL) return NULL;
 
@@ -187,18 +192,28 @@ gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
 	s->file = file;
 	setvbuf(s->file, s->vbuf, _IOFBF, 65536);
 
+	// prepare internal flags
+	s->force_full_redraw = true;
+	s->optimize = optimize;
+	s->pad_palette = pad_palette;
+	s->optimize_lcts = true;
+	
 	// write header
 	fwrite("GIF89a", 6, 1, s->file);
 	fput16le(s->file, s->screen_width * s->char_width * (s->screen_width <= 40 ? 2 : 1));
 	fput16le(s->file, s->screen_height * s->char_height);
-	fputc(GIF_FLAG_GLOBAL_COLOR_MAP | GIF_FLAG_COLOR_RESOLUTION(8) | GIF_FLAG_GCM_DEPTH(4), s->file);
+	/* if (s->optimize_lcts) {
+		fputc(GIF_FLAG_COLOR_RESOLUTION(8), s->file);
+	} */ // Uncomment if going back to always emitting LCTs
+	fputc(GIF_FLAG_GLOBAL_COLOR_MAP | GIF_FLAG_COLOR_RESOLUTION(8) | GIF_FLAG_GCM_DEPTH(s->pad_palette ? 5 : 4), s->file);
 	fputc(0, s->file); // background color
 	fputc(0, s->file); // aspect ratio
 
 	// write global color table
+	// if (!s->optimize_lcts) { // Uncomment if going back to always emitting LCTs
 	u32 *palette = zzt_get_palette();
 	memcpy(s->global_palette, palette, 16 * sizeof(u32));
-	gif_write_palette(s, palette);
+	gif_write_palette(s, palette, s->pad_palette ? 32 : 16);
 
 	// write netscape looping extension
 	fputc('!', s->file); // extension
@@ -209,10 +224,6 @@ gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
 	fputc(1, s->file); // sub block ID
 	fput16le(s->file, 0xFFFF); // unlimited repetitions
 	fputc(0x00, s->file); // block terminator
-
-	// prepare internal flags
-	s->force_full_redraw = true;
-	s->optimize = optimize;
 
 	return s;
 }
@@ -249,8 +260,15 @@ static u8* gif_alloc_draw_buffer(gif_writer_state *s, int pixel_count) {
 	return s->draw_buffer;
 }
 
+static u8 vram_difference[2000 >> 3];
+
+static bool can_draw_char_vram_difference(int x, int y) {
+	return (vram_difference[y * 10 + (x >> 3)] & (1 << (x & 7))) != 0;
+}
+
 void gif_writer_frame(gif_writer_state *s) {
 	s->gif_delay_buffer += 11;
+	u32 palette_optimized[16];
 
 	int new_screen_w, new_screen_h, new_char_w, new_char_h;
 	zzt_get_screen_size(&new_screen_w, &new_screen_h);
@@ -277,9 +295,20 @@ void gif_writer_frame(gif_writer_state *s) {
 	int cx2 = 0;
 	int cy2 = 0;
 
+	bool optimize_lcts = s->optimize_lcts && requires_lct && !s->force_full_redraw;
+	bool use_transparency = s->optimize && s->pad_palette && !s->force_full_redraw;
+	int bit_depth = s->pad_palette ? 5 : 4;
+
 	// calculate cx/cy/cw/ch boundaries and new prev_video state
 	u8 *old_vram = s->prev_video;
 	u8 *new_vram = video;
+	u8 *vram_diff_ptr = vram_difference;
+	if (use_transparency) {
+		memset(vram_difference, 0, sizeof(vram_difference));
+	}
+	u16 used_palette_colors = 0;
+	u8 used_palette_map[17];
+
 	for (int cy = 0; cy < s->screen_height; cy++) {
 		for (int cx = 0; cx < s->screen_width; cx++, old_vram += 2, new_vram += 2) {
 			u8 nv_chr = new_vram[0];
@@ -298,8 +327,16 @@ void gif_writer_frame(gif_writer_state *s) {
 				if (cx2 < cx) cx2 = cx;
 				if (cy1 > cy) cy1 = cy;
 				if (cy2 < cy) cy2 = cy;
+				if (optimize_lcts) {
+					used_palette_colors |= (1 << (nv_col & 0x0F));
+					used_palette_colors |= (1 << (nv_col >> 4));
+				}
+				if (use_transparency) {
+					vram_diff_ptr[cx >> 3] |= (1 << (cx & 7));
+				}
 			}
 		}
+		vram_diff_ptr += 80 >> 3;
 	}
 
 	if (s->force_full_redraw) {
@@ -307,7 +344,6 @@ void gif_writer_frame(gif_writer_state *s) {
 		cy1 = 0;
 		cx2 = s->screen_width - 1;
 		cy2 = s->screen_height - 1;
-		s->force_full_redraw = false;
 	}
 
 	int px = cx1 * s->char_width * (s->screen_width <= 40 ? 2 : 1);
@@ -327,8 +363,31 @@ void gif_writer_frame(gif_writer_state *s) {
 		}
 	}
 
+	if (optimize_lcts) {
+		int colors_used = 0;
+		int i = 0;
+		while (used_palette_colors > 0) {
+			if (used_palette_colors & 1) {
+				used_palette_map[i] = colors_used;
+				palette_optimized[colors_used++] = palette[i];
+			}
+			used_palette_colors >>= 1;
+			i++;
+		}
+		if (colors_used < 16) {
+			memset(palette_optimized + colors_used, 0, (16 - colors_used) * 4);
+		}
+		used_palette_map[0x10] = colors_used++;
+		bit_depth = highest_bit_index(colors_used) + 1;
+		if (bit_depth < 3) bit_depth = 3;
+	}
+
 	u8 *pixels = gif_alloc_draw_buffer(s, pw * ph);
-	render_software_paletted_range(pixels, s->screen_width, -1, 0, s->prev_video, charset, s->char_width, s->char_height, cx1, cy1, cx2, cy2);
+	if (use_transparency) {
+		memset(pixels, 0x10, pw * ph);
+	}
+	render_software_paletted_range(pixels, s->screen_width, -1, RENDER_BLINK_OFF, s->prev_video, charset, s->char_width, s->char_height,
+		cx1, cy1, cx2, cy2, use_transparency ? can_draw_char_vram_difference : NULL);
 
 	gif_writer_write_delay(s);
 
@@ -336,33 +395,42 @@ void gif_writer_frame(gif_writer_state *s) {
 	fputc('!', s->file); // extension
 	fputc(0xF9, s->file); // graphic control extension
 	fputc(4, s->file); // size
-	fputc(GIF_GCE_DISPOSE_IGNORE, s->file); // flags
+	fputc(GIF_GCE_DISPOSE_IGNORE | (use_transparency ? GIF_GCE_TRANSPARENCY_INDEX : 0), s->file); // flags
 	s->file_delay_loc = ftell(s->file);
 	fput16le(s->file, 11); // delay time (temporary)
-	fputc(0x00, s->file); // transparent color index
-	fputc(0x00, s->file); // block terminator
+	fputc(optimize_lcts ? used_palette_map[0x10] : ((bit_depth >= 5) ? 0x10 : 0), s->file); // transparent color index
+	fputc(0x00, s->file); // block terminatorcd 
 
 	// write image descriptor
 	fputc(',', s->file); // extension
 	fput16le(s->file, px); // X pos
-	fput16le(s->file, py); // X pos
+	fput16le(s->file, py); // Y pos
 	fput16le(s->file, pw); // width
 	fput16le(s->file, ph); // height
-	fputc(requires_lct ? GIF_IMAGE_LOCAL_COLOR_MAP | GIF_IMAGE_LCM_DEPTH(4) : 0x00, s->file); // flags
+	fputc(requires_lct ? GIF_IMAGE_LOCAL_COLOR_MAP | GIF_IMAGE_LCM_DEPTH(bit_depth) : 0x00, s->file); // flags
 
 	if (requires_lct) {
-		gif_write_palette(s, palette);
+		gif_write_palette(s, optimize_lcts ? palette_optimized : palette, 1 << bit_depth);
 	}
 
-	lzw_init(&s->lzw, 16, s->file);
-	for (int iy = 0; iy < ph; iy++) {
-		for (int ix = 0; ix < pw; ix++, pixels++) {
-			lzw_emit(&s->lzw, *pixels & 0x0F, s->file);
+	lzw_init(&s->lzw, 1 << bit_depth, s->file);
+	if (optimize_lcts) {
+		for (int iy = 0; iy < ph; iy++) {
+			for (int ix = 0; ix < pw; ix++, pixels++) {
+				lzw_emit(&s->lzw, used_palette_map[*pixels], s->file);
+			}
+		}
+	} else {
+		for (int iy = 0; iy < ph; iy++) {
+			for (int ix = 0; ix < pw; ix++, pixels++) {
+				lzw_emit(&s->lzw, *pixels, s->file);
+			}
 		}
 	}
 	lzw_finish(&s->lzw, s->file);
 
 	fputc(0x00, s->file); // block terminator
+	s->force_full_redraw = false;
 }
 
 void gif_writer_on_charset_change(gif_writer_state *s) {

@@ -28,11 +28,14 @@
 #define RENDER_BLINK_OFF 1
 #define RENDER_BLINK_PHASE 2
 
+typedef bool (*render_software_char_draw_check_func)(int, int);
+
 USER_FUNCTION
 void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette);
 USER_FUNCTION
 void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height);
 USER_FUNCTION
-void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, int x1, int y1, int x2, int y2);
+void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height,
+    int x1, int y1, int x2, int y2, render_software_char_draw_check_func char_draw_check_func);
 
 #endif /* __RENDER_SOFTWARE_H__ */

@@ -63,7 +63,9 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 	}
 }
 
-void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, int x1, int y1, int x2, int y2) {
+void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height,
+	int x1, int y1, int x2, int y2, render_software_char_draw_check_func char_draw_check_func)
+{
 	int pos_mul = POS_MUL;
 	int x_pitch = (scr_width - (x2 - x1 + 1)) << 1;
 
@@ -75,6 +77,10 @@ void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, i
 
 	for (int y = y1; y <= y2; y++) {
 		for (int x = x1; x <= x2; x++, pos += 2) {
+			if (char_draw_check_func != NULL && !char_draw_check_func(x, y)) {
+				continue;
+			}
+
 			u8 chr = video[pos];
 			u8 col = video[pos + 1];
 
@@ -105,5 +111,6 @@ void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, i
 }
 
 void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height) {
-	render_software_paletted_range(buffer, scr_width, row_length, flags, video, charset, char_width, char_height, 0, 0, scr_width - 1, 24);
+	render_software_paletted_range(buffer, scr_width, row_length, flags, video, charset, char_width, char_height,
+		0, 0, scr_width - 1, 24, NULL);
 }
