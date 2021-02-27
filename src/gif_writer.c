@@ -48,6 +48,8 @@ typedef struct {
 
 typedef struct s_gif_writer_state {
 	FILE *file;
+	size_t file_delay_loc;
+
 	char *vbuf;
 	bool optimize;
 
@@ -215,8 +217,20 @@ gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
 	return s;
 }
 
+static void gif_writer_write_delay(gif_writer_state *s) {
+	if (s->file_delay_loc > 0) {
+		size_t curr_loc = ftell(s->file);
+		fseek(s->file, s->file_delay_loc, SEEK_SET);
+		fput16le(s->file, s->gif_delay_buffer >> 1);
+		fseek(s->file, curr_loc, SEEK_SET);
+		s->gif_delay_buffer &= 0x1;
+		s->file_delay_loc = 0;
+	}
+}
+
 void gif_writer_stop(gif_writer_state *s) {
 	// terminate file
+	gif_writer_write_delay(s);
 	fputc(';', s->file);
 
 	// clean up
@@ -236,8 +250,6 @@ static u8* gif_alloc_draw_buffer(gif_writer_state *s, int pixel_count) {
 }
 
 void gif_writer_frame(gif_writer_state *s) {
-	// only draw every other frame
-	if (((s->pit_ticks++) & 1) == 1) return;
 	s->gif_delay_buffer += 11;
 
 	int new_screen_w, new_screen_h, new_char_w, new_char_h;
@@ -304,7 +316,7 @@ void gif_writer_frame(gif_writer_state *s) {
 	int ph = (cy2 - cy1 + 1) * s->char_height;
 
 	if (pw <= 0 || ph <= 0) {
-		if (s->gif_delay_buffer >= 32000) {
+		if (s->gif_delay_buffer >= 64000) {
 			// failsafe
 			px = 0; py = 0;
 			pw = s->char_width * (s->screen_width <= 40 ? 2 : 1); ph = s->char_height;
@@ -318,13 +330,15 @@ void gif_writer_frame(gif_writer_state *s) {
 	u8 *pixels = gif_alloc_draw_buffer(s, pw * ph);
 	render_software_paletted_range(pixels, s->screen_width, -1, 0, s->prev_video, charset, s->char_width, s->char_height, cx1, cy1, cx2, cy2);
 
+	gif_writer_write_delay(s);
+
 	// write GCE
 	fputc('!', s->file); // extension
 	fputc(0xF9, s->file); // graphic control extension
 	fputc(4, s->file); // size
 	fputc(GIF_GCE_DISPOSE_IGNORE, s->file); // flags
-	fput16le(s->file, s->gif_delay_buffer); // delay time (0.11s)
-	s->gif_delay_buffer = 0;
+	s->file_delay_loc = ftell(s->file);
+	fput16le(s->file, 11); // delay time (temporary)
 	fputc(0x00, s->file); // transparent color index
 	fputc(0x00, s->file); // block terminator
 
