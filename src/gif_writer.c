@@ -31,7 +31,7 @@
 
 #define GIF_MAX_CODE_COUNT 4096
 #define GIF_MAX_COLOR_COUNT 17
-#define GIF_MAX_BUFFER_POS 254
+#define GIF_MAX_BUFFER_POS 255
 #define LZW_CODE_UNDEFINED 0xFFFF
 
 typedef struct {
@@ -49,6 +49,7 @@ typedef struct {
 typedef struct s_gif_writer_state {
 	FILE *file;
 	char *vbuf;
+	bool optimize;
 
 	int screen_width;
 	int screen_height;
@@ -56,11 +57,16 @@ typedef struct s_gif_writer_state {
 	int char_height;
 	u32 pit_ticks;
 
-	u8 text_buffer[4000];
+	u8 prev_video[4000];
+	u32 global_palette[16];
+
 	size_t draw_buffer_size;
 	u8 *draw_buffer;
+	bool force_full_redraw;
 
 	lzw_encode_state lzw;
+
+	u16 gif_delay_buffer;
 } gif_writer_state;
 
 static void lzw_write_buffer(lzw_encode_state *lzw, FILE *file) {
@@ -147,7 +153,7 @@ static void lzw_finish(lzw_encode_state *lzw, FILE *file) {
 
 #define GIF_FLAG_GLOBAL_COLOR_MAP 0x80
 #define GIF_FLAG_COLOR_RESOLUTION(bits) (((bits) - 1) << 4)
-#define GIF_FLAG_COLOR_DEPTH(bits) ((bits) - 1)
+#define GIF_FLAG_GCM_DEPTH(bits) ((bits) - 1)
 #define GIF_GCE_DISPOSE(flag) ((flag) << 2)
 #define GIF_GCE_DISPOSE_IGNORE GIF_GCE_DISPOSE(1)
 #define GIF_GCE_DISPOSE_RESTORE_BACKGROUND GIF_GCE_DISPOSE(2)
@@ -156,9 +162,17 @@ static void lzw_finish(lzw_encode_state *lzw, FILE *file) {
 #define GIF_GCE_TRANSPARENCY_INDEX 0x01
 #define GIF_IMAGE_LOCAL_COLOR_MAP 0x80
 #define GIF_IMAGE_INTERLACED 0x40
-#define GIF_IMAGE_COLOR_DEPTH(bits) ((bits) - 1)
+#define GIF_IMAGE_LCM_DEPTH(bits) ((bits) - 1)
 
-gif_writer_state *gif_writer_start(const char *filename) {
+static void gif_write_palette(gif_writer_state *s, u32 *palette) {
+	for (int i = 0; i < 16; i++) {
+		fputc(palette[i] >> 16, s->file);
+		fputc(palette[i] >> 8, s->file);
+		fputc(palette[i], s->file);
+	}
+}
+
+gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
 	FILE *file = fopen(filename, "wb");
 	if (file == NULL) return NULL;
 
@@ -175,17 +189,14 @@ gif_writer_state *gif_writer_start(const char *filename) {
 	fwrite("GIF89a", 6, 1, s->file);
 	fput16le(s->file, s->screen_width * s->char_width);
 	fput16le(s->file, s->screen_height * s->char_height);
-	fputc(GIF_FLAG_GLOBAL_COLOR_MAP | GIF_FLAG_COLOR_RESOLUTION(8) | GIF_FLAG_COLOR_DEPTH(4), s->file);
+	fputc(GIF_FLAG_GLOBAL_COLOR_MAP | GIF_FLAG_COLOR_RESOLUTION(8) | GIF_FLAG_GCM_DEPTH(4), s->file);
 	fputc(0, s->file); // background color
 	fputc(0, s->file); // aspect ratio
 
 	// write global color table
 	u32 *palette = zzt_get_palette();
-	for (int i = 0; i < 16; i++) {
-		fputc(palette[i] >> 16, s->file);
-		fputc(palette[i] >> 8, s->file);
-		fputc(palette[i], s->file);
-	}
+	memcpy(s->global_palette, palette, 16 * sizeof(u32));
+	gif_write_palette(s, palette);
 
 	// write netscape looping extension
 	fputc('!', s->file); // extension
@@ -196,6 +207,10 @@ gif_writer_state *gif_writer_start(const char *filename) {
 	fputc(1, s->file); // sub block ID
 	fput16le(s->file, 0xFFFF); // unlimited repetitions
 	fputc(0x00, s->file); // block terminator
+
+	// prepare internal flags
+	s->force_full_redraw = true;
+	s->optimize = optimize;
 
 	return s;
 }
@@ -223,36 +238,107 @@ static u8* gif_alloc_draw_buffer(gif_writer_state *s, int pixel_count) {
 void gif_writer_frame(gif_writer_state *s) {
 	// only draw every other frame
 	if (((s->pit_ticks++) & 1) == 1) return;
+	s->gif_delay_buffer += 11;
 
-	zzt_get_screen_size(&s->screen_width, &s->screen_height);
-	u8 *charset = zzt_get_charset(&s->char_width, &s->char_height);
+	int new_screen_w, new_screen_h, new_char_w, new_char_h;
+	zzt_get_screen_size(&new_screen_w, &new_screen_h);
+	u8 *charset = zzt_get_charset(&new_char_w, &new_char_h);
 	u32 *palette = zzt_get_palette();
 	u8 *video = zzt_get_ram() + 0xB8000;
 	bool blink = zzt_get_blink() != 0;
 	bool blink_active = blink && ((s->pit_ticks >> 1) & 2);
+	bool requires_lct = memcmp(palette, s->global_palette, 16 * sizeof(u32)) != 0;
 
-	int pw = s->char_width * s->screen_width;
-	int ph = s->char_height * s->screen_height;
-	
+	if (!s->optimize
+		|| new_screen_w != s->screen_width || new_screen_h != s->screen_height
+		|| new_char_w != s->char_width || new_char_h != s->char_height)
+	{
+		s->screen_width = new_screen_w;
+		s->screen_height = new_screen_h;
+		s->char_width = new_char_w;
+		s->char_height = new_char_h;
+		s->force_full_redraw = true;
+	}
+
+	int cx1 = s->screen_width - 1;
+	int cy1 = s->screen_height - 1;
+	int cx2 = 0;
+	int cy2 = 0;
+
+	// calculate cx/cy/cw/ch boundaries and new prev_video state
+	u8 *old_vram = s->prev_video;
+	u8 *new_vram = video;
+	for (int cy = 0; cy < s->screen_height; cy++) {
+		for (int cx = 0; cx < s->screen_width; cx++, old_vram += 2, new_vram += 2) {
+			u8 nv_chr = new_vram[0];
+			u8 nv_col = new_vram[1];
+			if (blink && ((nv_col & 0x80) != 0)) {
+				if (blink_active) {
+					nv_col = (nv_col >> 4) * 0x11;
+				} else {
+					nv_col &= 0x7F;
+				}
+			}
+			if (old_vram[0] != nv_chr || old_vram[1] != nv_col) {
+				old_vram[0] = nv_chr;
+				old_vram[1] = nv_col;
+				if (cx1 > cx) cx1 = cx;
+				if (cx2 < cx) cx2 = cx;
+				if (cy1 > cy) cy1 = cy;
+				if (cy2 < cy) cy2 = cy;
+			}
+		}
+	}
+
+	if (s->force_full_redraw) {
+		cx1 = 0;
+		cy1 = 0;
+		cx2 = s->screen_width - 1;
+		cy2 = s->screen_height - 1;
+		s->force_full_redraw = false;
+	}
+
+	int px = cx1 * s->char_width * (s->screen_width <= 40 ? 2 : 1);
+	int py = cy1 * s->char_height;
+	int pw = (cx2 - cx1 + 1) * s->char_width * (s->screen_width <= 40 ? 2 : 1);
+	int ph = (cy2 - cy1 + 1) * s->char_height;
+
+	if (pw <= 0 || ph <= 0) {
+		if (s->gif_delay_buffer >= 32000) {
+			// failsafe
+			px = 0; py = 0;
+			pw = s->char_width * (s->screen_width <= 40 ? 2 : 1); ph = s->char_height;
+			cx1 = 0; cy1 = 0;
+			cx2 = 0; cy2 = 0;
+		} else {
+			return;
+		}
+	}
+
+	u8 *pixels = gif_alloc_draw_buffer(s, pw * ph);
+	render_software_paletted_range(pixels, s->screen_width, -1, 0, s->prev_video, charset, s->char_width, s->char_height, cx1, cy1, cx2, cy2);
+
 	// write GCE
 	fputc('!', s->file); // extension
 	fputc(0xF9, s->file); // graphic control extension
 	fputc(4, s->file); // size
 	fputc(GIF_GCE_DISPOSE_IGNORE, s->file); // flags
-	fput16le(s->file, 11); // delay time (0.11s)
-	fputc(0xFF, s->file); // transparent color index
+	fput16le(s->file, s->gif_delay_buffer); // delay time (0.11s)
+	s->gif_delay_buffer = 0;
+	fputc(0x00, s->file); // transparent color index
 	fputc(0x00, s->file); // block terminator
 
 	// write image descriptor
 	fputc(',', s->file); // extension
-	fput16le(s->file, 0); // X pos
-	fput16le(s->file, 0); // X pos
+	fput16le(s->file, px); // X pos
+	fput16le(s->file, py); // X pos
 	fput16le(s->file, pw); // width
 	fput16le(s->file, ph); // height
-	fputc(0, s->file); // flags
+	fputc(requires_lct ? GIF_IMAGE_LOCAL_COLOR_MAP | GIF_IMAGE_LCM_DEPTH(4) : 0x00, s->file); // flags
 
-	u8 *pixels = gif_alloc_draw_buffer(s, pw * ph);
-	render_software_paletted(pixels, s->screen_width, -1, 0, video, charset, s->char_width, s->char_height);
+	if (requires_lct) {
+		gif_write_palette(s, palette);
+	}
 
 	lzw_init(&s->lzw, 16, s->file);
 	for (int iy = 0; iy < ph; iy++) {
@@ -263,4 +349,12 @@ void gif_writer_frame(gif_writer_state *s) {
 	lzw_finish(&s->lzw, s->file);
 
 	fputc(0x00, s->file); // block terminator
+}
+
+void gif_writer_on_charset_change(gif_writer_state *s) {
+	s->force_full_redraw = true;
+}
+
+void gif_writer_on_palette_change(gif_writer_state *s) {
+	s->force_full_redraw = true;
 }

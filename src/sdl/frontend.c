@@ -139,6 +139,9 @@ void speaker_off(int cycles) {
 #endif
 }
 
+// used for marking render data updates
+static SDL_mutex *render_data_update_mutex;
+
 static SDL_mutex *zzt_thread_lock;
 static SDL_cond *zzt_thread_cond;
 static u8 zzt_vram_copy[80*25*2];
@@ -152,7 +155,9 @@ static double timer_time;
 static void sdl_pit_tick(void) {
 #ifdef ENABLE_GIF_WRITER
 	if (gif_writer_s != NULL) {
+		SDL_LockMutex(render_data_update_mutex);
 		gif_writer_frame(gif_writer_s);
+		SDL_UnlockMutex(render_data_update_mutex);
 	}
 #endif
 	zzt_mark_timer();
@@ -243,9 +248,6 @@ static void update_keymod(SDL_Keymod keymod) {
 static SDL_Window *window;
 static int charw, charh;
 
-// used for marking render data updates
-static SDL_mutex *render_data_update_mutex;
-
 static int charset_update_requested = 0;
 static u8* charset_update_data = NULL;
 
@@ -300,6 +302,11 @@ void zeta_update_charset(int width, int height, u8* data) {
 	charh = height;
 	charset_update_data = data;
 	charset_update_requested = 1;
+#ifdef ENABLE_GIF_WRITER
+	if (gif_writer_s != NULL) {
+		gif_writer_on_charset_change(gif_writer_s);
+	}
+#endif
 	SDL_UnlockMutex(render_data_update_mutex);
 }
 
@@ -307,6 +314,11 @@ void zeta_update_palette(u32* data) {
 	SDL_LockMutex(render_data_update_mutex);
 	palette_update_data = data;
 	palette_update_requested = 1;
+#ifdef ENABLE_GIF_WRITER
+	if (gif_writer_s != NULL) {
+		gif_writer_on_palette_change(gif_writer_s);
+	}
+#endif
 	SDL_UnlockMutex(render_data_update_mutex);
 }
 
@@ -517,8 +529,9 @@ int main(int argc, char **argv) {
 							file = create_inc_file(filename, 23, "screen%d.gif", "wb");
 							if (file != NULL) {
 								fclose(file);
-								if ((gif_writer_s = gif_writer_start(filename)) != NULL) {
-									fprintf(stderr, "GIF writing started [%s].\n", filename);
+								bool optimized = !KEYMOD_SHIFT(event.key.keysym.mod);
+								if ((gif_writer_s = gif_writer_start(filename, optimized)) != NULL) {
+									fprintf(stderr, "GIF writing started [%s, %s].\n", filename, optimized ? "optimized" : "unoptimized");
 								} else {
 									fprintf(stderr, "Could not start GIF writing - internal error!\n");
 								}
