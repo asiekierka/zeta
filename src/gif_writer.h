@@ -20,16 +20,15 @@
  * SOFTWARE.
  */
 
-#ifndef __UTIL_H__
-#define __UTIL_H__
+#ifndef __GIF_WRITER_H__
+#define __GIF_WRITER_H__
 
-#include <stdio.h>
+#include "types.h"
 
-void fput16le(FILE *output, unsigned short i);
-void fput32le(FILE *output, unsigned int i);
-void fput16be(FILE *output, unsigned short i);
-void fput32be(FILE *output, unsigned int i);
-int highest_bit_index(int value);
-FILE *create_inc_file(char *filename, int length, const char *tpl, const char *mode);
+typedef struct s_gif_writer_state gif_writer_state;
 
-#endif /* __UTIL_H__ */
+gif_writer_state *gif_writer_start(const char *filename);
+void gif_writer_stop(gif_writer_state *s);
+void gif_writer_frame(gif_writer_state *s);
+
+#endif

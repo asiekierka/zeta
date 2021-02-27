@@ -99,9 +99,10 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 	void *buffer;
 	int w, h, pitch;
 
-	int swidth = (zzt_video_mode() & 2) ? 80 : 40;
+	int swidth;
 	int sflags = 0;
 	int should_render = force_update || (blink_mode != last_blink_mode);
+	zzt_get_screen_size(&swidth, NULL);
 
 	if (palette_update_data == NULL || charset_update_data == NULL) {
 		return;

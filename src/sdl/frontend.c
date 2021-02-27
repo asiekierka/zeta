@@ -41,7 +41,12 @@
 #include "../audio_stream.h"
 #include "../posix_vfs.h"
 #include "../render_software.h"
+#ifdef ENABLE_AUDIO_WRITER
 #include "../audio_writer.h"
+#endif
+#ifdef ENABLE_GIF_WRITER
+#include "../gif_writer.h"
+#endif
 #ifdef ENABLE_SCREENSHOTS
 #include "../screenshot_writer.h"
 #endif
@@ -99,7 +104,12 @@ static SDL_AudioSpec audio_spec;
 static SDL_mutex *audio_mutex;
 
 static double audio_time;
+#ifdef ENABLE_AUDIO_WRITER
 static audio_writer_state *audio_writer_s = NULL;
+#endif
+#ifdef ENABLE_GIF_WRITER
+static gif_writer_state *gif_writer_s = NULL;
+#endif
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
 	SDL_LockMutex(audio_mutex);
@@ -111,18 +121,22 @@ void speaker_on(int cycles, double freq) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_on(audio_time, cycles, freq);
 	SDL_UnlockMutex(audio_mutex);
+#ifdef ENABLE_AUDIO_WRITER
 	if (audio_writer_s != NULL) {
 		audio_writer_speaker_on(audio_writer_s, audio_time, cycles, freq);
 	}
+#endif
 }
 
 void speaker_off(int cycles) {
 	SDL_LockMutex(audio_mutex);
 	audio_stream_append_off(audio_time, cycles);
 	SDL_UnlockMutex(audio_mutex);
+#ifdef ENABLE_AUDIO_WRITER
 	if (audio_writer_s != NULL) {
 		audio_writer_speaker_off(audio_writer_s, audio_time, cycles);
 	}
+#endif
 }
 
 static SDL_mutex *zzt_thread_lock;
@@ -135,6 +149,15 @@ static u8 zzt_turbo = 0;
 static long first_timer_tick;
 static double timer_time;
 
+static void sdl_pit_tick(void) {
+#ifdef ENABLE_GIF_WRITER
+	if (gif_writer_s != NULL) {
+		gif_writer_frame(gif_writer_s);
+	}
+#endif
+	zzt_mark_timer();
+}
+
 static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	if (!zzt_thread_running) return 0;
 	long curr_timer_tick = zeta_time_ms();
@@ -142,7 +165,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	atomic_fetch_add(&zzt_renderer_waiting, 1);
 	SDL_LockMutex(zzt_thread_lock);
 	atomic_fetch_sub(&zzt_renderer_waiting, 1);
-	zzt_mark_timer();
+	sdl_pit_tick();
 
 	audio_time = zeta_time_ms();
 	timer_time += SYS_TIMER_TIME;
@@ -150,7 +173,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	long tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
 
 	while (tick_time <= 0) {
-		zzt_mark_timer();
+		sdl_pit_tick();
 		timer_time += SYS_TIMER_TIME;
 		tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
 	}
@@ -428,11 +451,8 @@ int main(int argc, char **argv) {
 						char filename[24];
 
 						int sflags = 0;
-						int swidth = (zzt_video_mode() & 2) ? 80 : 40;
-
-						if (charset_update_data == NULL || palette_update_data == NULL) {
-							break;
-						}
+						int swidth;
+						zzt_get_screen_size(&swidth, NULL);
 
 						if (!video_blink) sflags |= RENDER_BLINK_OFF;
 						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
@@ -448,9 +468,9 @@ int main(int argc, char **argv) {
 							if (write_screenshot(
 								file, stype,
 								swidth, sflags,
-								zzt_get_ram() + 0xB8000, charset_update_data,
+								zzt_get_ram() + 0xB8000, zzt_get_charset(NULL, NULL),
 								charw, charh,
-								palette_update_data
+								zzt_get_palette()
 							) < 0) {
 								fprintf(stderr, "Could not write screenshot!\n");
 							}
@@ -463,6 +483,8 @@ int main(int argc, char **argv) {
 						zzt_turbo = 1;
 						break;
 					}
+
+#ifdef ENABLE_AUDIO_WRITER
 					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
 						// audio writer
 						if (audio_writer_s == NULL) {
@@ -484,6 +506,31 @@ int main(int argc, char **argv) {
 						}
 						break;
 					}
+#endif
+
+#ifdef ENABLE_GIF_WRITER
+					if (event.key.keysym.sym == SDLK_F5 && KEYMOD_CTRL(event.key.keysym.mod)) {
+						// gif writer
+						if (gif_writer_s == NULL) {
+							FILE *file;
+							char filename[24];
+							file = create_inc_file(filename, 23, "screen%d.gif", "wb");
+							if (file != NULL) {
+								fclose(file);
+								if ((gif_writer_s = gif_writer_start(filename)) != NULL) {
+									fprintf(stderr, "GIF writing started [%s].\n", filename);
+								} else {
+									fprintf(stderr, "Could not start GIF writing - internal error!\n");
+								}
+							}
+						} else {
+							gif_writer_stop(gif_writer_s);
+							gif_writer_s = NULL;
+							fprintf(stderr, "GIF writing stopped.\n");
+						}
+						break;
+					}
+#endif
 
 					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
 						// Alt+ENTER
@@ -595,10 +642,19 @@ int main(int argc, char **argv) {
 		renderer->draw(zzt_vram_copy, blink_mode);
 	}
 
+#ifdef ENABLE_AUDIO_WRITER
 	if (audio_writer_s != NULL) {
 		audio_writer_stop(audio_writer_s, audio_time, 0);
 		audio_writer_s = NULL;
 	}
+#endif
+
+#ifdef ENABLE_GIF_WRITER
+	if (gif_writer_s != NULL) {
+		gif_writer_stop(gif_writer_s);
+		gif_writer_s = NULL;
+	}
+#endif
 
 	zzt_thread_running = 0;
 	if (audio_device != 0) {

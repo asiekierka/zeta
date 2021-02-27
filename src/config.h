@@ -43,6 +43,8 @@
 
 // 60/16 Hz (blink every 16 frames at 60 Hz)
 #define BLINK_TOGGLE_DURATION_MS 267
+#define ENABLE_AUDIO_WRITER
+#define ENABLE_GIF_WRITER
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
 #define USE_LIBPNG

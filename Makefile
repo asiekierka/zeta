@@ -57,11 +57,12 @@ OBJS =	$(OBJDIR)/8x14.o \
 
 ifeq (${USE_SDL},1)
 OBJS += $(OBJDIR)/asset_loader.o \
-	$(OBJDIR)/audio_writer.o \
 	$(OBJDIR)/posix_vfs.o \
-	$(OBJDIR)/render_software.o \
-	$(OBJDIR)/screenshot_writer.o \
 	$(OBJDIR)/util.o \
+	$(OBJDIR)/render_software.o \
+	$(OBJDIR)/audio_writer.o \
+	$(OBJDIR)/gif_writer.o \
+	$(OBJDIR)/screenshot_writer.o \
 	$(OBJDIR)/sdl/frontend.o \
 	$(OBJDIR)/sdl/render_software.o \
 	$(OBJDIR)/sdl/render_opengl.o

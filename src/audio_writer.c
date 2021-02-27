@@ -49,19 +49,6 @@ typedef struct s_audio_writer_state {
 	double note_freq; // last
 } audio_writer_state;
 
-static speaker_entry* audio_writer_allocate_entry(audio_writer_state *s) {
-	if (s->entries_count >= s->entries_size) {
-		if (s->entries_size == 0) {
-			s->entries_size = AUDIO_WRITER_MIN_ENTRIES_SIZE;
-			s->entries = malloc(sizeof(speaker_entry) * s->entries_size);
-		} else {
-			s->entries_size *= 2;
-			s->entries = realloc(s->entries, sizeof(speaker_entry) * s->entries_size);
-		}
-	}
-	return &(s->entries[s->entries_count++]);
-}
-
 audio_writer_state *audio_writer_start(const char *filename, long time, int freq) {
 	FILE *file = fopen(filename, "wb");
 	if (file == NULL) return NULL;
@@ -164,6 +151,19 @@ void audio_writer_stop(audio_writer_state *s, long time, int cycles) {
 	free(s->vbuf);
 	free(s->entries);
 	free(s);
+}
+
+static speaker_entry* audio_writer_allocate_entry(audio_writer_state *s) {
+	if (s->entries_count >= s->entries_size) {
+		if (s->entries_size == 0) {
+			s->entries_size = AUDIO_WRITER_MIN_ENTRIES_SIZE;
+			s->entries = malloc(sizeof(speaker_entry) * s->entries_size);
+		} else {
+			s->entries_size *= 2;
+			s->entries = realloc(s->entries, sizeof(speaker_entry) * s->entries_size);
+		}
+	}
+	return &(s->entries[s->entries_count++]);
 }
 
 void audio_writer_speaker_on(audio_writer_state *s, long time, int cycles, double freq) {

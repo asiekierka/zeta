@@ -244,13 +244,14 @@ static void free_opengl_tables(void) {
 
 static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 	float texw, texh;
-	int width = (zzt_video_mode() & 2) ? 80 : 40;
+	int width, height;
 
+	zzt_get_screen_size(&width, &height);
 	prepare_render_opengl();
 
 	// generate visual data
 	int vpos = 0;
-	if (regen_visuals) for (int y = 0; y < 25; y++) {
+	if (regen_visuals) for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++, vpos += 2) {
 			u8 chr = vram[vpos];
 			u8 col = vram[vpos+1];

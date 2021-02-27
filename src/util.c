@@ -25,15 +25,52 @@
 #include "logging.h"
 
 void fput16le(FILE *output, unsigned short i) {
+#ifdef BIG_ENDIAN
 	fputc((i & 0xFF), output);
 	fputc(((i >> 8) & 0xFF), output);
+#else
+	fwrite(&i, 2, 1, output);
+#endif
 }
 
 void fput32le(FILE *output, unsigned int i) {
+#ifdef BIG_ENDIAN
 	fputc((i & 0xFF), output);
 	fputc(((i >> 8) & 0xFF), output);
 	fputc(((i >> 16) & 0xFF), output);
 	fputc(((i >> 24) & 0xFF), output);
+#else
+	fwrite(&i, 4, 1, output);
+#endif
+}
+
+void fput16be(FILE *output, unsigned short i) {
+#ifdef BIG_ENDIAN
+	fwrite(&i, 2, 1, output);
+#else
+	fputc(((i >> 8) & 0xFF), output);
+	fputc((i & 0xFF), output);
+#endif
+}
+
+void fput32be(FILE *output, unsigned int i) {
+#ifdef BIG_ENDIAN
+	fwrite(&i, 4, 1, output);
+#else
+	fputc(((i >> 24) & 0xFF), output);
+	fputc(((i >> 16) & 0xFF), output);
+	fputc(((i >> 8) & 0xFF), output);
+	fputc((i & 0xFF), output);
+#endif
+}
+
+int highest_bit_index(int value) {
+	int i = 0;
+	while (value != 1) {
+		value >>= 1;
+		i++;
+	}
+	return i;
 }
 
 FILE *create_inc_file(char *filename, int length, const char *tpl, const char *mode) {

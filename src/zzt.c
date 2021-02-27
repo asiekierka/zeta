@@ -33,7 +33,7 @@
 #endif
 
 #define EGA_COLOR_COUNT 64
-// incl. overscan/border
+#define LUT_BORDER_COLOR PALETTE_COLOR_COUNT
 #define LUT_COLOR_COUNT (PALETTE_COLOR_COUNT + 1)
 
 static u8 ega_palette_lut[] = {
@@ -514,7 +514,7 @@ static void zzt_refresh_palette(void) {
 
 static void zzt_init_palette(void) {
 	for (int c = 0; c < EGA_COLOR_COUNT; c++) {
-		zzt.palette_dac[c * 3 + 0] = ((c >> 2) & 0x1) * 0x2A + ((c >> 5) & 0x1) * 0x151;
+		zzt.palette_dac[c * 3 + 0] = ((c >> 2) & 0x1) * 0x2A + ((c >> 5) & 0x1) * 0x15;
 		zzt.palette_dac[c * 3 + 1] = ((c >> 1) & 0x1) * 0x2A + ((c >> 4) & 0x1) * 0x15;
 		zzt.palette_dac[c * 3 + 2] = (c & 0x1) * 0x2A + ((c >> 3) & 0x1) * 0x15;
 	}
@@ -592,6 +592,15 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					if (cpu->bl >= 0 && cpu->bl < LUT_COLOR_COUNT) {
 						cpu->bh = zzt.palette_lut[cpu->bl];
 					}
+				} return;
+				case 0x01: {
+					// store border color
+					zzt.palette_lut[LUT_BORDER_COLOR] = cpu->bh;
+					zzt_refresh_palette();
+				} return;
+				case 0x08: {
+					// load border color
+					cpu->bh = zzt.palette_lut[LUT_BORDER_COLOR];
 				} return;
 				case 0x02: {
 					// store LUT index array
@@ -1213,6 +1222,25 @@ int zzt_load_blink(int blink) {
 	zzt.blink = blink;
 	zeta_update_blink(zzt.blink);
 	return 0;
+}
+
+void zzt_get_screen_size(int *width, int *height) {
+	if (width != NULL) *width = (zzt_video_mode() & 2) ? 80 : 40;
+	if (height != NULL) *height = 25;
+}
+
+u8 *zzt_get_charset(int *width, int *height) {
+	if (width != NULL) *width = zzt.char_width;
+	if (height != NULL) *height = zzt.char_height;
+	return zzt.charset;
+}
+
+u32 *zzt_get_palette(void) {
+	return zzt.palette;
+}
+
+int zzt_get_blink(void) {
+	return zzt.blink;
 }
 
 void zzt_init(int memory_kbs) {

@@ -86,6 +86,15 @@ USER_FUNCTION
 void zzt_set_max_extended_memory(int kilobytes);
 
 USER_FUNCTION
+void zzt_get_screen_size(int *width, int *height);
+USER_FUNCTION
+u8 *zzt_get_charset(int *width, int *height);
+USER_FUNCTION
+u32 *zzt_get_palette(void);
+USER_FUNCTION
+int zzt_get_blink(void);
+
+USER_FUNCTION
 int zzt_load_charset(int width, int height, u8* data);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
