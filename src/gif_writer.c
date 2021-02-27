@@ -189,7 +189,7 @@ gif_writer_state *gif_writer_start(const char *filename, bool optimize) {
 
 	// write header
 	fwrite("GIF89a", 6, 1, s->file);
-	fput16le(s->file, s->screen_width * s->char_width);
+	fput16le(s->file, s->screen_width * s->char_width * (s->screen_width <= 40 ? 2 : 1));
 	fput16le(s->file, s->screen_height * s->char_height);
 	fputc(GIF_FLAG_GLOBAL_COLOR_MAP | GIF_FLAG_COLOR_RESOLUTION(8) | GIF_FLAG_GCM_DEPTH(4), s->file);
 	fputc(0, s->file); // background color
