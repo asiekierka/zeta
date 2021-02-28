@@ -162,6 +162,7 @@ u8 audio_should_insert_pause(speaker_entry* entries, int pos) {
 
 	// ZZT always immediately disables a note... except for drums!
 	if (entries[pos - 1].enabled) {
+#ifdef REMOVE_PLAYER_MOVEMENT_SOUND
 		// Clear out short blips (player walking, etc)
 		if (!entries[pos].enabled) {
 			// 30 cycles + 1 safety measure
@@ -169,6 +170,7 @@ u8 audio_should_insert_pause(speaker_entry* entries, int pos) {
 				return 0;
 			}
 		}
+#endif
 		return 1;
 	}
 
