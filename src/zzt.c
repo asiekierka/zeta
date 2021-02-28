@@ -380,7 +380,7 @@ void zzt_set_timer_offset(long time) {
 
 void zzt_set_max_extended_memory(int kilobytes) {
 #ifdef USE_EMS_EMULATION
-	ems_set_max_pages(&(zzt.ems), kilobytes / (EMS_PAGE_SIZE / 1024));
+	ems_set_max_pages(&(zzt.ems), kilobytes < 0 ? -1 : (kilobytes / (EMS_PAGE_SIZE / 1024)));
 #endif
 }
 
