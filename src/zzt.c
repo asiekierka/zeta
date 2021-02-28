@@ -728,10 +728,24 @@ static void cpu_func_intr_0x13(cpu_state* cpu) {
 }
 
 // As per RoZ, ZZT checks for keyboard input once for every InputUpdate call
-// on the board.
-#define KEYBOARD_CHECKS_PER_TICK (IDLEHACK_MAX_PLAYER_CLONES + 1)
+// on the board. We also leave a similarly sized amount of calls for board time checks.
+#define KEYBOARD_CHECKS_PER_TICK (IDLEHACK_MAX_PLAYER_CLONES * 2 + 1)
 static long kbd_call_time = 0;
 static int kbd_call_count = 0;
+
+static int mark_idlehack_call(zzt_state *zzt) {
+	if (!zzt->disable_idle_hacks) {
+		if (kbd_call_time != zzt_internal_time()) {
+			kbd_call_time = zzt_internal_time();
+			kbd_call_count = 0;
+		}
+		if ((++kbd_call_count) >= KEYBOARD_CHECKS_PER_TICK) {
+			kbd_call_count = 0;
+			return STATE_WAIT_FRAME;
+		}
+	}
+	return STATE_CONTINUE;
+}
 
 static int cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
@@ -758,16 +772,7 @@ static int cpu_func_intr_0x16(cpu_state* cpu) {
 			cpu->al = zzt->keybuf[0].key_ch;
 		} else {
 			cpu->flags |= FLAG_ZERO;
-			if (!zzt->disable_idle_hacks) {
-				if (kbd_call_time != zzt_internal_time()) {
-					kbd_call_time = zzt_internal_time();
-					kbd_call_count = 0;
-				}
-				if ((++kbd_call_count) >= KEYBOARD_CHECKS_PER_TICK) {
-					kbd_call_count = 0;
-					return STATE_WAIT_FRAME;
-				}
-			}
+			return mark_idlehack_call(zzt);
 		}
 		return STATE_CONTINUE;
 	} else if (cpu->ah == 0x02) {
@@ -897,7 +902,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->cl = (ms / 60000) % 60;
 			cpu->dh = (ms / 1000) % 60;
 			cpu->dl = (ms / 10) % 100;
-		} return zzt->disable_idle_hacks ? STATE_CONTINUE : STATE_WAIT_FRAME;
+		} return mark_idlehack_call(zzt);
 		case 0x2D: { // systime set
 			long ms = cpu->dl * 10 + cpu->dh * 1000 + cpu->cl * 60000 + cpu->ch * 3600000;
 			zzt->timer_time_offset = ms - zzt->timer_time;
