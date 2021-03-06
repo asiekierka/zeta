@@ -121,12 +121,12 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 	int i; long j;
 	int freq_samples_fixed;
 	int pos_samples_fixed;
-	int k;
+	int k, note_played;
 	double audio_res;
 	double audio_curr_time;
 	double res_to_samples;
 	double audio_dfrom, audio_dto;
-	long audio_from, audio_to, audio_last_to = 0;
+	long audio_from, audio_to, audio_last_to = -(1 << 30);
 	u16* stream16 = (u16*) stream;
 
 	u16 audio_smp_min = (128 - audio_volume);
@@ -170,20 +170,17 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 		audio_curr_time = time;
 		audio_stream_clear(stream, audio_smp_center, 0, len);
 	} else {
-		double last_ms = audio_prev_time;
 		for (i = 0; i < speaker_entry_pos; i++) {
-			// Skip notes played *after* the last note we've played.
-			if (speaker_entries[i].ms >= audio_curr_time) break;
-			// Skip notes played *before* the last note we've played.
-			if (speaker_entries[i].ms < last_ms) continue;
-			last_ms = speaker_entries[i].ms;
-
-			// Adjust to (0..sample) range.
+			// audio_dfrom/to = duration relative to the beginning of stream (ms)
 			audio_dfrom = speaker_entries[i].ms - audio_prev_time;
-			if (i == speaker_entry_pos - 1) audio_dto = audio_res;
-			else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
-			// Fill out gaps, if any, on the final note.
-			// Adjust.
+			if (i == speaker_entry_pos - 1) {
+				#ifdef AUDIO_STREAM_DEBUG
+				fprintf(stderr, "[callback] guessing next sample length\n");
+				#endif
+				audio_dto = audio_res;
+			} else audio_dto = speaker_entries[i+1].ms - audio_prev_time;
+
+			// audio_from/to = duration relative to the beginning of stream (samples)
 			audio_from = (long) (audio_dfrom * res_to_samples);
 			audio_to = (long) (audio_dto * res_to_samples);
 
@@ -195,18 +192,21 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 			}
 			#endif
 
-			// Ensure the duration is at least 1 sample.
-			if (audio_dfrom >= audio_dto) continue;
+			// Force minimum delay between notes.
 			if (audio_from < audio_last_to) audio_from = audio_last_to;
-			if (audio_to <= (audio_from + MINIMUM_NOTE_DELAY - 1)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
+			if (audio_to < (audio_from + MINIMUM_NOTE_DELAY)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
 
-			// Filter rough edges, and end if we've gone past the buffer area (so we can remember the notes).
+			// Clamp; if out of bounds, skip note.
 			if (audio_from < 0) audio_from = 0;
 			else if (audio_from >= len) break;
-			if (audio_to < 0) continue;
+			if (audio_to < 0) {
+				note_played = i;
+				continue;
+			}
 			else if (audio_to > len) audio_to = len;
 
 			// Emit the actual note.
+			note_played = i;
 			if (audio_to > audio_from) {
 				if (speaker_entries[i].enabled) {
 					#ifdef AUDIO_STREAM_DEBUG
@@ -249,22 +249,25 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 				}
 			}
 
+			if (audio_to >= len) break;
 			audio_last_to = audio_to;
 		}
 
 		// Remove played notes.
 		if (speaker_entry_pos > 0) {
-			k = i - 1;
+			k = note_played;
 			for (i = k; i < speaker_entry_pos; i++) {
 				speaker_entries[i - k] = speaker_entries[i];
 			}
 			speaker_entry_pos -= k;
-			if (speaker_entry_pos == 1) {
+			if (speaker_entry_pos <= 1) {
 				// If we only have one note, we can synchronize the
 				// internal timer with the external timer.
 				audio_curr_time = time;
 			}
-			speaker_entries[0].ms = audio_curr_time;
+			if (speaker_entry_pos >= 1) {
+				speaker_entries[0].ms = audio_curr_time;
+			}
 		}
 
 		// Clear debug/error flags.
