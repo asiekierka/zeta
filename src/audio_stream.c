@@ -27,9 +27,6 @@
 #include "audio_stream.h"
 #include "logging.h"
 
-// #define AUDIO_STREAM_DEBUG
-// #define AUDIO_STREAM_DEBUG_BUFFERS
-
 #ifdef AVOID_MALLOC
 #define AUDIO_STREAM_SPEAKER_ENTRIES_STATIC
 #endif
@@ -52,6 +49,9 @@ static speaker_entry speaker_entries[SPEAKER_ENTRY_LEN];
 static speaker_entry *speaker_entries;
 static int speaker_entry_len = 0;
 #endif
+
+// #define AUDIO_STREAM_DEBUG
+// #define AUDIO_STREAM_DEBUG_BUFFERS
 
 #ifdef AUDIO_STREAM_DEBUG
 static void audio_stream_print(int pos) {
@@ -105,15 +105,26 @@ void audio_stream_set_volume(u8 volume) {
 	audio_volume = volume;
 }
 
+static inline void audio_stream_clear(u8 *stream, u16 audio_smp_center, long audio_from, long audio_to) {
+	long j;
+	u16* stream16 = (u16*) stream;
+	if (audio_16bit) {
+		for (j = audio_from; j < audio_to; j++) {
+			stream16[j] = audio_smp_center;
+		}
+	} else {
+		memset(stream + audio_from, audio_smp_center, audio_to - audio_from);
+	}
+}
+
 void audio_stream_generate(long time, u8 *stream, int len) {
 	int i; long j;
 	int freq_samples_fixed;
 	int pos_samples_fixed;
 	int k;
-	double audio_res = (len / (double) audio_freq * 1000);
-	double audio_curr_time = audio_prev_time + audio_res;
-//	double audio_curr_time = time;
-	double res_to_samples = len / audio_res;
+	double audio_res;
+	double audio_curr_time;
+	double res_to_samples;
 	double audio_dfrom, audio_dto;
 	long audio_from, audio_to, audio_last_to = 0;
 	u16* stream16 = (u16*) stream;
@@ -129,10 +140,15 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 		len >>= 1;
 	}
 
+	audio_res = (len / (double) audio_freq * 1000);
+	audio_curr_time = audio_prev_time + audio_res;
+//	audio_curr_time = time;
+	res_to_samples = len / audio_res;
+
 	// handle the first
 	if (audio_prev_time < 0) {
 		audio_prev_time = time;
-		memset(stream, audio_smp_center, len);
+		audio_stream_clear(stream, audio_smp_center, 0, len);
 		speaker_entry_pos = 0;
 		return;
 	}
@@ -152,7 +168,7 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 
 	if (speaker_entry_pos == 0) {
 		audio_curr_time = time;
-		memset(stream, audio_smp_center, len);
+		audio_stream_clear(stream, audio_smp_center, 0, len);
 	} else {
 		double last_ms = audio_prev_time;
 		for (i = 0; i < speaker_entry_pos; i++) {
@@ -187,7 +203,7 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 			// Filter rough edges, and end if we've gone past the buffer area (so we can remember the notes).
 			if (audio_from < 0) audio_from = 0;
 			else if (audio_from >= len) break;
-			if (audio_to < 0) audio_to = 0;
+			if (audio_to < 0) continue;
 			else if (audio_to > len) audio_to = len;
 
 			// Emit the actual note.
@@ -223,19 +239,13 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 							}
 						}
 					}
-					speaker_freq_ctr += audio_to - audio_from;
+					speaker_freq_ctr = (pos_samples_fixed >> 8);
 				} else {
 					#ifdef AUDIO_STREAM_DEBUG
 					fprintf(stderr, "[callback] emitting off (%ld, %ld)\n", audio_from, audio_to);
 					#endif
 					speaker_freq_ctr = 0;
-					if (audio_16bit) {
-						for (j = audio_from; j < audio_to; j++) {
-							stream16[j] = audio_smp_center;
-						}
-					} else {
-						memset(stream + audio_from, audio_smp_center, audio_to - audio_from);
-					}
+					audio_stream_clear(stream, audio_smp_center, audio_from, audio_to);
 				}
 			}
 
