@@ -47,6 +47,8 @@
 #define MAX_VFS_FNLEN 12
 #define MAX_VFS_DIRLEN 63
 
+// #define DEBUG_VFS
+
 static FILE* file_pointers[MAX_FILES];
 static int vfs_initialized = 0;
 
@@ -147,6 +149,8 @@ typedef struct {
 } vfs_dirent;
 
 static vfs_dirent vfs_process_entry(const struct dirent *entry, u16 mask, const char *spec) {
+	char path[MAX_FNLEN+1];
+
 	const char *name = entry->d_name;
 	struct stat entry_stat;
 	vfs_dirent result;
@@ -171,7 +175,9 @@ static vfs_dirent vfs_process_entry(const struct dirent *entry, u16 mask, const 
 	}
 
 	// generate attribute mask & compare
-	stat(name, &entry_stat);
+	strcpy(path, vfs_curdir);
+	vfs_path_cat(path, name, MAX_FNLEN);
+	stat(path, &entry_stat);
 	result.size = entry_stat.st_size;
 	if (entry_stat.st_mode & S_IFDIR) {
 		result.attr |= VFS_ATTR_DIR;
@@ -186,6 +192,9 @@ static vfs_dirent vfs_process_entry(const struct dirent *entry, u16 mask, const 
 }
 
 static int vfs_apply_entry(u8* ptr, vfs_dirent *entry) {
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: found %s %02x\n", entry->name, entry->attr);
+#endif
 	ptr[0x15] = (u8) (entry->attr);
 	ptr[0x16] = (u8) (entry->time);
 	ptr[0x17] = (u8) (entry->time >> 8);
@@ -214,6 +223,10 @@ int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
 	DIR *dir;
 	struct dirent *entry;
 	vfs_dirent* vfs_dirents_new;
+
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: findspec %s in %s\n", spec, vfs_curdir);
+#endif
 
 	if (spec[0] == '*') {
 		if (strlen(spec + 1) > MAX_SPECLEN) {
@@ -270,6 +283,10 @@ static char vfs_findspec[MAX_SPECLEN+1];
 static u16 vfs_findmask;
 
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: findfirst %s in %s\n", spec, vfs_curdir);
+#endif
+
 	vfs_findspec[0] = 0; // clear findspec
 
 	if (spec[0] == '*') {
