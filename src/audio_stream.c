@@ -196,6 +196,11 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 			if (audio_from < audio_last_to) audio_from = audio_last_to;
 			if (audio_to < (audio_from + MINIMUM_NOTE_DELAY)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
 
+                       // If first note and above 0, memset.
+			if (i == 0 && audio_from > 0) {
+				audio_stream_clear(stream, audio_smp_center, 0, audio_from < len ? audio_from : len);
+			}
+
 			// Clamp; if out of bounds, skip note.
 			if (audio_from < 0) audio_from = 0;
 			else if (audio_from >= len) break;
