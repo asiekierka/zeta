@@ -29,7 +29,7 @@
 #ifdef USE_EMS_EMULATION
 
 #define EMS_HANDLE_ALLOC_UNIT 8
-#define DEBUG_EMS
+// #define DEBUG_EMS
 
 static ems_status ems_resize_handles(ems_state *ems, u16 new_size) {
     int i;

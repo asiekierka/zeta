@@ -947,6 +947,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x3E: { // close
+#ifdef DEBUG_FS_ACCESS
+			fprintf(stderr, "close %04X\n", cpu->bx);
+#endif
 			if (cpu->bx < VFS_HANDLE_SPECIAL) {
 				int res = vfs_close(cpu->bx);
 				if (res < 0) {
@@ -967,6 +970,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->flags &= ~FLAG_CARRY;
 		} return STATE_CONTINUE;
 		case 0x3B: { // chdir
+#ifdef DEBUG_FS_ACCESS
+			fprintf(stderr, "chdir %s\n", STR_DS_DX);
+#endif
 			int res = vfs_chdir(STR_DS_DX);
 			UPDATE_CARRY_RESULT(res);
 		} return STATE_CONTINUE;
@@ -1018,6 +1024,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			}
 		} return STATE_CONTINUE;
 		case 0x42: { // lseek
+#ifdef DEBUG_FS_ACCESS
+			fprintf(stderr, "lseek %04X %d %02X\n", cpu->bx, (cpu->cx << 16) | cpu->dx, cpu->al);
+#endif
 			if (cpu->bx < VFS_HANDLE_SPECIAL) {
 				int res = vfs_seek(cpu->bx, (cpu->cx << 16) | cpu->dx, cpu->al);
 				if (res < 0) {

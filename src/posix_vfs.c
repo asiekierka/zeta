@@ -86,9 +86,10 @@ int vfs_chdir(const char *dir) {
 	char *dir_split;
 	int i;
 
-	if (strlen(dir) == 3 && dir[1] == ':' && dir[2] == '\\') {
+	if (strlen(dir) >= 3 && dir[1] == ':' && dir[2] == '\\') {
 		// reset path
-		vfs_subdir[0] = 0;
+		strncpy(vfs_subdir, dir + 3, MAX_VFS_DIRLEN);
+		vfs_subdir[MAX_VFS_DIRLEN] = 0;
 		vfs_update_dirs();
 		return 0;
 	}
@@ -387,6 +388,7 @@ int vfs_open(const char* filename, int mode) {
 		return -1;
 	}
 
+
 	i = 0;
 	while (i < MAX_FILES && file_pointers[i] != NULL) i++;
 	if (i == MAX_FILES) return -1;
@@ -398,11 +400,17 @@ int vfs_open(const char* filename, int mode) {
 
 	file = fopen(path, (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b"));
 	if (file == NULL) {
-//		fprintf(stderr, "failed to open %s\n", path);
+#ifdef DEBUG_VFS
+		fprintf(stderr, "posix vfs: failed to open %s\n", path);
+#endif
 		return -1;
+	} else {
+#ifdef DEBUG_VFS
+		fprintf(stderr, "posix vfs: opened %s at %d\n", path, i+1);
+#endif
+		file_pointers[i] = file;
+		return i+1;
 	}
-	file_pointers[i] = file;
-	return i+1;
 }
 
 int vfs_read(int handle, u8* ptr, int amount) {
@@ -429,6 +437,9 @@ int vfs_seek(int handle, int amount, int type) {
 }
 
 int vfs_close(int handle) {
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: closing %d\n", handle);
+#endif
 	if (handle <= 0 || handle > MAX_FILES) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	file_pointers[handle-1] = NULL;
