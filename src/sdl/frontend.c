@@ -109,6 +109,7 @@ static audio_writer_state *audio_writer_s = NULL;
 #endif
 #ifdef ENABLE_GIF_WRITER
 static gif_writer_state *gif_writer_s = NULL;
+static u32 gif_writer_ticks;
 #endif
 
 static void audio_callback(void *userdata, Uint8 *stream, int len) {
@@ -156,7 +157,7 @@ static void sdl_pit_tick(void) {
 #ifdef ENABLE_GIF_WRITER
 	if (gif_writer_s != NULL) {
 		SDL_LockMutex(render_data_update_mutex);
-		gif_writer_frame(gif_writer_s);
+		gif_writer_frame(gif_writer_s, gif_writer_ticks++);
 		SDL_UnlockMutex(render_data_update_mutex);
 	}
 #endif
@@ -530,6 +531,7 @@ int main(int argc, char **argv) {
 							if (file != NULL) {
 								fclose(file);
 								bool optimized = !KEYMOD_SHIFT(event.key.keysym.mod);
+								gif_writer_ticks = 0;
 								if ((gif_writer_s = gif_writer_start(filename, optimized, true)) != NULL) {
 									fprintf(stderr, "GIF writing started [%s, %s].\n", filename, optimized ? "optimized" : "unoptimized");
 								} else {

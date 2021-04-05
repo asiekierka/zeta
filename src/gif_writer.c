@@ -59,7 +59,6 @@ typedef struct s_gif_writer_state {
 	int screen_height;
 	int char_width;
 	int char_height;
-	u32 pit_ticks;
 
 	u8 prev_video[4000];
 	u32 global_palette[16];
@@ -266,7 +265,7 @@ static bool can_draw_char_vram_difference(int x, int y) {
 	return (vram_difference[y * 10 + (x >> 3)] & (1 << (x & 7))) != 0;
 }
 
-void gif_writer_frame(gif_writer_state *s) {
+void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
 	s->gif_delay_buffer += 11;
 	u32 palette_optimized[16];
 
@@ -276,7 +275,7 @@ void gif_writer_frame(gif_writer_state *s) {
 	u32 *palette = zzt_get_palette();
 	u8 *video = zzt_get_ram() + 0xB8000;
 	bool blink = zzt_get_blink() != 0;
-	bool blink_active = blink && ((s->pit_ticks >> 1) & 2);
+	bool blink_active = blink && ((pit_ticks >> 2) & 1);
 	bool requires_lct = memcmp(palette, s->global_palette, 16 * sizeof(u32)) != 0;
 
 	if (!s->optimize
@@ -315,7 +314,7 @@ void gif_writer_frame(gif_writer_state *s) {
 			u8 nv_col = new_vram[1];
 			if (blink && ((nv_col & 0x80) != 0)) {
 				if (blink_active) {
-					nv_col = (nv_col >> 4) * 0x11;
+					nv_col = ((nv_col >> 4) & 0x7) * 0x11;
 				} else {
 					nv_col &= 0x7F;
 				}

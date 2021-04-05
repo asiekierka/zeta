@@ -29,7 +29,7 @@ typedef struct s_gif_writer_state gif_writer_state;
 
 gif_writer_state *gif_writer_start(const char *filename, bool optimize, bool pad_palette);
 void gif_writer_stop(gif_writer_state *s);
-void gif_writer_frame(gif_writer_state *s);
+void gif_writer_frame(gif_writer_state *s, u32 pit_ticks);
 void gif_writer_on_charset_change(gif_writer_state *s);
 void gif_writer_on_palette_change(gif_writer_state *s);
 
