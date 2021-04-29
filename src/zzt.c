@@ -709,6 +709,11 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			break;
 		case 0x12:
 			switch (cpu->bl) {
+				case 0x10: {
+					// get ega info
+					cpu->bx = 0x0000;
+					cpu->cx = 0x0000; // is this correct?
+				} return;
 				case 0x30: {
 					// set vertical resolution
 					// some font installers like to change it, but ZZT always changes it back to 1.
