@@ -30,13 +30,14 @@ USE_CURSES = 1
 LIBS = -lncursesw -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
-CC = emcc
-CFLAGS = -O3 --js-library src/emscripten_glue.js \
-  -s STRICT=1 \
+CC = EMCC_CLOSURE_ARGS="--js $(realpath ${SRCDIR})/emscripten_externs.js" emcc
+CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
+  -s STRICT=1 --closure 1 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc","_free"]' \
-  -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
+  -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
+  -s SUPPORT_ERRNO=0 \
   -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
   -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
   -s INITIAL_MEMORY=4194304 -s TOTAL_STACK=262144 \

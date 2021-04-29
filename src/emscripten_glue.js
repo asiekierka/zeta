@@ -1,6 +1,6 @@
 mergeInto(LibraryManager.library, {
 	cpu_ext_log: function(s) {
-		console.log(Pointer_stringify(s));
+		console.log(AsciiToString(s));
 	},
 	zeta_time_ms: function() {
 		return vfsg_time_ms();
