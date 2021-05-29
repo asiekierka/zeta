@@ -53,6 +53,10 @@ export function initVfsWrapper() {
 		}
 
 		fn = fn.toUpperCase();
+		if (fn.length >= 3 && fn.charCodeAt(1) == 58 && fn.charCodeAt(2) == 92) {
+			fn = fn.substring(3);
+		}
+
 		let data = vfs.get(fn);
 		const is_write = (mode & 0x3) == 1;
 
@@ -65,9 +69,9 @@ export function initVfsWrapper() {
 			if (data == null) return -1;
 		}
 
-		console.log("opening " + fn);
 		let i = 1;
 		while (i in handles) i++;
+		console.log("opening " + fn + " at " + i);
 		handles[i] = {fn: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
 
 		return i;

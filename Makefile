@@ -38,7 +38,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
   -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
   -s SUPPORT_ERRNO=0 \
-  -s ALLOW_MEMORY_GROWTH=0 -s ASSERTIONS=0 \
+  -s ALLOW_MEMORY_GROWTH=1 -s ASSERTIONS=0 \
   -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
   -s INITIAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
   -DNO_MEMSET -DAVOID_MALLOC --no-entry

@@ -24,7 +24,9 @@
 #include <string.h>
 #endif
 #include "cpu.h"
+
 //#define DBG1
+//#define DEBUG_CPU
 
 #ifdef DBG1
 #include <stdio.h>
@@ -539,7 +541,9 @@ static void cpu_imul(cpu_state* cpu, mrm_entry e, u8 opcode) {
 static void cpu_div(cpu_state* cpu, mrm_entry e, u8 opcode) {
 	u16 v2 = cpu_read_rm(cpu, &e, e.dst);
 	if (v2 == 0) {
+#ifdef DEBUG_CPU
 		cpu_ext_log("division by zero");
+#endif
 		cpu_emit_interrupt(cpu, 0);
 		return;
 	}
@@ -572,7 +576,9 @@ static void cpu_div(cpu_state* cpu, mrm_entry e, u8 opcode) {
 static void cpu_idiv(cpu_state* cpu, mrm_entry e, u8 opcode) {
 	s16 v2 = cpu_read_rm(cpu, &e, e.dst);
 	if (v2 == 0) {
+#ifdef DEBUG_CPU
 		cpu_ext_log("division by zero");
+#endif
 		cpu_emit_interrupt(cpu, 0);
 		return;
 	}
