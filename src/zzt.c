@@ -45,10 +45,10 @@ static u8 ega_palette_lut[] = {
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
 
-#define STR_DS_DX (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->dx])
-#define STR_DS_SI (char*)(&cpu->ram[cpu->seg[SEG_DS]*16 + cpu->si])
-#define U8_ES_BP (u8*)(&cpu->ram[cpu->seg[SEG_ES]*16 + cpu->bp])
-#define U8_ES_DX (u8*)(&cpu->ram[cpu->seg[SEG_ES]*16 + cpu->dx])
+#define STR_DS_DX (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF])
+#define STR_DS_SI (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->si) & 0xFFFFF])
+#define U8_ES_BP (u8*)(&cpu->ram[(cpu->seg[SEG_ES]*16 + cpu->bp]) & 0xFFFFF)
+#define U8_ES_DX (u8*)(&cpu->ram[(cpu->seg[SEG_ES]*16 + cpu->dx) & 0xFFFFF])
 #define UPDATE_CARRY_RESULT(res) { if ((res) < 0) { cpu->flags |= FLAG_CARRY; } else { cpu->flags &= ~FLAG_CARRY; } }
 
 typedef struct {
@@ -877,7 +877,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->dl = 0x00;
 		} return STATE_CONTINUE;
 		case 0x09: { // write string (Banana Quest installer)
-			u8* ptr = cpu->ram + (cpu->seg[SEG_DS]*16 + cpu->dx);
+			u8* ptr = cpu->ram + ((cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF);
 			while (*(ptr) != '$') {
 				cpu_0x10_output(cpu, *(ptr++));
 			}
@@ -893,7 +893,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->al = cpu->dl;
 			return STATE_CONTINUE;
 		case 0x1A: // set dta
-			zzt->dos_dta = (cpu->seg[SEG_DS]*16 + cpu->dx);
+			zzt->dos_dta = ((cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF);
 			return STATE_CONTINUE;
 		case 0x25: // set ivt
 			cpu->ram[cpu->al * 4] = cpu->dl;
