@@ -238,10 +238,12 @@ static int zzt_thread_func(void *ptr) {
 
 #define KEYMOD_ALT(keymod) ((keymod) & (KMOD_LALT | KMOD_RALT))
 #define KEYMOD_CTRL(keymod) ((keymod) & (KMOD_LCTRL | KMOD_RCTRL))
-#define KEYMOD_SHIFT(keymod) ((keymod) & (KMOD_LSHIFT | KMOD_RSHIFT))
+#define KEYMOD_RSHIFT(keymod) ((keymod) & (KMOD_RSHIFT))
+#define KEYMOD_LSHIFT(keymod) ((keymod) & (KMOD_LSHIFT))
 
 static void update_keymod(SDL_Keymod keymod) {
-	if (KEYMOD_SHIFT(keymod)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
+	if (KEYMOD_RSHIFT(keymod)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
+	if (KEYMOD_LSHIFT(keymod)) zzt_kmod_set(0x02); else zzt_kmod_clear(0x02);
 	if (KEYMOD_CTRL(keymod)) zzt_kmod_set(0x04); else zzt_kmod_clear(0x04);
 	if (KEYMOD_ALT(keymod)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
 }
