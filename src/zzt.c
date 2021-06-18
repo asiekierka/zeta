@@ -47,7 +47,7 @@ static u8 ega_palette_lut[] = {
 
 #define STR_DS_DX (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF])
 #define STR_DS_SI (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->si) & 0xFFFFF])
-#define U8_ES_BP (u8*)(&cpu->ram[(cpu->seg[SEG_ES]*16 + cpu->bp]) & 0xFFFFF)
+#define U8_ES_BP (u8*)(&cpu->ram[(cpu->seg[SEG_ES]*16 + cpu->bp) & 0xFFFFF])
 #define U8_ES_DX (u8*)(&cpu->ram[(cpu->seg[SEG_ES]*16 + cpu->dx) & 0xFFFFF])
 #define UPDATE_CARRY_RESULT(res) { if ((res) < 0) { cpu->flags |= FLAG_CARRY; } else { cpu->flags &= ~FLAG_CARRY; } }
 

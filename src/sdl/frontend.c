@@ -240,6 +240,7 @@ static int zzt_thread_func(void *ptr) {
 #define KEYMOD_CTRL(keymod) ((keymod) & (KMOD_LCTRL | KMOD_RCTRL))
 #define KEYMOD_RSHIFT(keymod) ((keymod) & (KMOD_RSHIFT))
 #define KEYMOD_LSHIFT(keymod) ((keymod) & (KMOD_LSHIFT))
+#define KEYMOD_SHIFT(keymod) ((keymod) & (KMOD_RSHIFT | KMOD_LSHIFT))
 
 static void update_keymod(SDL_Keymod keymod) {
 	if (KEYMOD_RSHIFT(keymod)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
