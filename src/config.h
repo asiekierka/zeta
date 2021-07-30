@@ -47,9 +47,6 @@
 #define ENABLE_GIF_WRITER
 #define ENABLE_SCREENSHOTS
 #define USE_GETOPT
-#define USE_LIBPNG
-#define USE_OPENGL
-// #define USE_OPENGL_ES /* GLES 1.1, not production ready */
 #define POSIX_VFS_SORTED_DIRS
 
 // #define DEBUG_OPENGL
@@ -76,5 +73,13 @@
 //#define USE_OPCODES_DECIMAL
 //#define USE_OPCODES_SALC
 #define USE_CPU_PARITY_FLAG
+
+#ifdef HAVE_CONFIG_H
+#include "autoconfig.h"
+#else
+#define USE_OPENGL
+// #define USE_OPENGL_ES /* GLES 1.1, not production ready */
+#define USE_LIBPNG
+#endif
 
 #endif /* __CONFIG_H__ */

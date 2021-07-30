@@ -10,9 +10,11 @@ VERSION ?= unknown
 
 RESDIR = res
 SRCDIR = src
+TOOLSDIR = tools
+FONTSDIR = fonts
 OBJDIR = ${BUILDDIR}/obj
 
-CFLAGS = -g -O3 -flto -std=c18 -Wall -DZETA_VERSION=\"${VERSION}\"
+CFLAGS = -g -O3 -flto -std=c18 -Wall -DVERSION=\"${VERSION}\"
 LDFLAGS = -g -O3 -flto -std=c18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
@@ -87,9 +89,13 @@ $(OBJDIR)/8x14.o: $(OBJDIR)/8x14.c
 	@mkdir -p $(@D)
 	$(CC) -g -c -o $@ $<
 
-$(OBJDIR)/8x14.c: $(RESDIR)/8x14.bin
+$(OBJDIR)/8x14.c: $(OBJDIR)/8x14.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)
-	xxd -i $< > $@
+	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x14_bin $(OBJDIR)/8x14.c $(OBJDIR)/8x14.h $(OBJDIR)/8x14.bin
+
+$(OBJDIR)/8x14.bin: $(FONTSDIR)/pc_ega.png $(TOOLSDIR)/font2raw.py
+	@mkdir -p $(@D)
+	python3 $(TOOLSDIR)/font2raw.py $< 8 14 a $@
 
 .PHONY: clean
 

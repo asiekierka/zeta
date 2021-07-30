@@ -367,7 +367,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	snprintf(window_name, sizeof(window_name), "Zeta %s", ZETA_VERSION);
+	snprintf(window_name, sizeof(window_name), "Zeta %s", VERSION);
 	window_name[64] = 0;
 
 	sdl_renderer *renderer = NULL;
