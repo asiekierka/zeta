@@ -23,22 +23,6 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-// General configuration
-
-//#define BIG_ENDIAN
-#define UNALIGNED_OK
-
-// Audio configuration
-
-// RESAMPLE_NEAREST, RESAMPLE_LINEAR, RESAMPLE_BANDLIMITED
-#ifdef __EMSCRIPTEN__
-#define RESAMPLE_LINEAR
-#else
-// users report stuttering issues due to overly low performance
-//#define RESAMPLE_BANDLIMITED
-#define RESAMPLE_LINEAR // still better than NEAREST at least!
-#endif
-
 // SDL port configuration
 
 // 60/16 Hz (blink every 16 frames at 60 Hz)
@@ -75,8 +59,30 @@
 #define USE_CPU_PARITY_FLAG
 
 #ifdef HAVE_CONFIG_H
+
 #include "autoconfig.h"
+
+#ifndef HAVE_ALIGNED_ACCESS_REQUIRED
+#define UNALIGNED_OK
+#endif
+
 #else
+// General configuration
+
+//#define BIG_ENDIAN
+#define UNALIGNED_OK
+
+// Audio configuration
+// RESAMPLE_NEAREST, RESAMPLE_LINEAR, RESAMPLE_BANDLIMITED
+#ifdef __EMSCRIPTEN__
+#define RESAMPLE_LINEAR
+#else
+// users report stuttering issues due to overly low performance
+//#define RESAMPLE_BANDLIMITED
+#define RESAMPLE_LINEAR // still better than NEAREST at least!
+#endif
+
+// Libraries
 #define USE_OPENGL
 // #define USE_OPENGL_ES /* GLES 1.1, not production ready */
 #define USE_LIBPNG

@@ -8,20 +8,32 @@ AC_LANG_PUSH([C])
 
 AC_CANONICAL_HOST
 
+AM_PATH_PYTHON([3.5])
+
 AC_ARG_WITH([frontend],
 	AS_HELP_STRING([--with-frontend=FRONTEND], [Use specified frontend]))
-
-AS_IF([test "x$with_frontend" = "x"], [
-	dnl Pick frontend.
-	with_frontend=sdl2
-])
+AC_ARG_WITH([resampler],
+	AS_HELP_STRING([--with-resampler=RESAMPLER], [Use specified resampler: nearest, linear, bandlimited]))
 
 AC_SUBST(FRONTEND_CFLAGS)
 AC_SUBST(FRONTEND_LDFLAGS)
 FRONTEND_CFLAGS=""
 FRONTEND_LDFLAGS=""
 
-AM_PATH_PYTHON([3.5])
+AC_C_BIGENDIAN([AC_DEFINE(BIG_ENDIAN, 1, [Platform is big endian.])])
+AX_CHECK_ALIGNED_ACCESS_REQUIRED
+
+AX_CHECK_COMPILE_FLAG([-std=c11], [
+	FRONTEND_CFLAGS="$FRONTEND_CFLAGS -std=c11"
+], [
+	echo "C compiler cannot compile C11 code"
+	exit -1
+])
+
+dnl Pick frontend.
+AS_IF([test "x$with_frontend" = "x"], [
+	with_frontend=sdl2
+])
 
 AS_CASE([$with_frontend],
 	[ncurses], [
@@ -57,6 +69,21 @@ AS_CASE([$with_frontend],
 
 AM_CONDITIONAL([FRONTEND_NCURSES], [test "x$with_frontend" = "xncurses"])
 AM_CONDITIONAL([FRONTEND_SDL2], [test "x$with_frontend" = "xsdl2"])
+
+dnl Pick resampler.
+AS_IF([test "x$with_resampler" = "x"], [
+	AC_CHECK_LIB([m],[cosf],[with_resampler=bandlimited],[with_resampler=linear])
+])
+
+AS_CASE([$with_resampler],
+	[nearest], [AC_DEFINE(RESAMPLE_NEAREST, 1, [Resampling mode.])],
+	[linear], [AC_DEFINE(RESAMPLE_LINEAR, 1, [Resampling mode.])],
+	[bandlimited], [
+		AC_DEFINE(RESAMPLE_BANDLIMITED, 1, [Resampling mode.])
+		AC_CHECK_LIB([m],[cosf])
+	],
+	[AC_MSG_ERROR("resampler not selected or invalid resampler")]
+)
 
 AC_LANG_POP
 
