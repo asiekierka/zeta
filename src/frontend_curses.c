@@ -63,6 +63,9 @@ void zeta_update_charset(int width, int height, u8* data) {
 void zeta_update_palette(u32* data) {
 }
 
+void zeta_update_blink(int blink) {
+}
+
 static void platform_kbd_tick(void) {
 	int c = getch();
 	if (c == ERR) return;
