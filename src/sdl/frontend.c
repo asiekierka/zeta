@@ -21,6 +21,7 @@
  */
 
 #include "../config.h"
+#include <SDL2/SDL.h>
 
 #ifdef USE_GETOPT
 #define _POSIX_C_SOURCE 2
@@ -33,7 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
 #include "../util.h"
 #include "../zzt.h"
