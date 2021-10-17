@@ -371,6 +371,7 @@ class Emulator {
     }
 
     _pollGamepads() {
+        if (!navigator.getGamepads || typeof(navigator.getGamepads) != "function") return;
         const gamepads = navigator.getGamepads();
         for (var i = 0; i < gamepads.length; i++) {
             const gamepad = gamepads[i];
