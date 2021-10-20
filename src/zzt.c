@@ -1174,7 +1174,9 @@ static void zzt_load_exe(int handle, const char *arg) {
 			zzt.cpu.ram[offset] = (word & 0xFF);
 			zzt.cpu.ram[offset + 1] = ((word >> 8) & 0xFF);
 		}
+#ifdef DEBUG_FS_ACCESS
 		fprintf(stderr, "relocated %d exe entries\n", size_reloc);
+#endif
 	}
 }
 

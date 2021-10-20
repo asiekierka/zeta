@@ -14,14 +14,14 @@ TOOLSDIR = tools
 FONTSDIR = fonts
 OBJDIR = ${BUILDDIR}/obj
 
-CFLAGS = -g -O3 -flto -std=c18 -Wall -DVERSION=\"${VERSION}\"
-LDFLAGS = -g -O3 -flto -std=c18 -Wall
+CFLAGS = -g -O2 -flto -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
+LDFLAGS = -g -O2 -flto -std=gnu18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
 CC = ${ARCH}-w64-mingw32-gcc
 CFLAGS += -mwindows
-LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -Wl,-Bdynamic -lSDL2 -lopengl32
+LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
 else ifeq (${PLATFORM},unix-sdl)
 USE_SDL = 1

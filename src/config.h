@@ -77,9 +77,7 @@
 #ifdef __EMSCRIPTEN__
 #define RESAMPLE_LINEAR
 #else
-// users report stuttering issues due to overly low performance
-//#define RESAMPLE_BANDLIMITED
-#define RESAMPLE_LINEAR // still better than NEAREST at least!
+#define RESAMPLE_BANDLIMITED
 #endif
 
 // Libraries

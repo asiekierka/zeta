@@ -24,7 +24,9 @@
 #include <SDL2/SDL.h>
 
 #ifdef USE_GETOPT
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 2
+#endif
 #include <unistd.h>
 #endif
 

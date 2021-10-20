@@ -416,13 +416,21 @@ int vfs_open(const char* filename, int mode) {
 int vfs_read(int handle, u8* ptr, int amount) {
 	if (handle <= 0 || handle > MAX_FILES) return -1;
 	FILE* fptr = file_pointers[handle-1];
-	return fread(ptr, 1, amount, fptr);
+	int count = fread(ptr, 1, amount, fptr);
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: read %d/%d bytes from %d\n", count, amount, handle);
+#endif
+	return count;
 }
 
 int vfs_write(int handle, u8* ptr, int amount) {
 	if (handle <= 0 || handle > MAX_FILES) return -1;
 	FILE* fptr = file_pointers[handle-1];
-	return fwrite(ptr, 1, amount, fptr);
+	int count = fwrite(ptr, 1, amount, fptr);
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: wrote %d/%d bytes to %d\n", count, amount, handle);
+#endif
+	return count;
 }
 
 int vfs_seek(int handle, int amount, int type) {
