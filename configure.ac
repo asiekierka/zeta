@@ -14,6 +14,7 @@ AC_ARG_WITH([frontend],
 	AS_HELP_STRING([--with-frontend=FRONTEND], [Use specified frontend]))
 AC_ARG_WITH([resampler],
 	AS_HELP_STRING([--with-resampler=RESAMPLER], [Use specified resampler: nearest, linear, bandlimited]))
+AC_ARG_ENABLE([opengl], AS_HELP_STRING([--enable-opengl], [Enable OpenGL support (for SDL2 frontend; default: auto)]), [use_opengl=$enableval])
 
 AC_SUBST(FRONTEND_CFLAGS)
 AC_SUBST(FRONTEND_LDFLAGS)
@@ -59,9 +60,16 @@ AS_CASE([$with_frontend],
 			FRONTEND_LDFLAGS="$FRONTEND_LDFLAGS $LIBPNG_LIBS"
 		])
 		AX_CHECK_GL([
-			AC_DEFINE(USE_OPENGL, 1, [Use OpenGL.])
-			FRONTEND_CFLAGS="$FRONTEND_CFLAGS $GL_CFLAGS"
-			FRONTEND_LDFLAGS="$FRONTEND_LDFLAGS $GL_LIBS"
+			AS_IF([test "x$use_opengl" != xno], [
+				AC_DEFINE(USE_OPENGL, 1, [Use OpenGL.])
+				FRONTEND_CFLAGS="$FRONTEND_CFLAGS $GL_CFLAGS"
+				FRONTEND_LDFLAGS="$FRONTEND_LDFLAGS $GL_LIBS"
+			])
+		], [
+			AS_IF([test "x$use_opengl" = xyes], [
+				echo "OpenGL not found"
+				exit -1
+			])
 		])
 	],
 	[AC_MSG_ERROR("frontend not selected or invalid frontend")]
