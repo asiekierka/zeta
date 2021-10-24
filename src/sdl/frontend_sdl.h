@@ -44,7 +44,7 @@ typedef struct {
 } sdl_render_size;
 
 typedef struct {
-    int (*init)(const char*);
+    int (*init)(const char*, int, int);
     void (*deinit)(void);
     void (*update_charset)(int, int, u8*);
     void (*update_palette)(u32*);

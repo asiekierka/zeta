@@ -64,6 +64,7 @@ typedef struct {
 } zzt_key_entry;
 
 extern unsigned char res_8x14_bin[];
+extern unsigned char res_8x8dbl_bin[];
 
 typedef struct {
 	cpu_state cpu;
@@ -72,6 +73,7 @@ typedef struct {
 
 	// video
 	int char_width, char_height;
+	bool charset_default;
 	u8 charset[256*16];
 	int blink;
 
@@ -261,6 +263,17 @@ void zzt_mouse_axis(int axis, int value) {
 			zzt.mouse_yd += value;
 			zzt.mouse_y = m_clamp(zzt.mouse_y + value, 0, 349);
 			break;
+	}
+}
+
+static void zzt_load_charset_default() {
+	int width, height;
+	zzt_get_screen_size(&width, &height);
+
+	if (width <= 40) {
+		zzt_load_charset(8, 16, res_8x8dbl_bin, true);
+	} else {
+		zzt_load_charset(8, 14, res_8x14_bin, true);
 	}
 }
 
@@ -531,6 +544,9 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 	switch (cpu->ah) {
 		case 0x00: // set video mode
 			video_mode = cpu->al & 0x7F;
+			if (zzt.charset_default) {
+				zzt_load_charset_default();
+			}
 			return;
 		case 0x01: // cursor shape
 			// fprintf(stderr, "int 0x10 set cursor shape %04X\n", cpu->cx);
@@ -681,10 +697,8 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			switch (cpu->al) {
 				case 0x00:
 				case 0x10: {
-					if (zzt.char_width != 8) {
-						fprintf(stderr, "int 0x10: character loading failed - non-8-wide character set updates unsupported!\n");
-						return;
-					}
+					zzt.char_width = 8;
+
 #ifdef DEBUG_INTERRUPTS
 					fprintf(stderr, "int 0x10: load %d characters from %d (%d bytes each), block %d\n", cpu->cx, cpu->dx, cpu->bh, cpu->bl);
 #endif
@@ -703,6 +717,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					}
 
 					zzt.char_height = cpu->bh;
+					zzt.charset_default = false;
 					zeta_update_charset(zzt.char_width, zzt.char_height, zzt.charset);
 				} return;
 			}
@@ -1205,11 +1220,12 @@ void zzt_load_binary(int handle, const char *arg) {
 	fprintf(stderr, "wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
 }
 
-int zzt_load_charset(int width, int height, u8 *data) {
+int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
 	if (width != 8 || height <= 0 || height > 16) return -1;
 
 	zzt.char_width = width;
 	zzt.char_height = height;
+	zzt.charset_default &= is_default;
 	for (int i = 0; i < 256*height; i++) {
 		zzt.charset[i] = data[i];
 	}
@@ -1290,6 +1306,8 @@ void zzt_init(int memory_kbs) {
 	zzt.mouse_y = 350 / 2;
 	zzt.port_201 = 0xF0;
 
+	zzt.charset_default = true;
+
 	cpu_init_globals();
 	cpu_init(&(zzt.cpu));
 
@@ -1324,7 +1342,7 @@ void zzt_init(int memory_kbs) {
 	// default assets
 
 	zzt_init_palette();
-	zzt_load_charset(8, 14, res_8x14_bin);
+	zzt_load_charset_default();
 	zzt_load_blink(1);
 }
 

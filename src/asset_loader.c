@@ -29,7 +29,7 @@ static int zzt_load_chr(void *data, int dlen) {
 	u8 *data8 = (u8*) data;
 
 	if ((dlen & 0xFF) != 0) return -1;
-	return zzt_load_charset(8, dlen >> 8, data8);
+	return zzt_load_charset(8, dlen >> 8, data8, false);
 }
 
 static int zzt_load_pal(void *data, int dlen) {

@@ -27,7 +27,7 @@ export class CanvasBasedRenderer {
 		this.ctx.imageSmoothingEnabled = false;
 		this.offscreenCanvas = document.createElement('canvas');
 		this.offscreenCanvas.width = 640;
-		this.offscreenCanvas.height = 350;
+		this.offscreenCanvas.height = 400;
 		this.offscreenCtx = this.offscreenCanvas.getContext('2d', {alpha: false});
 		this.offscreenCtx.imageSmoothingEnabled = false;
 
@@ -83,6 +83,7 @@ export class CanvasBasedRenderer {
 		this.cw = this.canvas.width;
 		this.ch = this.canvas.height;
 		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));
+		if (this.scale < 1) this.scale = 1;
 
 		if (this.video_blink) {
 			if ((time % this.blink_duration) >= (this.blink_duration / 2)) {
@@ -107,15 +108,14 @@ export class CanvasBasedRenderer {
 				break;
 			case 2:
 				if (col >= 0x80) {
-					col = ((col & 0x70) >> 4) * 0x11;
-				}
+					col = ((col & 0x70) >> 4) * 0x11;				}
 				break;
 		}
 
 		const buffered = this.chrBuf[y * 80 + x];
 		const bufcmp = (chr << 8) | col;
 
-		if (buffered == bufcmp) {
+		if (buffered === bufcmp) {
 			return;
 		} else {
 			this.chrBuf[y * 80 + x] = bufcmp;
@@ -124,7 +124,7 @@ export class CanvasBasedRenderer {
 		x = x * this.chrWidth;
 		y = y * this.chrHeight;
 
-		const bg = (col >> 4) & 0x0F;
+		const bg = (col >> 4) & 15;
 		const fg = (col & 15);
 
 		targetCtx.fillStyle = this.palette[bg];
@@ -209,7 +209,7 @@ export class CanvasBasedRenderer {
 		var targetCanvas = this.canvas;
 		var targetCtx = this.ctx;
 
-		if (this.scale > 1 || xScale > 1) {
+		if (this.scale > 1 || xScale > 1 || this.x_offset != 0 || this.y_offset != 0) {
 			targetCanvas = this.offscreenCanvas;
 			targetCtx = this.offscreenCtx;
 		}
@@ -222,8 +222,8 @@ export class CanvasBasedRenderer {
 			}
 		}
 
-		if (this.scale > 1 || xScale > 1) {
-			this.ctx.drawImage(targetCanvas, 0, 0, 640 / xScale, 350, this.x_offset, this.y_offset, 640 * this.scale, 350 * this.scale);
+		if (targetCtx != this.ctx) {
+			this.ctx.drawImage(targetCanvas, 0, 0, 80*this.chrWidth / xScale, 25*this.chrHeight, this.x_offset, this.y_offset, 80*this.chrWidth * this.scale, 25*this.chrHeight * this.scale);
 		}
 	}
 

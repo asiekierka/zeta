@@ -281,10 +281,12 @@ void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	}
 }
 
-static void sdl_resize_window(int delta) {
+static void sdl_resize_window(int delta, bool only_if_too_small) {
 	int iw = 80*charw;
 	int ih = 25*charh;
 	int w, h, scale;
+
+	if (window == NULL) return;
 
 	SDL_GetWindowSize(window, &w, &h);
 	calc_render_area(NULL, w, h, &scale, 0);
@@ -293,7 +295,9 @@ static void sdl_resize_window(int delta) {
 
 	iw *= scale;
 	ih *= scale;
-	SDL_SetWindowSize(window, iw, ih);
+	if (!only_if_too_small || ((iw > w) || (ih > h))) {
+		SDL_SetWindowSize(window, iw, ih);
+	}
 }
 
 static u8 video_blink = 1;
@@ -313,6 +317,7 @@ void zeta_update_charset(int width, int height, u8* data) {
 		gif_writer_on_charset_change(gif_writer_s);
 	}
 #endif
+	sdl_resize_window(0, true);
 	SDL_UnlockMutex(render_data_update_mutex);
 }
 
@@ -375,14 +380,14 @@ int main(int argc, char **argv) {
 	sdl_renderer *renderer = NULL;
 #ifdef USE_OPENGL
 	renderer = &sdl_renderer_opengl;
-	if (renderer->init(window_name) < 0) {
+	if (renderer->init(window_name, charw, charh) < 0) {
 		fprintf(stderr, "Could not initialize OpenGL (%s), using software renderer...", SDL_GetError());
 		renderer = NULL;
 	}
 #endif
 	if (renderer == NULL) {
 		renderer = &sdl_renderer_software;
-		if (renderer->init(window_name) < 0) {
+		if (renderer->init(window_name, charw, charh) < 0) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open video device!");
 			return 1;
 		}
@@ -584,10 +589,10 @@ int main(int argc, char **argv) {
 					if (KEYMOD_CTRL(event.key.keysym.mod)) {
 						kcode = event.key.keysym.sym;
 						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
-							sdl_resize_window(-1);
+							sdl_resize_window(-1, false);
 							break;
 						} else if (kcode == '+' || kcode == '=' || kcode == SDLK_KP_PLUS) {
-							sdl_resize_window(1);
+							sdl_resize_window(1, false);
 							break;
 						}
 					}

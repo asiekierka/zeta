@@ -95,7 +95,7 @@ USER_FUNCTION
 int zzt_get_blink(void);
 
 USER_FUNCTION
-int zzt_load_charset(int width, int height, u8* data);
+int zzt_load_charset(int width, int height, u8* data, bool is_default);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
 USER_FUNCTION

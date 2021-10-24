@@ -43,9 +43,9 @@ static int pformat = SDL_PIXELFORMAT_BGRA32;
 static int force_update;
 static int last_blink_mode;
 
-static int sdl_render_software_init(const char *window_name) {
+static int sdl_render_software_init(const char *window_name, int charw, int charh) {
 	window = SDL_CreateWindow(window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		640, 350, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+		80*charw, 25*charh, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (window == NULL) {
         return -1;
     }

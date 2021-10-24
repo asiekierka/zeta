@@ -202,7 +202,7 @@ class Emulator {
             let result = false;
 
             this._u8array2buffer(charset, charset_buffer => {
-                result = emu._zzt_load_charset(width, height, charset_buffer) >= 0;
+                result = emu._zzt_load_charset(width, height, charset_buffer, false) >= 0;
             });
 
             return result;
