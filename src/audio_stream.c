@@ -121,7 +121,7 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 	int i; long j;
 	int freq_samples_fixed;
 	int pos_samples_fixed;
-	int k, note_played;
+	int k, note_played = 0;
 	double audio_res;
 	double audio_curr_time;
 	double res_to_samples;

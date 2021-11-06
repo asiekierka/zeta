@@ -14,8 +14,9 @@ TOOLSDIR = tools
 FONTSDIR = fonts
 OBJDIR = ${BUILDDIR}/obj
 
-CFLAGS = -g -O2 -flto -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
-LDFLAGS = -g -O2 -flto -std=gnu18 -Wall
+# TODO: Why does -flto fail on GCC 11?
+CFLAGS = -g -O3 -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
+LDFLAGS = -g -O3 -std=gnu18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
