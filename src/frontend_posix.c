@@ -142,7 +142,10 @@ static int posix_zzt_init(int argc, char **argv) {
 		strncpy(dot_ptr, ".zzt", 256 - (dot_ptr - arg_name));
 
 		if (!posix_vfs_exists(arg_name)) {
-			arg_name[0] = 0;
+			strncpy(dot_ptr, ".szt", 256 - (dot_ptr - arg_name));
+			if (!posix_vfs_exists(arg_name)) {
+				arg_name[0] = 0;
+			}
 		}
 	}
 
