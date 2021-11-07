@@ -252,13 +252,15 @@ static void update_keymod(SDL_Keymod keymod) {
 }
 
 static SDL_Window *window;
-static int charw, charh;
+static int charw = 8, charh = 14;
 
 static int charset_update_requested = 0;
 static u8* charset_update_data = NULL;
 
 static int palette_update_requested = 0;
 static u32* palette_update_data = NULL;
+static u8 windowed = 1;
+static int windowed_old_w, windowed_old_h;
 
 void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	int iw = 80*charw;
@@ -288,6 +290,8 @@ static void sdl_resize_window(int delta, bool only_if_too_small) {
 
 	if (window == NULL) return;
 
+	SDL_SetWindowMinimumSize(window, iw, ih);
+
 	SDL_GetWindowSize(window, &w, &h);
 	calc_render_area(NULL, w, h, &scale, 0);
 	scale += delta;
@@ -295,8 +299,11 @@ static void sdl_resize_window(int delta, bool only_if_too_small) {
 
 	iw *= scale;
 	ih *= scale;
-	if (!only_if_too_small || ((iw > w) || (ih > h))) {
-		SDL_SetWindowSize(window, iw, ih);
+
+	if (windowed) {
+		if (!only_if_too_small || ((iw > w) || (ih > h))) {
+			SDL_SetWindowSize(window, iw, ih);
+		}
 	}
 }
 
@@ -317,7 +324,6 @@ void zeta_update_charset(int width, int height, u8* data) {
 		gif_writer_on_charset_change(gif_writer_s);
 	}
 #endif
-	sdl_resize_window(0, true);
 	SDL_UnlockMutex(render_data_update_mutex);
 }
 
@@ -353,7 +359,6 @@ int main(int argc, char **argv) {
 	int scode, kcode;
 
 	SDL_Thread* zzt_thread;
-	u8 windowed = 1;
 
 	init_posix_vfs("");
 
@@ -393,6 +398,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	window = renderer->get_window();
+	sdl_resize_window(0, false);
 
 	SDL_zero(requested_audio_spec);
 	requested_audio_spec.freq = 48000;
@@ -560,6 +566,7 @@ int main(int argc, char **argv) {
 					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
 						// Alt+ENTER
 						if (windowed) {
+							SDL_GetWindowSize(window, &windowed_old_w, &windowed_old_h);
 							SDL_DisplayMode mode;
 							SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(window), &mode);
 							SDL_SetWindowSize(window, mode.w, mode.h);
@@ -568,7 +575,8 @@ int main(int argc, char **argv) {
 							SDL_SetRelativeMouseMode(1);
 						} else {
 							SDL_SetWindowFullscreen(window, 0);
-							SDL_SetWindowSize(window, 80*charw, 25*charh);
+							SDL_SetWindowSize(window, windowed_old_w, windowed_old_h);
+							sdl_resize_window(0, true);
 							// drop focus
 							SDL_SetRelativeMouseMode(0);
 						}
@@ -651,6 +659,7 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(render_data_update_mutex);
 
 		if (charset_update_requested) {
+			sdl_resize_window(0, true);
 			renderer->update_charset(charw, charh, charset_update_data);
 			charset_update_requested = 0;
 		}
