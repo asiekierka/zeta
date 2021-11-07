@@ -139,13 +139,18 @@ static int posix_zzt_init(int argc, char **argv) {
 		strncpy(arg_name, sl_ptr + 1, 256);
 		char *dot_ptr = strrchr(arg_name, '.');
 		if (dot_ptr == NULL) dot_ptr = arg_name + strlen(arg_name);
-		strncpy(dot_ptr, ".zzt", 256 - (dot_ptr - arg_name));
+		*dot_ptr = 0;
+		if (strcasecmp(arg_name, "zeta86") != 0) {
+			strncpy(dot_ptr, ".zzt", 256 - (dot_ptr - arg_name));
 
-		if (!posix_vfs_exists(arg_name)) {
-			strncpy(dot_ptr, ".szt", 256 - (dot_ptr - arg_name));
 			if (!posix_vfs_exists(arg_name)) {
-				arg_name[0] = 0;
+				strncpy(dot_ptr, ".szt", 256 - (dot_ptr - arg_name));
+				if (!posix_vfs_exists(arg_name)) {
+					arg_name[0] = 0;
+				}
 			}
+		} else {
+			arg_name[0] = 0;
 		}
 	}
 
