@@ -44,6 +44,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "         available types/formats: \n");
 	fprintf(stderr, "         - charset:\n");
 	fprintf(stderr, "             - chr (MegaZeux-like; 8x[height], 256 chars)\n");
+	fprintf(stderr, "             - default (builtin font; ega or cga)\n");
 	fprintf(stderr, "         - palette:\n");
 	fprintf(stderr, "             - pal (MegaZeux-like; 16 colors ranged 00-3F)\n");
 	fprintf(stderr, "             - pld (Toshiba UPAL; 64 EGA colors ranged 00-3F)\n");
@@ -161,6 +162,15 @@ static int posix_zzt_init(int argc, char **argv) {
 			type = loads[i];
 			filename = strrchr(type, ':') + 1;
 			type[filename - type - 1] = '\0';
+		}
+
+		if (strcmp(type, "charset:default") == 0) {
+			if (strcmp(filename, "ega") == 0) {
+				zzt_force_default_charset(DEFAULT_CHARSET_STYLE_EGA);
+			} else if (strcmp(filename, "cga") == 0) {
+				zzt_force_default_charset(DEFAULT_CHARSET_STYLE_CGA);
+			}
+			continue;
 		}
 
 		FILE *file = fopen(filename, "rb");

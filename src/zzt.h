@@ -30,6 +30,11 @@
 #define MAX_FILES 16
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
 
+typedef enum {
+	DEFAULT_CHARSET_STYLE_EGA,
+	DEFAULT_CHARSET_STYLE_CGA
+} zzt_default_charset_style_t;
+
 // the long story:
 // 3.579545 MHz - NTSC dotclock
 // dotclock * 4 = 14.31818
@@ -96,6 +101,8 @@ int zzt_get_blink(void);
 
 USER_FUNCTION
 int zzt_load_charset(int width, int height, u8* data, bool is_default);
+USER_FUNCTION
+void zzt_force_default_charset(zzt_default_charset_style_t style);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
 USER_FUNCTION

@@ -277,6 +277,19 @@ static void zzt_load_charset_default() {
 	}
 }
 
+USER_FUNCTION
+void zzt_force_default_charset(zzt_default_charset_style_t style) {
+	if (style == DEFAULT_CHARSET_STYLE_CGA) {
+		zzt_load_charset(8, 16, res_8x8dbl_bin, true);
+	} else if (style == DEFAULT_CHARSET_STYLE_EGA) {
+		zzt_load_charset(8, 14, res_8x14_bin, true);
+	} else {
+		return;
+	}
+
+	zzt.charset_default = false;
+}
+
 static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
