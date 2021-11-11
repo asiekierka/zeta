@@ -744,8 +744,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				} return;
 				case 0x30: {
 					// set vertical resolution
-					// some font installers like to change it, but ZZT always changes it back to 1.
-					fprintf(stderr, "int 0x10: set vertical resolution = %d (ignored)\n", cpu->al);
+					cpu->al = 0x12;
 				} return;
 			}
 			break;
