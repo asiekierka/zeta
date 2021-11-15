@@ -383,10 +383,10 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 				cpu->bx = 0xFFFF;
 			}
 			break;
-		case 3:
+		case 0x3:
 			cpu->bx = zzt->mouse_buttons;
-			cpu->cx = zzt->mouse_x / zzt->char_width;
-			cpu->dx = zzt->mouse_y / zzt->char_height;
+			cpu->cx = zzt->mouse_x * 8 / zzt->char_width;
+			cpu->dx = zzt->mouse_y * 8 / zzt->char_height;
 			break;
 		case 0xB:
 			cpu->cx = zzt->mouse_xd;
@@ -724,14 +724,34 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 						return;
 					}
 
-					for (int i = 0; i < size; i++) {
-						if ((outpos + i) >= (256*(cpu->bh))) break;
-						zzt.charset[outpos + i] = buffer[i];
+					// TODO: this is jank...
+					if (cpu->bh == 8) {
+						for (int i = 0; i < size*2; i+=2) {
+							if ((outpos + i) >= (512*(cpu->bh))) break;
+							zzt.charset[outpos + i] = buffer[i >> 1];
+							zzt.charset[outpos + i + 1] = buffer[i >> 1];
+						}
+
+						zzt.char_height = cpu->bh * 2;
+					} else {
+						for (int i = 0; i < size; i++) {
+							if ((outpos + i) >= (256*(cpu->bh))) break;
+							zzt.charset[outpos + i] = buffer[i];
+						}
+
+						zzt.char_height = cpu->bh;
 					}
 
-					zzt.char_height = cpu->bh;
 					zzt.charset_default = false;
 					zeta_update_charset(zzt.char_width, zzt.char_height, zzt.charset);
+				} return;
+				case 0x01:
+				case 0x11: {
+					zzt_load_charset(8, 14, res_8x14_bin, true);
+				} return;
+				case 0x02:
+				case 0x12: {
+					zzt_load_charset(8, 16, res_8x8dbl_bin, true);
 				} return;
 			}
 			break;
@@ -739,15 +759,26 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			switch (cpu->bl) {
 				case 0x10: {
 					// get ega info
+					// todo: stub
 					cpu->bx = 0x0000;
-					cpu->cx = 0x0000; // is this correct?
+					cpu->cx = 0x0000;
 				} return;
 				case 0x30: {
 					// set vertical resolution
+					// todo: stub
 					cpu->al = 0x12;
 				} return;
 			}
 			break;
+		case 0x1A:
+			switch (cpu->al) {
+				case 0x00: {
+					cpu->bx = 0x0008;
+				} break;
+				default: return;
+			}
+			cpu->al = 0x1A;
+			return;
 	}
 
 	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BL=%02X\n",
