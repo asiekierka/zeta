@@ -349,6 +349,7 @@ void init_posix_vfs(const char* path) {
 }
 
 int vfs_open(const char* filename, int mode) {
+	const char *mode_str;
 	char path[MAX_FNLEN];
 	char *path_base;
 	char *path_filename;
@@ -398,18 +399,26 @@ int vfs_open(const char* filename, int mode) {
 	}
 	vfs_fix_case(path_filename);
 
-	file = fopen(path, (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b"));
+	mode_str = (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b");
+	file = fopen(path, mode_str);
 	if (file == NULL) {
 #ifdef DEBUG_VFS
-		fprintf(stderr, "posix vfs: failed to open %s\n", path);
+		fprintf(stderr, "posix vfs: failed to open %s (%s)\n", path, mode_str);
 #endif
 		return -1;
 	} else {
 #ifdef DEBUG_VFS
-		fprintf(stderr, "posix vfs: opened %s at %d\n", path, i+1);
+		fprintf(stderr, "posix vfs: opened %s (%s) at %d\n", path, mode_str, i+1);
 #endif
 		file_pointers[i] = file;
 		return i+1;
+	}
+}
+
+static void vfs_check_error(FILE* fptr) {
+	int err = ferror(fptr);
+	if (err != 0) {
+		fprintf(stderr, "posix vfs: file error %d\n", err);
 	}
 }
 
@@ -419,6 +428,7 @@ int vfs_read(int handle, u8* ptr, int amount) {
 	int count = fread(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
 	fprintf(stderr, "posix vfs: read %d/%d bytes from %d\n", count, amount, handle);
+	vfs_check_error(fptr);
 #endif
 	return count;
 }
@@ -429,6 +439,7 @@ int vfs_write(int handle, u8* ptr, int amount) {
 	int count = fwrite(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
 	fprintf(stderr, "posix vfs: wrote %d/%d bytes to %d\n", count, amount, handle);
+	vfs_check_error(fptr);
 #endif
 	return count;
 }
@@ -438,10 +449,11 @@ int vfs_seek(int handle, int amount, int type) {
 	FILE* fptr = file_pointers[handle-1];
 	switch (type) {
 		default:
-		case VFS_SEEK_SET: return fseek(fptr, amount, SEEK_SET);
-		case VFS_SEEK_CUR: return fseek(fptr, amount, SEEK_CUR);
-		case VFS_SEEK_END: return fseek(fptr, amount, SEEK_END);
+		case VFS_SEEK_SET: if (fseek(fptr, amount, SEEK_SET) != 0) { return -1; } break;
+		case VFS_SEEK_CUR: if (fseek(fptr, amount, SEEK_CUR) != 0) { return -1; } break;
+		case VFS_SEEK_END: if (fseek(fptr, amount, SEEK_END) != 0) { return -1; } break;
 	}
+	return ftell(fptr);
 }
 
 int vfs_close(int handle) {

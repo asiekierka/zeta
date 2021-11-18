@@ -1096,6 +1096,7 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 					cpu->ax = 0x05;
 					cpu->flags |= FLAG_CARRY;
 				} else {
+					cpu->dx = (res >> 16);
 					cpu->ax = res;
 					cpu->flags &= ~FLAG_CARRY;
 				}
