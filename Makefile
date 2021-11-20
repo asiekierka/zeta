@@ -32,6 +32,10 @@ else ifeq (${PLATFORM},unix-curses)
 USE_CURSES = 1
 LIBS = -lncursesw -lm
 TARGET = $(BUILDDIR)/zeta86
+else ifeq (${PLATFORM},unix-headless)
+USE_HEADLESS = 1
+LIBS = -lm
+TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
 CC = EMCC_CLOSURE_ARGS="--js $(realpath ${SRCDIR})/emscripten_externs.js" emcc
 CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
@@ -48,7 +52,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
-$(error Please specify PLATFORM: mingw32-sdl, unix-curses, unix-sdl, wasm)
+$(error Please specify PLATFORM: mingw32-sdl, unix-curses, unix-headless, unix-sdl, wasm)
 endif
 
 OBJS =	$(OBJDIR)/8x8dbl.o \
@@ -73,6 +77,10 @@ OBJS += $(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/sdl/render_opengl.o
 else ifeq (${USE_CURSES},1)
 OBJS += $(OBJDIR)/frontend_curses.o \
+	$(OBJDIR)/asset_loader.o \
+	$(OBJDIR)/posix_vfs.o
+else ifeq (${USE_HEADLESS},1)
+OBJS += $(OBJDIR)/frontend_headless.o \
 	$(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/posix_vfs.o
 endif
