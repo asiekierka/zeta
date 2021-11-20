@@ -93,6 +93,8 @@ AS_CASE([$with_resampler],
 	[AC_MSG_ERROR("resampler not selected or invalid resampler")]
 )
 
+AC_CHECK_FUNCS([ftruncate opendir])
+
 AC_LANG_POP
 
 AC_CONFIG_FILES([Makefile])

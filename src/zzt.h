@@ -130,6 +130,8 @@ int vfs_read(int handle, u8* ptr, int amount);
 IMPLEMENT_FUNCTION
 int vfs_write(int handle, u8* ptr, int amount);
 IMPLEMENT_FUNCTION
+int vfs_truncate(int handle);
+IMPLEMENT_FUNCTION
 int vfs_close(int handle);
 IMPLEMENT_FUNCTION
 int vfs_findfirst(u8* ptr, u16 mask, char* spec);

@@ -978,6 +978,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 				| (cpu->ram[cpu->al * 4 + 3] << 8);
 			return STATE_CONTINUE;
 		case 0x3C: { // creat
+#ifdef DEBUG_FS_ACCESS
+			fprintf(stderr, "creat %02X %s\n", cpu->al, STR_DS_DX);
+#endif
 			int handle = vfs_open(STR_DS_DX, 0x10001);
 			if (handle < 0) {
 				fprintf(stderr, "creat: file not found: %s\n", STR_DS_DX);
@@ -1065,14 +1068,19 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 #ifdef DEBUG_FS_ACCESS
 			fprintf(stderr, "write %04X\n", cpu->cx);
 #endif
-			if (cpu->cx == 0) {
-				// we don't implement the special case
-				cpu->ax = 0x05;
-				cpu->flags |= FLAG_CARRY;
-				return STATE_CONTINUE;
-			}
-
 			if (cpu->bx < VFS_HANDLE_SPECIAL) {
+				if (cpu->cx == 0) {
+					int res = vfs_truncate(cpu->bx);
+					if (res < 0) {
+						cpu->ax = 0x05;
+						cpu->flags |= FLAG_CARRY;
+					} else {
+						cpu->ax = res;
+						cpu->flags &= ~FLAG_CARRY;
+					}
+					return STATE_CONTINUE;
+				}
+
 				int res = vfs_write(cpu->bx, (u8*)STR_DS_DX, cpu->cx);
 				if (res < 0) {
 					cpu->ax = 0x05;
@@ -1105,7 +1113,10 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 				cpu->flags |= FLAG_CARRY;
 			}
 		} return STATE_CONTINUE;
-		case 0x44: { // 0x4400
+		case 0x44: { // get info
+#ifdef DEBUG_FS_ACCESS
+			fprintf(stderr, "get info %02X %s\n", cpu->al, STR_DS_DX);
+#endif
 			if (cpu->bx < VFS_HANDLE_SPECIAL) {
 				// TODO: Implement?
 				cpu->ax = 0x01;

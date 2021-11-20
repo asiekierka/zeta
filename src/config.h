@@ -67,6 +67,10 @@
 #endif
 
 #else
+
+#define HAVE_FTRUNCATE 1
+#define HAVE_OPENDIR 1
+
 // General configuration
 
 //#define BIG_ENDIAN

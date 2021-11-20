@@ -144,6 +144,16 @@ export function initVfsWrapper() {
 		return amount;
 	}
 
+	window.vfsg_truncate = function(h, newlen) {
+		if (!(h in handles)) return -1;
+		h = handles[h];
+		var newA = new Uint8Array(newlen);
+		newA.set(h.array, 0);
+		h.array = newA;
+		console.log("truncated");
+		return 0;
+	}
+
 	var ff_list = [];
 	var ff_pos = 0;
 

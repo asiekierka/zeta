@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-#ifndef NO_OPENDIR
+#ifdef HAVE_OPENDIR
 #define _DEFAULT_SOURCE
 #endif
 
@@ -30,7 +30,11 @@
 #include <time.h>
 #include "zzt.h"
 
-#ifndef NO_OPENDIR
+#ifdef HAVE_FTRUNCATE
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_OPENDIR
 #include <dirent.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -120,7 +124,7 @@ int vfs_chdir(const char *dir) {
 	return 0;
 }
 
-#if defined(NO_OPENDIR)
+#if !defined(HAVE_OPENDIR)
 static void vfs_fix_case(char *fn) { }
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) { return -1; }
 int vfs_findnext(u8* ptr) { return -1; }
@@ -322,7 +326,7 @@ int vfs_findnext(u8* ptr) {
 	return -1;
 }
 #endif
-#endif /* !NO_OPENDIR */
+#endif /* HAVE_OPENDIR */
 
 void init_posix_vfs(const char* path) {
 	if (vfs_initialized > 0) {
@@ -442,6 +446,21 @@ int vfs_write(int handle, u8* ptr, int amount) {
 	vfs_check_error(fptr);
 #endif
 	return count;
+}
+
+int vfs_truncate(int handle) {
+#ifdef HAVE_FTRUNCATE
+	if (handle <= 0 || handle > MAX_FILES) return -1;
+	FILE* fptr = file_pointers[handle-1];
+	int res = ftruncate(fileno(fptr), ftell(fptr));
+#ifdef DEBUG_VFS
+	fprintf(stderr, "posix vfs: truncated file\n");
+	vfs_check_error(fptr);
+#endif
+	return res;
+#else
+	return -1;
+#endif
 }
 
 int vfs_seek(int handle, int amount, int type) {

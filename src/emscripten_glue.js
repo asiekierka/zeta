@@ -17,6 +17,9 @@ mergeInto(LibraryManager.library, {
 	vfs_write: function(h, ptr, amount) {
 		return vfsg_write(h, ptr, amount);
 	},
+	vfs_truncate: function(h, newlen) {
+		return vfsg_truncate(h, newlen);
+	},
 	vfs_close: function(h) {
 		return vfsg_close(h);
 	},
