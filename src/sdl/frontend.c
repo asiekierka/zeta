@@ -362,7 +362,7 @@ int main(int argc, char **argv) {
 
 	init_posix_vfs("");
 
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		return 1;
 	}
