@@ -367,6 +367,11 @@ int vfs_open(const char* filename, int mode) {
 		return -1;
 	}
 
+	if (strcmp(filename, "LPT1") == 0) {
+		// ignore LPT1 - OneDrive doesn't like it
+		return -1;
+	}
+
 	if (strlen(filename) >= 3 && filename[1] == ':' && filename[2] == '\\') {
 		// absolute path
 		strncpy(path, vfs_basedir, MAX_FNLEN);
