@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "config.h"
 #include "zzt.h"
 
 #ifdef HAVE_FTRUNCATE
@@ -184,7 +185,7 @@ static vfs_dirent vfs_process_entry(const struct dirent *entry, u16 mask, const 
 	vfs_path_cat(path, name, MAX_FNLEN);
 	stat(path, &entry_stat);
 	result.size = entry_stat.st_size;
-	if (entry_stat.st_mode & S_IFDIR) {
+	if (S_ISDIR(entry_stat.st_mode)) {
 		result.attr |= VFS_ATTR_DIR;
 	}
 	if (((~mask) & (~result.attr)) != (~mask)) {
