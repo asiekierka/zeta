@@ -223,6 +223,8 @@ export class CanvasBasedRenderer {
 		}
 
 		if (targetCtx != this.ctx) {
+			this.ctx.fillStyle = "#000000";
+			this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 			this.ctx.drawImage(targetCanvas, 0, 0, 80*this.chrWidth / xScale, 25*this.chrHeight, this.x_offset, this.y_offset, 80*this.chrWidth * this.scale, 25*this.chrHeight * this.scale);
 		}
 	}
