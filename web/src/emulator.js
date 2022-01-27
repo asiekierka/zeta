@@ -24,12 +24,6 @@ import { time_ms, drawErrorMessage } from "./util.js";
 import { keymap, keychrmap } from "./keymap.js";
 import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
-/* var check_modifiers = function(event) {
-	if (event.shiftKey) emu._zzt_kmod_set(0x01); else emu._zzt_kmod_clear(0x01);
-	if (event.ctrlKey) emu._zzt_kmod_set(0x04); else emu._zzt_kmod_clear(0x04);
-	if (event.altKey) emu._zzt_kmod_set(0x08); else emu._zzt_kmod_clear(0x08);
-} */
-
 // see zzt.h "SYS_TIMER_TIME"
 const TIMER_DURATION = 54.92457871;
 const CPU_STATE_END = 0;
@@ -103,15 +97,17 @@ class Emulator {
             }
         }, true);
 
+        var check_modifiers = function(event) {
+            if (event.shiftKey === true) emu._zzt_kmod_set(0x01); else if (event.shiftKey === false) emu._zzt_kmod_clear(0x01);
+            if (event.ctrlKey === true) emu._zzt_kmod_set(0x04); else if (event.ctrlKey === false) emu._zzt_kmod_clear(0x04);
+            if (event.altKey === true) emu._zzt_kmod_set(0x08); else if (event.altKey === false) emu._zzt_kmod_clear(0x08);
+	}
+
         document.addEventListener('keydown', function(event) {
             if (event.target != element) return false;
             let ret = false;
 
-            // workaround for Shift "up" being sent outside window focus
-            if (!event.shiftKey) emu._zzt_kmod_clear(0x01);
-            if (!event.ctrlKey) emu._zzt_kmod_clear(0x04);
-            if (!event.altKey) emu._zzt_kmod_clear(0x08);
-
+            check_modifiers(event);
             if (event.key == "Shift") emu._zzt_kmod_set(0x01);
             else if (event.key == "Control") emu._zzt_kmod_set(0x04);
             else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_set(0x08);
@@ -135,6 +131,7 @@ class Emulator {
             if (event.target != element) return false;
             let ret = true;
 
+            check_modifiers(event);
             if (event.key == "Shift") emu._zzt_kmod_clear(0x01);
             else if (event.key == "Control") emu._zzt_kmod_clear(0x04);
             else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_clear(0x08);
