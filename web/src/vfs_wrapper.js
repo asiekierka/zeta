@@ -147,9 +147,13 @@ export function initVfsWrapper() {
 	window.vfsg_truncate = function(h, newlen) {
 		if (!(h in handles)) return -1;
 		h = handles[h];
-		var newA = new Uint8Array(newlen);
-		newA.set(h.array, 0);
-		h.array = newA;
+		if (h.array.length > newlen) {
+			var newA = new Uint8Array(newlen);
+			newA.set(h.array, 0);
+			h.array = newA;
+		} else if (h.array.length < newlen) {
+			h.array = h.array.slice(0, newlen);
+		}
 		console.log("truncated");
 		return 0;
 	}

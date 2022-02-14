@@ -97,7 +97,7 @@ export class OscillatorBasedAudio {
 
 	setVolume(volume) {
 		this.volume = Math.min(1.0, Math.max(0.0, volume));
-		
+
 		if (this.pc_speaker != undefined) {
 			this.audioGain.gain.setValueAtTime(this.volume, audioCtx.currentTime);
 		}
@@ -151,7 +151,8 @@ export class BufferBasedAudio {
 	}
 
 	_initSpeaker() {
-		if (this.initialized) return;
+		if (this.initialized) return true;
+		if (audioCtx == undefined) return false;
 		this.initialized = true;
 
 		this.time = audioCtx.currentTime;
@@ -165,6 +166,7 @@ export class BufferBasedAudio {
 
 		this._queueBufferSource(() => {});
 		this._queueNextSpeakerBuffer();
+		return true;
 	}
 
 	setNoteDelay(delay) {
@@ -176,20 +178,18 @@ export class BufferBasedAudio {
 
 	setVolume(volume) {
 		this.volume = Math.min(1.0, Math.max(0.0, volume));
-		
 		if (this.initialized) {
 			this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
 		}
 	}
 
 	on(time, cycles, freq) {
-		if (audioCtx == undefined) return;
-		this._initSpeaker();
+		if (!this._initSpeaker()) return;
 		this.emu._audio_stream_append_on(time, cycles, freq);
 	}
 
 	off(time, cycles) {
-		if (audioCtx == undefined) return;
+		if (!this._initSpeaker()) return;
 		this.emu._audio_stream_append_off(time, cycles);
 	}
 }

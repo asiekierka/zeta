@@ -243,7 +243,7 @@ export class CanvasBasedRenderer {
 	setCharset(width, height, heap) {
 		this.chrWidth = width;
 		this.chrHeight = height;
-		this.charset = heap;
+		this.charset = heap.slice(0);
 		this.rdDirty = true;
 	}
 
