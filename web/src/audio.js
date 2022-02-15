@@ -139,11 +139,9 @@ export class BufferBasedAudio {
 			const out0 = buffer.getChannelData(channel);
 
 			self.emu._audio_stream_generate(time_ms(), nativeBuffer, self.bufferSize * 2);
-			console.log(nativeHeap);
 			for (let i = 0; i < bufferSize; i++) {
 				out0[i] = (nativeHeap[i] - 32768) / 32768.0;
 			}
-			console.log(out0);
 			for (var channel = 1; channel < buffer.numberOfChannels; channel++) {
 				buffer.getChannelData(channel).set(out0);
 			}
