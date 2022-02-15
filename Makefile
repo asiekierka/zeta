@@ -41,7 +41,7 @@ CC = EMCC_CLOSURE_ARGS="--js $(realpath ${SRCDIR})/emscripten_externs.js" emcc
 CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
   -s STRICT=1 --closure 1 \
   -s ENVIRONMENT=web \
-  -s 'EXPORTED_FUNCTIONS=["_malloc","_free"]' \
+  -s 'EXPORTED_FUNCTIONS=["_malloc","_free","_audio_generate_init"]' \
   -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
   -s SUPPORT_ERRNO=0 \

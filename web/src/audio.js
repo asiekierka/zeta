@@ -112,8 +112,6 @@ export class BufferBasedAudio {
 		this.noteDelay = (options && options.noteDelay) || undefined;
 		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
 		this.timeUnit = (this.bufferSize / this.sampleRate);
-		this.nativeBuffer = this.emu._malloc(this.bufferSize);
-		this.nativeHeap = new Uint8Array(this.emu.HEAPU8.buffer, this.nativeBuffer, this.bufferSize);
 		this.initialized = false;
 		this.lastTimeMs = 0;
 	}
@@ -140,10 +138,12 @@ export class BufferBasedAudio {
 			const nativeHeap = self.nativeHeap;
 			const out0 = buffer.getChannelData(channel);
 
-			self.emu._audio_stream_generate(time_ms(), nativeBuffer, self.bufferSize);
+			self.emu._audio_stream_generate(time_ms(), nativeBuffer, self.bufferSize * 2);
+			console.log(nativeHeap);
 			for (let i = 0; i < bufferSize; i++) {
-				out0[i] = (nativeHeap[i] - 127) / 127.0;
+				out0[i] = (nativeHeap[i] - 32768) / 32768.0;
 			}
+			console.log(out0);
 			for (var channel = 1; channel < buffer.numberOfChannels; channel++) {
 				buffer.getChannelData(channel).set(out0);
 			}
@@ -157,12 +157,16 @@ export class BufferBasedAudio {
 
 		this.time = audioCtx.currentTime;
 
-		this.emu._audio_stream_init(time_ms(), this.sampleRate, false, false);
+		this.emu._audio_generate_init();
+		this.emu._audio_stream_init(time_ms(), this.sampleRate, false, true);
 		this.emu._audio_stream_set_volume(Math.floor(this.volume * this.emu._audio_stream_get_max_volume()));
 
 		if (this.noteDelay) {
 			this.emu._audio_set_note_delay(this.noteDelay);
 		}
+
+		this.nativeBuffer = this.emu._malloc(this.bufferSize * 2);
+		this.nativeHeap = new Uint16Array(this.emu.HEAPU8.buffer, this.nativeBuffer, this.bufferSize);
 
 		this._queueBufferSource(() => {});
 		this._queueNextSpeakerBuffer();
