@@ -49,11 +49,19 @@ export function time_ms() {
 }
 
 export function getIndexedDB() {
-	return window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB;
+	try {
+		return window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB;
+	} catch (e) {
+		return undefined;
+	}
 }
 
 export function getLocalStorage() {
-	return window.localStorage;
+	try {
+		return window.localStorage;
+	} catch (e) {
+		return undefined;
+	}
 }
 
 export function xhrFetchAsArrayBuffer(url, progressCallback) {
