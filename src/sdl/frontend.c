@@ -217,7 +217,7 @@ static int zzt_thread_func(void *ptr) {
 			if (rcode == STATE_CONTINUE) {
 				if (duration < 2) {
 					opcodes = (opcodes * 20 / 19);
-				} else if (duration > 4) {
+				} else if ((duration > 4) && (opcodes >= 525)) {
 					opcodes = (opcodes * 19 / 20);
 				}
 			}

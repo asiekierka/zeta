@@ -343,7 +343,7 @@ class Emulator {
         if (rcode != CPU_STATE_END) {
             if (duration < 5 && rcode == CPU_STATE_CONTINUE) {
                 this.opcodes = (this.opcodes * 20 / 19);
-            } else if (duration > 10) {
+            } else if ((duration > 10) && (this.opcodes >= 1050)) {
                 this.opcodes = (this.opcodes * 19 / 20);
             }
 
