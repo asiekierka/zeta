@@ -3,11 +3,13 @@
 Zeta is a small emulator, implementing a fraction of a DOS-compatible environment just large enough to run ZZT and Super ZZT, allowing user-friendly and accurate usage 
 of them in modern environments, as well as easy packaging, distribution and embedding of ZZT games.
 
-## Compiling (Autotools)
+## Compiling (Autotools, recommended)
 
 `./autogen.sh && mkdir build && cd build && ../configure --with-frontend=sdl2 && make`
 
-## Compiling (Makefile)
+You're going to need the development headers/package for SDL2 (`sdl2-devel` on Fedora, `libsdl2-dev` on Debian/Ubuntu, `sdl2` on Arch, etc).
+
+## Compiling (Makefile, unsupported)
 
 Use `make PLATFORM=platform`, where platform is generally of the form platform-frontend.
 
