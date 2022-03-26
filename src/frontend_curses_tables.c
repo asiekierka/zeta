@@ -193,7 +193,7 @@ static const char* map_char_to_unicode[] = {
  "\x7C",
  "\x7D",
  "\x7E",
- "\x7F",
+ "\u2302",
  "\u00C7",
  "\u00FC",
  "\u00E9",

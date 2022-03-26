@@ -253,6 +253,7 @@ static void update_keymod(SDL_Keymod keymod) {
 
 static SDL_Window *window;
 static int charw = 8, charh = 14;
+static int last_window_scale = 1;
 
 static int charset_update_requested = 0;
 static u8* charset_update_data = NULL;
@@ -283,7 +284,7 @@ void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	}
 }
 
-static void sdl_resize_window(int delta, bool only_if_too_small) {
+static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_scale) {
 	int iw = 80*charw;
 	int ih = 25*charh;
 	int w, h, scale;
@@ -294,9 +295,14 @@ static void sdl_resize_window(int delta, bool only_if_too_small) {
 
 	SDL_GetWindowSize(window, &w, &h);
 	calc_render_area(NULL, w, h, &scale, 0);
-	scale += delta;
+	if (delta_is_scale) {
+		scale = delta;
+	} else {
+		scale += delta;
+	}
 	if (scale < 1) scale = 1;
 
+	last_window_scale = scale;
 	iw *= scale;
 	ih *= scale;
 
@@ -398,7 +404,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	window = renderer->get_window();
-	sdl_resize_window(0, false);
+	sdl_resize_window(0, false, false);
 
 	SDL_zero(requested_audio_spec);
 	requested_audio_spec.freq = 48000;
@@ -576,7 +582,7 @@ int main(int argc, char **argv) {
 						} else {
 							SDL_SetWindowFullscreen(window, 0);
 							SDL_SetWindowSize(window, windowed_old_w, windowed_old_h);
-							sdl_resize_window(0, true);
+							sdl_resize_window(0, true, false);
 							// drop focus
 							SDL_SetRelativeMouseMode(0);
 						}
@@ -597,10 +603,10 @@ int main(int argc, char **argv) {
 					if (KEYMOD_CTRL(event.key.keysym.mod)) {
 						kcode = event.key.keysym.sym;
 						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
-							sdl_resize_window(-1, false);
+							sdl_resize_window(-1, false, false);
 							break;
 						} else if (kcode == '+' || kcode == '=' || kcode == SDLK_KP_PLUS) {
-							sdl_resize_window(1, false);
+							sdl_resize_window(1, false, false);
 							break;
 						}
 					}
@@ -659,7 +665,7 @@ int main(int argc, char **argv) {
 		SDL_LockMutex(render_data_update_mutex);
 
 		if (charset_update_requested) {
-			sdl_resize_window(0, true);
+			sdl_resize_window(last_window_scale, true, true);
 			renderer->update_charset(charw, charh, charset_update_data);
 			charset_update_requested = 0;
 		}
