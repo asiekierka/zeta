@@ -309,6 +309,9 @@ static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_s
 	if (windowed) {
 		if (!only_if_too_small || ((iw > w) || (ih > h))) {
 			SDL_SetWindowSize(window, iw, ih);
+			if (delta_is_scale) {
+				sdl_resize_window(0, only_if_too_small, false);
+			}
 		}
 	}
 }
