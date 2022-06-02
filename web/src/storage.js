@@ -47,10 +47,11 @@ class BaseStorage {
 		else if (this.ignoreCase) newKey = newKey.toLowerCase();
 
 		if (this.use83Names) {
+			// TODO: Handle periods better.
+			// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/18e63b13-ba43-4f5f-a5b7-11e871b71f14
 			var nkSplit = newKey.split(".", 2);
 			var findTildedName = false;
 			if (nkSplit[0].length > 8) {
-				nkSplit[0] = nkSplit[0].substring(0, 6); 
 				findTildedName = true;
 			}
 			if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
@@ -58,9 +59,10 @@ class BaseStorage {
 			}
 			if (findTildedName) {
 				var i = 1;
+				var fnConverted = nkSplit[0].replaceAll(" ", "");
 				while (1) {
 					var is = i.toString();
-					nkSplit[0] = nkSplit[0].substring(0, 7 - is.length) + "~" + is;
+					nkSplit[0] = fnConverted.substring(0, 7 - is.length) + "~" + is;
 					newKey = nkSplit.join(".");
 					if (this.get(newKey) == null) {
 						break;
