@@ -436,6 +436,8 @@ export function createEmulator(render, audio, vfs, options) {
                     let command = options.commands[i];
                     if (typeof(command) == "string") {
                         command = [command, ""];
+                    } else if (command.length == 1) {
+                        command = [command[0], ""];
                     }
 
                     let handle = vfsg_open(command[0].toLowerCase(), 0);
