@@ -29,7 +29,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
 ### Optional
 
 * arg: the argument string provided to ZZT's executable. Ignored if "commands" is present.
-* commands: a list containing commands to be executed in order. This will override "arg" *and* ZZT execution - the final entry on the list is assumed to be ZZT! Allowed types:
+* commands: an array containing commands to be executed in order. This will override "arg" *and* ZZT execution - the final entry on the list is assumed to be ZZT! The elements of this array should be:
     * strings of the form "executable name" (no argument!),
     * arrays of the following form: ["executable name", "argument string"], f.e. [["BQUEST.COM", ""], ["BQZZT.EXE", "BQUEST.ZZT"]].
 * storage: define the settings for persistent storage. If not present, save files etc. will be stored in memory, and lost with as little as a page refresh.
