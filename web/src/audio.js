@@ -136,7 +136,7 @@ export class BufferBasedAudio {
 			const bufferSize = self.bufferSize;
 			const nativeBuffer = self.nativeBuffer;
 			const nativeHeap = self.nativeHeap;
-			const out0 = buffer.getChannelData(channel);
+			const out0 = buffer.getChannelData(0);
 
 			self.emu._audio_stream_generate(time_ms(), nativeBuffer, self.bufferSize * 2);
 			for (let i = 0; i < bufferSize; i++) {
@@ -166,6 +166,11 @@ export class BufferBasedAudio {
 		this.nativeBuffer = this.emu._malloc(this.bufferSize * 2);
 		this.nativeHeap = new Uint16Array(this.emu.HEAPU8.buffer, this.nativeBuffer, this.bufferSize);
 
+		// If only one audio buffer is queued, it ending will cause the
+		// *beginning* of queueing the next buffer - creating a short,
+		// audible stutter every (this.timeUnit) seconds. If we instead
+		// queue two audio buffers, one after another, this will create
+		// a delay of length = (this.timeUnit) seconds.
 		this._queueBufferSource(() => {});
 		this._queueNextSpeakerBuffer();
 		return true;
