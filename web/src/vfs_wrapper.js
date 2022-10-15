@@ -74,7 +74,7 @@ export function initVfsWrapper() {
 
 		let i = 1;
 		while (i in handles) i++;
-		console.log("opening " + fn + " at " + i);
+		// console.log("opening " + fn + " at " + i);
 		handles[i] = {fn: fn, pos: 0, mode: mode, write_on_close: is_write, array: data};
 
 		return i;
@@ -104,7 +104,7 @@ export function initVfsWrapper() {
 				newpos = handles[h].array.length + offset;
 				break;
 		}
-		console.log("seek to " + newpos);
+		// console.log("seek to " + newpos);
 		if (newpos > handles[h].array.length)
 			newpos = handles[h].array.length;
 		else if (newpos < 0)
@@ -140,7 +140,7 @@ export function initVfsWrapper() {
 		for (var pos = 0; pos < amount; pos++) {
 			h.array[h.pos + pos] = heap[pos];
 		}
-		console.log("wrote " + amount + " bytes");
+		// console.log("wrote " + amount + " bytes");
 		h.pos += amount;
 		return amount;
 	}
@@ -155,7 +155,7 @@ export function initVfsWrapper() {
 		} else if (h.array.length < newlen) {
 			h.array = h.array.slice(0, newlen);
 		}
-		console.log("truncated");
+		// console.log("truncated");
 		return 0;
 	}
 
