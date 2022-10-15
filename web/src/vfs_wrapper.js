@@ -64,9 +64,12 @@ export function initVfsWrapper() {
 			if (!vfs.canSet(fn)) return -1;
 			if (data == null || ((mode & 0x10000) != 0)) {
 				data = new Uint8Array(0);
+			} else {
+				data = Uint8Array.from(data);
 			}
 		} else {
 			if (data == null) return -1;
+			data = Uint8Array.from(data);
 		}
 
 		let i = 1;
@@ -114,12 +117,10 @@ export function initVfsWrapper() {
 		if (!(h in handles)) return -1;
 		h = handles[h];
 		let maxlen = Math.min(amount, h.array.length - h.pos);
-		console.log("reading " + maxlen + " bytes from " + h.pos + " to " + ptr);
+		// console.log("reading " + maxlen + " bytes from " + h.pos + " to " + ptr);
 		const heap = new Uint8Array(emu.HEAPU8.buffer, ptr, maxlen);
-		for (var pos = 0; pos < maxlen; pos++) {
-			heap[pos] = h.array[h.pos + pos];
-		}
-		console.log("read " + maxlen + " bytes");
+		heap.set(h.array.subarray(h.pos, h.pos + maxlen));
+		// console.log("read " + maxlen + " bytes");
 		h.pos += maxlen;
 		return maxlen;
 	}
