@@ -57,6 +57,10 @@ static void posix_zzt_help(int argc, char **argv) {
 
 #define IS_EXTENSION(s, e) (strcasecmp((s + strlen((s)) - strlen((e))), (e)) == 0)
 
+#define INIT_ERR_GENERIC -1
+#define INIT_ERR_NO_EXECUTABLE -2
+#define INIT_ERR_NO_EXECUTABLE_ZZT -3
+
 static int posix_zzt_init(int argc, char **argv) {
 	char arg_name[257];
 	char *execs[16];
@@ -81,21 +85,21 @@ static int posix_zzt_init(int argc, char **argv) {
 			case 'e':
 				if (exec_count > 16) {
 					fprintf(stderr, "Too many -e commands!\n");
-					return -1;
+					return INIT_ERR_GENERIC;
 				}
 				execs[exec_count++] = optarg;
 				break;
 			case 'l':
 				if (load_count > 16) {
 					fprintf(stderr, "Too many -l commands!\n");
-					return -1;
+					return INIT_ERR_GENERIC;
 				}
 				loads[load_count++] = optarg;
 				break;
 			case 'h':
 				posix_zzt_help(argc, argv);
 				exit(0);
-				return -1;
+				return INIT_ERR_GENERIC;
 			case 'M':
 				extended_memory_kbs = atoi(optarg);
 				break;
@@ -104,7 +108,7 @@ static int posix_zzt_init(int argc, char **argv) {
 				// intentional - going above 640K ought to be undocumented
 				if (memory_kbs < 64 || memory_kbs > 1024) {
 					fprintf(stderr, "Invalid memory amount specified!\n");
-					return -1;
+					return INIT_ERR_GENERIC;
 				}
 				break;
 			case 't':
@@ -113,7 +117,7 @@ static int posix_zzt_init(int argc, char **argv) {
 			case '?':
 				fprintf(stderr, "Could not parse options! Try %s -h for help.\n", argv > 0 ? argv[0] : "running with");
 				exit(0);
-				return -1;
+				return INIT_ERR_GENERIC;
 		}
 	}
 #endif
@@ -223,7 +227,7 @@ static int posix_zzt_init(int argc, char **argv) {
 				if (exeh < 0) {
 					fprintf(stderr, "Could not load %s!\n", execs[i]);
 					space_ptr[0] = ' ';
-					return -1;
+					return INIT_ERR_NO_EXECUTABLE;
 				}
 				space_ptr[0] = ' ';
 				fprintf(stderr, "'%s'\n", space_ptr + 1);
@@ -233,7 +237,7 @@ static int posix_zzt_init(int argc, char **argv) {
 				exeh = vfs_open(execs[i], 0);
 				if (exeh < 0) {
 					fprintf(stderr, "Could not load %s!\n", execs[i]);
-					return -1;
+					return INIT_ERR_NO_EXECUTABLE;
 				}
 				zzt_load_binary(exeh, (i == exec_count - 1) ? arg_name : NULL);
 				vfs_close(exeh);
@@ -248,7 +252,7 @@ static int posix_zzt_init(int argc, char **argv) {
 		if (exeh < 0)
 			exeh = vfs_open("superz.exe", 0);
 		if (exeh < 0)
-			return -1;
+			return INIT_ERR_NO_EXECUTABLE_ZZT;
 		zzt_load_binary(exeh, arg_name);
 		vfs_close(exeh);
 	}

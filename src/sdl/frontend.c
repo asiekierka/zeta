@@ -215,6 +215,7 @@ static int zzt_thread_func(void *ptr) {
 			int rcode = zzt_execute(opcodes);
 			duration = zeta_time_ms() - duration;
 			if (rcode == STATE_CONTINUE) {
+				printf("%d\n", opcodes);
 				if (duration < 2) {
 					opcodes = (opcodes * 20 / 19);
 				} else if ((duration > 4) && (opcodes >= 525)) {
@@ -373,6 +374,7 @@ int main(int argc, char **argv) {
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not initialize SDL!", NULL);
 		return 1;
 	}
 	SDL_StartTextInput();
@@ -382,8 +384,17 @@ int main(int argc, char **argv) {
 	zzt_thread_cond = SDL_CreateCond();
 	audio_mutex = SDL_CreateMutex();
 
-	if (posix_zzt_init(argc, argv) < 0) {
+	int posix_init_result = posix_zzt_init(argc, argv);
+	if (posix_init_result < 0) {
 		fprintf(stderr, "Could not load ZZT!\n");
+		switch (posix_init_result) {
+			case INIT_ERR_NO_EXECUTABLE:
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "No executable", "Missing executable. Is your downloaded game package complete?", NULL);
+				break;
+			case INIT_ERR_NO_EXECUTABLE_ZZT:
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ZZT.EXE not found", "ZZT.EXE not found. Please download a version of ZZT or Super ZZT and unpack it in the same directory as Zeta.", NULL);
+				break;
+		}
 		SDL_Quit();
 		return 1;
 	}
@@ -403,6 +414,7 @@ int main(int argc, char **argv) {
 		renderer = &sdl_renderer_software;
 		if (renderer->init(window_name, charw, charh) < 0) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open video device!");
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not open video device!", NULL);
 			return 1;
 		}
 	}
@@ -427,6 +439,7 @@ int main(int argc, char **argv) {
 	zzt_thread = SDL_CreateThread(zzt_thread_func, "ZZT Executor", (void*)NULL);
 	if (zzt_thread == NULL) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not create ZZT thread! %s", SDL_GetError());
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not spawn ZZT thread!", NULL);
 		return 1;
 	}
 
