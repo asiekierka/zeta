@@ -215,7 +215,6 @@ static int zzt_thread_func(void *ptr) {
 			int rcode = zzt_execute(opcodes);
 			duration = zeta_time_ms() - duration;
 			if (rcode == STATE_CONTINUE) {
-				printf("%d\n", opcodes);
 				if (duration < 2) {
 					opcodes = (opcodes * 20 / 19);
 				} else if ((duration > 4) && (opcodes >= 525)) {
