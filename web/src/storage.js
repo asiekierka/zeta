@@ -38,6 +38,12 @@ class BaseStorage {
 		this.use83Names = (options && options.use83Names) || false;
 		this.ignoreCase = (options && options.ignoreCase) || false;
 		this.readonly = (options && options.readonly) || false;
+		this._clearCaches();
+	}
+
+	_clearCaches() {
+		this.use83NameCache = {};
+		this.use83NameUsed = {};
 	}
 
 	_transformKey(key) {
@@ -48,38 +54,47 @@ class BaseStorage {
 			
 		if (this.use83Names) {
 			var key83 = "";
+			var keyFull = "";
 			for (var keyPart of newKey.split("\\")) {
-				// TODO: Handle periods better.
-				// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/18e63b13-ba43-4f5f-a5b7-11e871b71f14
-				var nkSplit = keyPart.split(".", 2);
-				var findTildedName = false;
-				if (nkSplit[0].length > 8) {
-					findTildedName = true;
-				}
-				if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
-					nkSplit[1] = nkSplit[1].substring(0, 3);
-				}
-				if (findTildedName) {
-					var i = 1;
-					var fnConverted = nkSplit[0].replaceAll(" ", "");
-					while (1) {
-						var is = i.toString();
-						nkSplit[0] = fnConverted.substring(0, 7 - is.length) + "~" + is;
-						keyPart = nkSplit.join(".");
-						if (this.get(key83 + (key83.length > 0 ? "\\" : "") + keyPart) == null) {
-							break;
-						}
-						i = i + 1;
-						if (i >= 1000) {
-							throw new Error("Too many filenames! (at " + key + ")");
-						}
-					}
+				keyFull = keyFull + (keyFull.length > 0 ? "\\" : "") + keyPart;
+				if (keyFull in this.use83NameCache) {
+					key83 = this.use83NameCache[keyFull];
 				} else {
-					keyPart = nkSplit.join(".");
-				}
+					// TODO: Handle periods better.
+					// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/18e63b13-ba43-4f5f-a5b7-11e871b71f14
+					var nkSplit = keyPart.split(".", 2);
+					var findTildedName = false;
+					if (nkSplit[0].length > 8) {
+						findTildedName = true;
+					}
+					if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
+						nkSplit[1] = nkSplit[1].substring(0, 3);
+					}
+					if (findTildedName) {
+						var i = 1;
+						var fnConverted = nkSplit[0].replaceAll(" ", "");
+						while (1) {
+							var is = i.toString();
+							nkSplit[0] = fnConverted.substring(0, 7 - is.length) + "~" + is;
+							keyPart = nkSplit.join(".");
+							var key83Proposal = key83 + (key83.length > 0 ? "\\" : "") + keyPart;
+							if (!(key83Proposal in this.use83NameUsed)) {
+								break;
+							}
+							i = i + 1;
+							if (i >= 1000) {
+								throw new Error("Too many filenames! (at " + key + ")");
+							}
+						}
+					} else {
+						keyPart = nkSplit.join(".");
+					}
 
-				if (key83.length > 0) key83 += "\\";
-				key83 += keyPart;
+					if (key83.length > 0) key83 += "\\";
+					key83 += keyPart;
+					this.use83NameCache[keyFull] = key83;
+					this.use83NameUsed[key83] = keyFull;
+				}
 			}
 			newKey = key83;
 		}
