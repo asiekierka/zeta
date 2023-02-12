@@ -100,8 +100,15 @@ int vfs_chdir(const char *dir) {
 	}
 
 	if (strchr(dir, '\\') != NULL) {
-		// do not support multiple path resolution for now
-		return -1;
+		char dir_copy[MAX_FNLEN];
+		dir_copy[sizeof(dir_copy) - 1] = 0;
+		strncpy(dir_copy, dir, sizeof(dir_copy) - 1);
+		const char *dir_tok = strtok(dir_copy, "\\");
+		while (dir_tok != NULL) {
+			if (vfs_chdir(dir_tok) < 0) return -1;
+			dir_tok = strtok(NULL, "\\");
+		}
+		return 0;
 	}
 
 	if (strcmp(dir, ".") == 0) {

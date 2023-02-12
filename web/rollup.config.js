@@ -1,7 +1,7 @@
 import babel from '@rollup/plugin-babel';
 import banner2 from 'rollup-plugin-banner2';
 import resolve from '@rollup/plugin-node-resolve';
-import { terser } from 'rollup-plugin-terser';
+import terser from '@rollup/plugin-terser';
 
 const fs = require('fs');
 

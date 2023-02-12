@@ -45,36 +45,43 @@ class BaseStorage {
 
 		if (this.ignoreCase == "upper") newKey = newKey.toUpperCase();
 		else if (this.ignoreCase) newKey = newKey.toLowerCase();
-
+			
 		if (this.use83Names) {
-			// TODO: Handle periods better.
-			// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/18e63b13-ba43-4f5f-a5b7-11e871b71f14
-			var nkSplit = newKey.split(".", 2);
-			var findTildedName = false;
-			if (nkSplit[0].length > 8) {
-				findTildedName = true;
-			}
-			if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
-				nkSplit[1] = nkSplit[1].substring(0, 3);
-			}
-			if (findTildedName) {
-				var i = 1;
-				var fnConverted = nkSplit[0].replaceAll(" ", "");
-				while (1) {
-					var is = i.toString();
-					nkSplit[0] = fnConverted.substring(0, 7 - is.length) + "~" + is;
-					newKey = nkSplit.join(".");
-					if (this.get(newKey) == null) {
-						break;
-					}
-					i = i + 1;
-					if (i >= 1000) {
-						throw new Error("Too many filenames! (at " + key + ")");
-					}
+			var key83 = "";
+			for (var keyPart of newKey.split("\\")) {
+				// TODO: Handle periods better.
+				// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/18e63b13-ba43-4f5f-a5b7-11e871b71f14
+				var nkSplit = keyPart.split(".", 2);
+				var findTildedName = false;
+				if (nkSplit[0].length > 8) {
+					findTildedName = true;
 				}
-			} else {
-				newKey = nkSplit.join(".");
+				if (nkSplit.length >= 2 && nkSplit[1].length > 3) {
+					nkSplit[1] = nkSplit[1].substring(0, 3);
+				}
+				if (findTildedName) {
+					var i = 1;
+					var fnConverted = nkSplit[0].replaceAll(" ", "");
+					while (1) {
+						var is = i.toString();
+						nkSplit[0] = fnConverted.substring(0, 7 - is.length) + "~" + is;
+						keyPart = nkSplit.join(".");
+						if (this.get(key83 + (key83.length > 0 ? "\\" : "") + keyPart) == null) {
+							break;
+						}
+						i = i + 1;
+						if (i >= 1000) {
+							throw new Error("Too many filenames! (at " + key + ")");
+						}
+					}
+				} else {
+					keyPart = nkSplit.join(".");
+				}
+
+				if (key83.length > 0) key83 += "\\";
+				key83 += keyPart;
 			}
+			newKey = key83;
 		}
 
 		return newKey;
@@ -394,10 +401,10 @@ export function createZipStorage(url, options, progressCallback) {
 				}
 
 				if (key) {
-					if (key.indexOf("/") >= 0) {
-						console.warn("skipped file inside subdirectory: " + url + " -> " + key);
-						key = undefined;
+					if (key.endsWith("/")) {
+						continue;
 					}
+					key = key.replaceAll("/", "\\");
 				}
 
 				if (key) {

@@ -35,16 +35,56 @@ export function setWrappedVfs(inputVfs) {
 }
 
 export function initVfsWrapper() {
+	var vfs_dir = "";
+
 	window.vfsg_getcwd = function(ptr, size) {
 		if (size > 0) {
+			var p = 0;
 			let heap = new Uint8Array(emu.HEAPU8.buffer, ptr, size);
-			heap[0] = 0;
+			for (var i = 0; i < vfs_dir.length && p < (size-1); i++) {
+				heap[p++] = vfs_dir.charCodeAt(i);
+			}
+			heap[p] = 0;
 		}
 		return 0;
 	}
 
-	window.vfsg_chdir = function(ptr, size) {
-		return -1;
+	window.vfsg_chdir = function(fn) {
+		if (typeof fn !== "string") {
+			fn = emu.AsciiToString(fn);
+		}
+
+		if (fn.length >= 3 && fn.charCodeAt(1) == 58 && fn.charCodeAt(2) == 92) {
+			// reset path
+			vfs_dir = fn.substring(3);
+			return 0;
+		}
+
+		if (fn.indexOf("\\") >= 0) {
+			for (i of fn.split("\\")) {
+				if (vfsg_chdir(i) < 0) return -1;
+			}
+			return 0;
+		}
+
+		if (fn == ".") {
+			// remain in place
+			return 0;
+		} else if (fn == "..") {
+			// descend
+			let idx = vfs_dir.lastIndexOf("\\");
+			if (idx >= 0) {
+				vfs_dir = vfs_dir.substring(0, idx);
+			} else {
+				vfs_dir = "";
+			}
+		} else {
+			// append
+			if (vfs_dir.length > 0) vfs_dir += "\\";
+			vfs_dir += fn;
+		}
+
+		return 0;
 	}
 
 	window.vfsg_open = function(fn, mode) {
@@ -55,6 +95,8 @@ export function initVfsWrapper() {
 		fn = fn.toUpperCase();
 		if (fn.length >= 3 && fn.charCodeAt(1) == 58 && fn.charCodeAt(2) == 92) {
 			fn = fn.substring(3);
+		} else if (vfs_dir.length > 0) {
+			fn = vfs_dir + "\\" + fn;
 		}
 
 		let data = vfs.get(fn);
@@ -166,13 +208,34 @@ export function initVfsWrapper() {
 		spec = spec.toUpperCase();
 		if (spec.startsWith("*")) {
 			let suffix = spec.substring(1);
-			let list = vfs.list(key => (suffix.length == 0) || key.endsWith(suffix));
-			list.sort((a, b) => {
+			let entries = vfs.list(key => (vfs_dir.length == 0 || key.startsWith(vfs_dir + "\\")) && ((suffix.length == 0) || key.endsWith(suffix)));
+			if (vfs_dir.length > 0) {
+				entries = entries.map(a => a.substring(vfs_dir.length + 1));
+			}
+			let directories = [];
+			let files = [];
+			for (var e of entries) {
+				let eDirIndex = e.indexOf("\\");
+				if (eDirIndex >= 0) {
+					let eDir = e.substring(0, eDirIndex);
+					if (!directories.includes(eDir)) {
+						directories.push(eDir);
+					}
+				} else {
+					files.push(e);
+				}
+			}
+			directories = directories.sort((a, b) => {
 				const lenDiff = a.length - b.length;
 				if (lenDiff != 0) return lenDiff;
 				else return a.localeCompare(b);
-			}).map(a => a.toUpperCase());
-			return list;
+			}).map(a => ({"name": a.toUpperCase(), "attr": 0x10}));
+			files = files.sort((a, b) => {
+				const lenDiff = a.length - b.length;
+				if (lenDiff != 0) return lenDiff;
+				else return a.localeCompare(b);
+			}).map(a => ({"name": a.toUpperCase(), "attr": 0x00}));
+			return directories.concat(files);
 		} else {
 			console.log("unknown findfirst spec: " + spec);
 			return null;
@@ -192,16 +255,25 @@ export function initVfsWrapper() {
 	window.vfsg_findnext = function(ptr) {
 		if (ff_pos >= ff_list.length) return -1;
 		const finddata = new Uint8Array(emu.HEAPU8.buffer, ptr, 0x100);
+		let file = ff_list[ff_pos];
+
+		let fn = file["name"];
+		let fp = fn;
+		if (vfs_dir.length > 0) {
+			fp = vfs_dir + "\\" + fp;
+		}
+		let fd = vfs.get(fp);
+
+		let attr = file["attr"];
+		let size = fd == null ? 0 : fd.byteLength;
 
 		// write documented fields
-		finddata[0x15] = 0;
+		finddata[0x15] = attr;
 		finddata[0x16] = 0;
 		finddata[0x17] = 0;
 		finddata[0x18] = 0;
 		finddata[0x19] = 0;
 
-		let fn = ff_list[ff_pos];
-		let size = vfs.get(fn).byteLength;
 		finddata[0x1A] = size & 0xFF;
 		finddata[0x1B] = (size >> 8) & 0xFF;
 		finddata[0x1C] = (size >> 16) & 0xFF;

@@ -1,9 +1,19 @@
+ifneq (${USE_CLANG},)
+ifneq (${ARCH},)
+BUILDDIR = build/${ARCH}-${PLATFORM}-clang
+CC = ${ARCH}clang
+else
+BUILDDIR = build/${PLATFORM}-clang
+CC = clang
+endif
+else
 ifneq (${ARCH},)
 BUILDDIR = build/${ARCH}-${PLATFORM}
 CC = ${ARCH}gcc
 else
 BUILDDIR = build/${PLATFORM}
 CC = gcc
+endif
 endif
 
 VERSION ?= unknown
@@ -14,13 +24,16 @@ TOOLSDIR = tools
 FONTSDIR = fonts
 OBJDIR = ${BUILDDIR}/obj
 
-# TODO: Why does -flto fail on GCC 11?
-CFLAGS = -g -O3 -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
-LDFLAGS = -g -O3 -std=gnu18 -Wall
+CFLAGS = -g -O3 -flto -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
+LDFLAGS = -g -O3 -flto -std=gnu18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
+ifneq (${USE_CLANG},)
+CC = ${ARCH}-w64-mingw32-clang
+else
 CC = ${ARCH}-w64-mingw32-gcc
+endif
 CFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
@@ -47,7 +60,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
   -s SUPPORT_ERRNO=0 \
   -s ALLOW_MEMORY_GROWTH=1 -s ASSERTIONS=0 \
   -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
-  -s INITIAL_MEMORY=4194304 -s TOTAL_STACK=262144 \
+  -s INITIAL_MEMORY=4194304 -s STACK_SIZE=262144 \
   -DNO_MEMSET -DAVOID_MALLOC --no-entry
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
