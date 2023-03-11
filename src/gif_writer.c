@@ -277,7 +277,7 @@ void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
 	bool blink = zzt_get_blink() != 0;
 	bool blink_active = false;
 	if (blink) {
-		int blink_pits = zzt_get_blink_duration_ms() / 55;
+		int blink_pits = zzt_get_active_blink_duration_ms() / 55;
 		blink_active = blink && ((pit_ticks / blink_pits) & 1);
 	}
 	bool requires_lct = memcmp(palette, s->global_palette, 16 * sizeof(u32)) != 0;

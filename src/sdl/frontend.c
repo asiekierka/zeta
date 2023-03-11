@@ -199,7 +199,7 @@ static void sdl_timer_init(void) {
 }
 
 static bool sdl_is_blink_phase(long curr_time) {
-	int blink_duration_ms = zzt_get_blink_duration_ms();
+	int blink_duration_ms = zzt_get_active_blink_duration_ms();
 	if (blink_duration_ms <= 0) {
 		return false;
 	} else {

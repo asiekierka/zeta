@@ -64,9 +64,10 @@ static const char* ui_lines_header[] = {
 static const char* ui_lines_options[] = {
     "  Volume:      ",
     "  Player step sound: [ ]",
+    "  Blinking allowed: [ ]",
     "  Exit"
 };
-#define UI_LINES_OPTIONS_COUNT 3
+#define UI_LINES_OPTIONS_COUNT 4
 
 void ui_activate(void) {
     if (ui_is_active()) return;
@@ -156,6 +157,7 @@ void ui_tick(void) {
         snprintf(sbuf, sizeof(sbuf) - 1, "%d%%", audio_stream_get_volume() * 10 / 6);
         ui_draw_string(woptx + 10, wopty, sbuf, 0x1F);
         ui_draw_check(woptx, wopty + 1, ui_lines_options[1], !audio_get_remove_player_movement_sound(), 0x1F);
+        ui_draw_check(woptx, wopty + 2, ui_lines_options[2], !zzt_get_blink_disable_user_override(), 0x1F);
 
         // draw arrow
         ui_draw_char(woptx, wopty + ui_state->option_y, '>', 0x1F);
@@ -176,6 +178,8 @@ void ui_tick(void) {
                 }
             } else if (ui_state->option_y == 1) {
                 audio_set_remove_player_movement_sound(!audio_get_remove_player_movement_sound());
+            } else if (ui_state->option_y == 2) {
+                zzt_set_blink_disable_user_override(!zzt_get_blink_disable_user_override());
             } else if (ui_state->option_y == UI_LINES_OPTIONS_COUNT - 1 && key.chr == 13) {
                 ui_deactivate();
                 return;
@@ -183,10 +187,14 @@ void ui_tick(void) {
         } else if (key.key == 72) {
             if (ui_state->option_y > 0) {
                 ui_state->option_y--;
+            } else {
+                ui_state->option_y = UI_LINES_OPTIONS_COUNT - 1;
             }
         } else if (key.key == 80) {
             if (ui_state->option_y < UI_LINES_OPTIONS_COUNT - 1) {
                 ui_state->option_y++;
+            } else {
+                ui_state->option_y = 0;
             }
         }
     }

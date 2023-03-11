@@ -114,6 +114,7 @@ typedef struct {
 #endif
 
 	u8 disable_idle_hacks;
+	bool blink_disable_user_override;
 	int blink_duration_ms;
 } zzt_state;
 
@@ -1370,8 +1371,20 @@ int zzt_get_blink(void) {
 	return zzt.blink;
 }
 
+bool zzt_get_blink_disable_user_override(void) {
+	return zzt.blink_disable_user_override;
+}
+
+void zzt_set_blink_disable_user_override(bool value) {
+	zzt.blink_disable_user_override = value;
+}
+
 int zzt_get_blink_duration_ms(void) {
 	return zzt.blink_duration_ms;
+}
+
+int zzt_get_active_blink_duration_ms(void) {
+	return zzt.blink_disable_user_override ? -1 : zzt.blink_duration_ms;
 }
 
 void zzt_set_blink_duration_ms(int value) {
@@ -1393,6 +1406,7 @@ void zzt_init(int memory_kbs) {
 
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
+	zzt.blink_disable_user_override = false;
 	zzt.blink_duration_ms = 267;
 
 	zzt.timer_time = 0;

@@ -84,7 +84,7 @@ export class CanvasBasedRenderer {
 		if (this.scale < 1) this.scale = 1;
 
 		if (this.emu._zzt_get_blink()) {
-			let blink_duration = this.emu._zzt_get_blink_duration_ms();
+			let blink_duration = this.emu._zzt_get_active_blink_duration_ms();
 			if (blink_duration > 0 && (time % (blink_duration * 2)) >= blink_duration) {
 				this.blink_state = 2;
 			} else {
