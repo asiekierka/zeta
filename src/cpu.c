@@ -1259,9 +1259,15 @@ static int cpu_run_one(cpu_state* cpu, u8 no_interrupting, u8 pr_state) {
 			cpu->cx = cpu_pop16(cpu);
 			cpu->ax = cpu_pop16(cpu);
 		} break;
+		// TODO: 0x62 (BOUND)
 		case 0x68: cpu_push16(cpu, cpu_advance_ip16(cpu)); break;
+		// TODO: 0x69 (MUL)
 		case 0x6A: cpu_push16(cpu, cpu_advance_ip(cpu)); break;
-		// TODO: further 80186 opcodes
+		// TODO: 0x6B (MUL)
+		// TODO: 0x6C (INS)
+		// TODO: 0x6D (INS)
+		// TODO: 0x6E (OUTS)
+		// TODO: 0x6F (OUTS)
 #elif defined(USE_OPCODES_8086_ALIASED)
 		CPU_JMP_TABLE(0x60)
 #endif
@@ -1437,6 +1443,27 @@ static int cpu_run_one(cpu_state* cpu, u8 no_interrupting, u8 pr_state) {
 			mrm_entry e = cpu_mod_rm(cpu, 1, 0);
 			cpu_write_rm(cpu, &e, e.dst, cpu_advance_ip16(cpu));
 		} break;
+#if defined(USE_OPCODES_80186)
+		case 0xC8: /* ENTER */ {
+			u16 frame_size = cpu_advance_ip(cpu);
+			u8 nest = cpu_advance_ip(cpu) & 0x1F;
+			cpu_push16(cpu, cpu->bp);
+			u16 sp_pre_nest = cpu->sp;
+			if (nest > 0) {
+				while ((nest--) > 1) {
+					cpu->bp -= 2;
+					cpu_push16(cpu, ram_u16(cpu, SEG(SEG_SS, cpu->bp)));
+				}
+				cpu_push16(cpu, sp_pre_nest);
+			}
+			cpu->bp = sp_pre_nest;
+			cpu->sp -= frame_size;
+		} break;
+		case 0xC9: /* LEAVE */ {
+			cpu->sp = cpu->bp;
+			cpu->bp = cpu_pop16(cpu);
+		} break;
+#endif
 #if defined(USE_OPCODES_8086_ALIASED)
 		case 0xC8:
 #endif
