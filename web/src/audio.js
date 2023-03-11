@@ -43,7 +43,7 @@ export class OscillatorBasedAudio {
 		this.timeSpeakerOn = 0;
 		this.audioGain = undefined;
 		this.pc_speaker = undefined;
-		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.1));
 		this.noteDelay = 1;
 	}
 
@@ -110,7 +110,7 @@ export class BufferBasedAudio {
 		this.sampleRate = (options && options.sampleRate) || 48000;
 		this.bufferSize = (options && options.bufferSize) || 2048;
 		this.noteDelay = (options && options.noteDelay) || undefined;
-		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.2));
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.1));
 		this.timeUnit = (this.bufferSize / this.sampleRate);
 		this.initialized = false;
 		this.lastTimeMs = 0;

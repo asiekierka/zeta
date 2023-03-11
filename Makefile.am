@@ -9,6 +9,7 @@ zeta_SOURCES = \
 	src/zzt_ems.c \
 	src/audio_stream.c \
 	src/audio_shared.c \
+	src/ui.c \
 	src/util.c \
 	src/asset_loader.c
 

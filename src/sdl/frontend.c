@@ -43,6 +43,7 @@
 #include "../audio_stream.h"
 #include "../posix_vfs.h"
 #include "../render_software.h"
+#include "../ui.h"
 #ifdef ENABLE_AUDIO_WRITER
 #include "../audio_writer.h"
 #endif
@@ -450,7 +451,7 @@ int main(int argc, char **argv) {
 		if (posix_zzt_arg_note_delay >= 0.0) {
 			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}
-		audio_stream_set_volume(audio_stream_get_max_volume() >> 1);
+		audio_stream_set_volume(audio_stream_get_max_volume() / 10);
 		SDL_PauseAudioDevice(audio_device, 0);
 	}
 
@@ -494,6 +495,9 @@ int main(int argc, char **argv) {
 							SDL_SetRelativeMouseMode(0);
 							break;
 						}
+					}
+					if (event.key.keysym.sym == SDLK_F11) {
+						ui_activate();
 					}
 #ifdef ENABLE_SCREENSHOTS
 					if (event.key.keysym.sym == SDLK_F12) {

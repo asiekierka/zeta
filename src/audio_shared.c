@@ -148,8 +148,9 @@ u16 audio_generate_sample(u16 min, u16 max, int freq_fixed, double freq_real, in
 #endif
 
 static double audio_delay_time = 1.0;
+static bool audio_remove_player_movement_sound = true;
 
-double audio_get_note_delay() {
+double audio_get_note_delay(void) {
 	return audio_delay_time;
 }
 
@@ -157,20 +158,28 @@ void audio_set_note_delay(double delay) {
 	audio_delay_time = delay;
 }
 
+bool audio_get_remove_player_movement_sound(void) {
+	return audio_remove_player_movement_sound;
+}
+
+void audio_set_remove_player_movement_sound(bool value) {
+	audio_remove_player_movement_sound = value;
+}
+
 u8 audio_should_insert_pause(speaker_entry* entries, int pos) {
 	if (pos <= 0) return 0;
 
 	// ZZT always immediately disables a note... except for drums!
 	if (entries[pos - 1].enabled) {
-#ifdef REMOVE_PLAYER_MOVEMENT_SOUND
-		// Clear out short blips (player walking, etc)
-		if (!entries[pos].enabled) {
-			// 30 cycles + 1 safety measure
-			if ((entries[pos].cycles - entries[pos - 1].cycles) <= 31) {
-				return 0;
+		if (audio_remove_player_movement_sound) {
+			// Clear out short blips (player walking, etc)
+			if (!entries[pos].enabled) {
+				// 30 cycles + 1 safety measure
+				if ((entries[pos].cycles - entries[pos - 1].cycles) <= 31) {
+					return 0;
+				}
 			}
 		}
-#endif
 		return 1;
 	}
 

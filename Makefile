@@ -61,7 +61,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
   -s ALLOW_MEMORY_GROWTH=1 -s ASSERTIONS=0 \
   -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
   -s INITIAL_MEMORY=4194304 -s STACK_SIZE=262144 \
-  -DNO_MEMSET -DAVOID_MALLOC --no-entry
+  -DNO_MEMSET -DAVOID_MALLOC --no-entry -DVERSION=\"${VERSION}\"
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
@@ -74,6 +74,7 @@ OBJS =	$(OBJDIR)/8x8dbl.o \
 	$(OBJDIR)/cpu.o \
 	$(OBJDIR)/zzt.o \
 	$(OBJDIR)/zzt_ems.o \
+	$(OBJDIR)/ui.o \
 	$(OBJDIR)/audio_stream.o \
 	$(OBJDIR)/audio_shared.o
 

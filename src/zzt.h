@@ -24,6 +24,7 @@
 #define __ZZT_H__
 
 #include "cpu.h"
+#include "types.h"
 
 #define PALETTE_COLOR_COUNT 16
 #define MAX_MEMORY_KBS 736
@@ -89,6 +90,16 @@ USER_FUNCTION
 void zzt_set_timer_offset(long ms);
 USER_FUNCTION
 void zzt_set_max_extended_memory(int kilobytes);
+
+typedef struct {
+	u8 chr;
+	u8 key;
+	bool found;
+} zzt_key_t;
+
+USER_FUNCTION
+zzt_key_t zzt_key_pop(void);
+int zzt_get_cycles(void);
 
 USER_FUNCTION
 void zzt_get_screen_size(int *width, int *height);

@@ -34,7 +34,7 @@
 #define AUDIO_VOLUME_MAX 127
 static u8 speaker_overrun_flagged = 0;
 static long speaker_freq_ctr = 0;
-static u8 audio_volume = AUDIO_VOLUME_MAX;
+static u8 audio_volume = 0;
 static double audio_prev_time;
 static int audio_freq;
 static bool audio_signed;

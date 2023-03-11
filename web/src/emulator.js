@@ -113,6 +113,12 @@ class Emulator {
             else if (event.key == "Alt" || event.key == "AltGraph") emu._zzt_kmod_set(0x08);
             else ret = false;
 
+            if (event.key == "F11") {
+               emu._ui_activate();
+               event.preventDefault();
+               return false;
+            }
+
             let chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (keychrmap[event.keyCode] || 0);
             let key = keymap[event.key] || 0;
             if (key >= 0x46 && key <= 0x53) chr = 0;

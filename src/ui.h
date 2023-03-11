@@ -20,34 +20,17 @@
  * SOFTWARE.
  */
 
-#ifndef __AUDIO_SHARED_H__
-#define __AUDIO_SHARED_H__
+#ifndef __UI_H__
+#define __UI_H__
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "types.h"
-
-#define MINIMUM_NOTE_DELAY 2
-
-typedef struct {
-	u8 enabled;
-	int cycles;
-	double freq;
-	double ms;
-} speaker_entry;
-
-void audio_generate_init(void);
-u16 audio_generate_sample(u16 min, u16 max, int freq_fixed, double freq_real, int pos_fixed, int freq_aud);
+#include "config.h"
 
 USER_FUNCTION
-double audio_get_note_delay();
-USER_FUNCTION
-void audio_set_note_delay(double delay);
-USER_FUNCTION
-bool audio_get_remove_player_movement_sound(void);
-USER_FUNCTION
-void audio_set_remove_player_movement_sound(bool value);
-USER_FUNCTION
-double audio_local_delay_time(int cycles_prev, int cycles_curr, int global_frequency);
-USER_FUNCTION
-u8 audio_should_insert_pause(speaker_entry* entries, int pos);
+void ui_activate(void);
+bool ui_is_active(void);
+void ui_tick(void);
 
-#endif
+#endif /* __UI_H__ */

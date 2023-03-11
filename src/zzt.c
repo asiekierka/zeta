@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include "ui.h"
 #include "zzt.h"
 #include "zzt_ems.h"
 
@@ -78,7 +79,7 @@ typedef struct {
 	int blink;
 
 	u8 palette_dac[EGA_COLOR_COUNT * 3];
-        u8 palette_lut[LUT_COLOR_COUNT];
+    u8 palette_lut[LUT_COLOR_COUNT];
 
 	u32 palette[PALETTE_COLOR_COUNT];
 
@@ -115,6 +116,10 @@ typedef struct {
 } zzt_state;
 
 zzt_state zzt;
+
+int zzt_get_cycles(void) {
+	return zzt.cpu.cycles;
+}
 
 static int zzt_memory_seg_limit() {
 	return (zzt.cpu.ram[0x413] | (zzt.cpu.ram[0x414] << 8)) << 6;
@@ -810,6 +815,25 @@ static int mark_idlehack_call(zzt_state *zzt) {
 	return STATE_CONTINUE;
 }
 
+zzt_key_t zzt_key_pop(void) {
+	zzt_key_t result;
+	if (zzt.keybuf[0].key_sc >= 0) {
+		result.key = zzt.keybuf[0].key_sc;
+		result.chr = zzt.keybuf[0].key_ch;
+
+		// rotate keybuf
+		for (int i = 1; i < KEYBUF_SIZE; i++) {
+			zzt.keybuf[i-1] = zzt.keybuf[i];
+		}
+		zzt.keybuf[KEYBUF_SIZE-1].key_sc = -1;
+
+		result.found = true;
+	} else {
+		result.found = false;
+	}
+	return result;
+}
+
 static int cpu_func_intr_0x16(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
@@ -1402,6 +1426,11 @@ void zzt_init(int memory_kbs) {
 }
 
 int zzt_execute(int opcodes) {
+	if (ui_is_active()) {
+		ui_tick();
+		return STATE_WAIT_FRAME;
+	}
+
 	return cpu_execute(&(zzt.cpu), opcodes);
 }
 
