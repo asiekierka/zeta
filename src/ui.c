@@ -51,14 +51,13 @@ static const char* ui_lines_header[] = {
     "zeta " VERSION,
     "",
     //2345678901234567890123456789012345
-    "CTRL-F5    .GIF recording toggle",
-    "CTRL-F6    .WAV recording toggle",
+    "CTRL-F5/F6 .GIF/.WAV record mode",
     "F9         turbo (hold)         ",
     "F12        take screenshot      ",
     "CTRL-+/-   window resize up/down",
     "ALT-ENTER  fullscreen toggle    ",
 };
-#define UI_LINES_HEADER_COUNT 8
+#define UI_LINES_HEADER_COUNT 7
 #endif
 
 static const char* ui_lines_options[] = {
@@ -106,6 +105,21 @@ static void ui_draw_char(int x, int y, uint8_t chr, uint8_t col) {
     vid_mem[y * 160 + x * 2 + 1] = col;
 }
 
+static void ui_darken_char(int x, int y) {
+    if (x < 0 || y < 0 || x >= 80 || y >= 25) return;
+
+    uint8_t *vid_mem = zzt_get_ram() + 0xB8000 + y * 160 + x * 2 + 1;
+    uint8_t col = (*vid_mem) & 0x0F;
+    if (col >= 0x9) {
+        col -= 0x8;
+    } else if (col == 0x7) {
+        col = 0x8;
+    } else {
+        col = 0x0;
+    }
+    *vid_mem = col;
+}
+
 static void ui_draw_string(int x, int y, const char *s, uint8_t col) {
     while (*s != '\0') {
         ui_draw_char(x++, y, *(s++), col);
@@ -129,11 +143,29 @@ void ui_tick(void) {
 
     if (ui_state->screen_redraw) {
         // clear area
-        for (int iy = 0; iy < wheight; iy++) {
-            for (int ix = 0; ix < wwidth; ix++) {
-                ui_draw_char(wx+ix, wy+iy, 0, 0x10);
+        for (int iy = 0; iy <= wheight; iy++) {
+            for (int ix = 0; ix <= wwidth + 1; ix++) {
+                if (ix < wwidth && iy < wheight) {
+                    ui_draw_char(wx+ix, wy+iy, 0, 0x10);
+                } else if (iy > 0 && ix > 1) {                
+                    ui_darken_char(wx+ix, wy+iy);
+                }
             }
         }
+
+        // draw border
+        for (int iy = 1; iy < wheight - 1; iy++) {
+            ui_draw_char(wx,          wy+iy, 0xBA, 0x1F);
+            ui_draw_char(wx+wwidth-1, wy+iy, 0xBA, 0x1F);
+        }
+        for (int ix = 0; ix < wwidth - 1; ix++) {
+            ui_draw_char(wx+ix, wy,           0xCD, 0x1F);
+            ui_draw_char(wx+ix, wy+wheight-1, 0xCD, 0x1F);
+        }
+        ui_draw_char(wx,          wy,           0xC9, 0x1F);
+        ui_draw_char(wx+wwidth-1, wy,           0xBB, 0x1F);
+        ui_draw_char(wx,          wy+wheight-1, 0xC8, 0x1F);
+        ui_draw_char(wx+wwidth-1, wy+wheight-1, 0xBC, 0x1F);
 
         // draw header lines
         for (int iy = 0; iy < UI_LINES_HEADER_COUNT; iy++) {
