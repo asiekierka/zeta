@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include "audio_shared.h"
 #include "ui.h"
 #include "zzt.h"
 #include "zzt_ems.h"
@@ -933,6 +934,10 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 				zzt->key_delay = cpu->bx;
 			if (cpu->cx != 0xFFFF)
 				zzt->key_repeat_delay = cpu->cx;
+		} return STATE_CONTINUE;
+		case 0x05: { // SET PLAYER STEP REMOVAL MODE = AL=0x00 disables, AL=0x01 enables
+			A5_DETCHECK;
+			audio_set_remove_player_movement_sound(cpu->al != 0x00);
 		} return STATE_CONTINUE;
 		default: {
 			cpu->flags |= FLAG_CARRY;
