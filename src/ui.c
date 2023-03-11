@@ -69,6 +69,8 @@ static const char* ui_lines_options[] = {
 #define UI_LINES_OPTIONS_COUNT 3
 
 void ui_activate(void) {
+    if (ui_is_active()) return;
+
 #ifdef AVOID_MALLOC
     ui_state = &ui_state_prealloc;
 #else
