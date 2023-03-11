@@ -74,7 +74,7 @@ class Emulator {
         }
 
         window.zetag_update_blink = function(blink) {
-		render.setBlinkEnabled(blink);
+            // render.setBlinkEnabled(blink);
         }
 
         window.speakerg_on = function(cycles, freq) {
@@ -436,6 +436,9 @@ export function createEmulator(render, audio, vfs, options) {
             emu._zzt_set_max_extended_memory((options && options.engine && options.engine.extended_memory_limit) || -1);
             emu._zzt_set_timer_offset(Date.now() % 86400000);
 
+            emuObj.render.setBlinkCycleDuration((options && options.render && options.render.blink_cycle_duration) || 0.534);
+            emuObj.render.setBlinkEnabled(emu._zzt_get_blink_duration_ms() > 0);
+    
             if (options && options.commands) {
                 const lastCommand = options.commands.length - 1;
                 for (var i = 0; i <= lastCommand; i++) {

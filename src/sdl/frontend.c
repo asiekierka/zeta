@@ -198,8 +198,13 @@ static void sdl_timer_init(void) {
 	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
 }
 
-static int sdl_is_blink_phase(long curr_time) {
-	return ((curr_time % (BLINK_TOGGLE_DURATION_MS*2)) >= BLINK_TOGGLE_DURATION_MS);
+static bool sdl_is_blink_phase(long curr_time) {
+	int blink_duration_ms = zzt_get_blink_duration_ms();
+	if (blink_duration_ms <= 0) {
+		return false;
+	} else {
+		return ((curr_time % (blink_duration_ms*2)) >= blink_duration_ms);
+	}
 }
 
 // try to keep a budget of ~5ms per call

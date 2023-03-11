@@ -85,6 +85,10 @@ int zzt_key_get_delay(void);
 USER_FUNCTION
 int zzt_key_get_repeat_delay(void);
 USER_FUNCTION
+int zzt_get_blink_duration_ms(void);
+USER_FUNCTION
+void zzt_set_blink_duration_ms(int value);
+USER_FUNCTION
 void zzt_key_set_delay(int ms, int repeat_ms);
 USER_FUNCTION
 void zzt_set_timer_offset(long ms);

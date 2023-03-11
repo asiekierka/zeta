@@ -21,7 +21,8 @@
  */
 
 export class CanvasBasedRenderer {
-	constructor(canvas, options) {
+	constructor(emu, canvas, options) {
+		this.emu = emu;
 		this.canvas = canvas;
 		this.ctx = canvas.getContext('2d', {alpha: false});
 		this.ctx.imageSmoothingEnabled = false;
@@ -30,9 +31,6 @@ export class CanvasBasedRenderer {
 		this.offscreenCanvas.height = 400;
 		this.offscreenCtx = this.offscreenCanvas.getContext('2d', {alpha: false});
 		this.offscreenCtx.imageSmoothingEnabled = false;
-
-		this.blink_duration = Math.round(((options && options.blink_cycle_duration) || 0.534) * 1000);
-		this.video_blink = this.blink_duration > 0;
 
 		this.video_mode = -1;
 		this.chrBuf = [];
@@ -85,8 +83,9 @@ export class CanvasBasedRenderer {
 		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));
 		if (this.scale < 1) this.scale = 1;
 
-		if (this.video_blink) {
-			if ((time % this.blink_duration) >= (this.blink_duration / 2)) {
+		if (this.emu._zzt_get_blink()) {
+			let blink_duration = this.emu._zzt_get_blink_duration_ms();
+			if (blink_duration > 0 && (time % (blink_duration * 2)) >= blink_duration) {
 				this.blink_state = 2;
 			} else {
 				this.blink_state = 1;
@@ -108,7 +107,8 @@ export class CanvasBasedRenderer {
 				break;
 			case 2:
 				if (col >= 0x80) {
-					col = ((col & 0x70) >> 4) * 0x11;				}
+					col = ((col & 0x70) >> 4) * 0x11;
+				}
 				break;
 		}
 
@@ -230,14 +230,11 @@ export class CanvasBasedRenderer {
 	}
 
 	setBlinkEnabled(blink) {
-		if (this.blink_duration > 0) {
-			this.video_blink = blink != 0;
-		}
+		this.emu._zzt_load_blink(blink != 0);
 	}
 
 	setBlinkCycleDuration(duration) {
-		this.blink_duration = Math.round(duration * 1000);
-		this.video_blink = this.blink_duration > 0;
+		this.emu._zzt_set_blink_duration_ms(Math.round(duration * 500));
 	}
 
 	setCharset(width, height, heap) {

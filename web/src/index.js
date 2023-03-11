@@ -202,7 +202,7 @@ window.ZetaInitialize = function(options, callback) {
 
         let render, audio;
         
-        render = (emu) => new CanvasBasedRenderer(options.render.canvas, options.render);
+        render = (emu) => new CanvasBasedRenderer(emu, options.render.canvas, options.render);
         
         if (audio_type == "oscillator") {
             audio = (emu) => new OscillatorBasedAudio(options.audio);

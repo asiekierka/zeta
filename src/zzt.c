@@ -114,6 +114,7 @@ typedef struct {
 #endif
 
 	u8 disable_idle_hacks;
+	int blink_duration_ms;
 } zzt_state;
 
 zzt_state zzt;
@@ -939,6 +940,11 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 			A5_DETCHECK;
 			audio_set_remove_player_movement_sound(cpu->al != 0x00);
 		} return STATE_CONTINUE;
+		case 0x06: { // SET BLINK CONFIGURATION = AL=0x00 disables, AL=0x01 enables; DX: blink in milliseconds
+			A5_DETCHECK;
+			zzt_load_blink(cpu->al != 0x00);
+			zzt_set_blink_duration_ms(cpu->dx);
+		} return STATE_CONTINUE;
 		default: {
 			cpu->flags |= FLAG_CARRY;
 		} return STATE_CONTINUE;
@@ -1364,6 +1370,14 @@ int zzt_get_blink(void) {
 	return zzt.blink;
 }
 
+int zzt_get_blink_duration_ms(void) {
+	return zzt.blink_duration_ms;
+}
+
+void zzt_set_blink_duration_ms(int value) {
+	zzt.blink_duration_ms = value;
+}
+
 void zzt_init(int memory_kbs) {
 	if (memory_kbs < 0) {
 		// theoretical ZZT maximum!
@@ -1379,6 +1393,7 @@ void zzt_init(int memory_kbs) {
 
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
+	zzt.blink_duration_ms = 267;
 
 	zzt.timer_time = 0;
 	zzt.joy_xstrobe_val = -1;
