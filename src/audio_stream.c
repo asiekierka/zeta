@@ -194,7 +194,9 @@ void audio_stream_generate(long time, u8 *stream, int len) {
 
 			// Force minimum delay between notes.
 			if (audio_from < audio_last_to) audio_from = audio_last_to;
-			if (audio_to < (audio_from + MINIMUM_NOTE_DELAY)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
+			// This \/ regresses player step note removal.
+			// if (audio_to < (audio_from + MINIMUM_NOTE_DELAY)) audio_to = audio_from + MINIMUM_NOTE_DELAY;
+			if (audio_to < audio_from) audio_to = audio_from;
 
                        // If first note and above 0, memset.
 			if (i == 0 && audio_from > 0) {
