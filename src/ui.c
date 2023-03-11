@@ -174,6 +174,9 @@ void ui_tick(void) {
                 }
             } else if (ui_state->option_y == 1) {
                 audio_set_remove_player_movement_sound(!audio_get_remove_player_movement_sound());
+            } else if (ui_state->option_y == UI_LINES_OPTIONS_COUNT - 1 && key.chr == 13) {
+                ui_deactivate();
+                return;
             }
         } else if (key.key == 72) {
             if (ui_state->option_y > 0) {
