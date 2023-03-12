@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = foreign subdir-objects
 bin_PROGRAMS = zeta
 zeta_SOURCES = \
 	src/8x14.c \
-	src/8x8dbl.c \
+	src/8x8.c \
 	src/cpu.c \
 	src/zzt.c \
 	src/zzt_ems.c \
@@ -43,11 +43,11 @@ src/8x14.bin: $(srcdir)/fonts/pc_ega.png $(srcdir)/tools/font2raw.py
 	@mkdir -p $(@D)
 	$(PYTHON) $(srcdir)/tools/font2raw.py $< 8 14 a $@
 
-src/8x8dbl.c: src/8x8dbl.bin $(srcdir)/tools/bin2c.py
+src/8x8.c: src/8x8.bin $(srcdir)/tools/bin2c.py
 	@mkdir -p $(@D)
-	$(PYTHON) $(srcdir)/tools/bin2c.py --field_name res_8x8dbl_bin src/8x8dbl.c src/8x8dbl.h src/8x8dbl.bin
+	$(PYTHON) $(srcdir)/tools/bin2c.py --field_name res_8x8_bin src/8x8.c src/8x8.h src/8x8.bin
 
-src/8x8dbl.bin: $(srcdir)/fonts/pc_cga.png $(srcdir)/tools/font2raw.py
+src/8x8.bin: $(srcdir)/fonts/pc_cga.png $(srcdir)/tools/font2raw.py
 	@mkdir -p $(@D)
-	$(PYTHON) $(srcdir)/tools/font2raw.py $< 8 8 dbl $@
+	$(PYTHON) $(srcdir)/tools/font2raw.py $< 8 8 a $@
 

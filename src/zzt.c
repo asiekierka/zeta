@@ -66,7 +66,7 @@ typedef struct {
 } zzt_key_entry;
 
 extern unsigned char res_8x14_bin[];
-extern unsigned char res_8x8dbl_bin[];
+extern unsigned char res_8x8_bin[];
 
 typedef struct {
 	cpu_state cpu;
@@ -283,7 +283,7 @@ static void zzt_load_charset_default() {
 	zzt_get_screen_size(&width, &height);
 
 	if (width <= 40) {
-		zzt_load_charset(8, 16, res_8x8dbl_bin, true);
+		zzt_load_charset(8, -8, res_8x8_bin, true);
 	} else {
 		zzt_load_charset(8, 14, res_8x14_bin, true);
 	}
@@ -292,7 +292,7 @@ static void zzt_load_charset_default() {
 USER_FUNCTION
 void zzt_force_default_charset(zzt_default_charset_style_t style) {
 	if (style == DEFAULT_CHARSET_STYLE_CGA) {
-		zzt_load_charset(8, 16, res_8x8dbl_bin, true);
+		zzt_load_charset(8, -8, res_8x8_bin, true);
 	} else if (style == DEFAULT_CHARSET_STYLE_EGA) {
 		zzt_load_charset(8, 14, res_8x14_bin, true);
 	} else {
@@ -764,7 +764,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				} return;
 				case 0x02:
 				case 0x12: {
-					zzt_load_charset(8, 16, res_8x8dbl_bin, true);
+					zzt_load_charset(8, -8, res_8x8_bin, true);
 				} return;
 			}
 			break;
@@ -1317,13 +1317,19 @@ void zzt_load_binary(int handle, const char *arg) {
 }
 
 int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
+	int do_doubling = 0;
+	if (height < 0) {
+		height = (-height) * 2;
+		do_doubling = 1;
+	}
+
 	if (width != 8 || height <= 0 || height > 16) return -1;
 
 	zzt.char_width = width;
 	zzt.char_height = height;
 	zzt.charset_default &= is_default;
 	for (int i = 0; i < 256*height; i++) {
-		zzt.charset[i] = data[i];
+		zzt.charset[i] = data[i >> do_doubling];
 	}
 
 	zeta_update_charset(width, height, zzt.charset);

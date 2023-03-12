@@ -68,7 +68,7 @@ else
 $(error Please specify PLATFORM: mingw32-sdl, unix-curses, unix-headless, unix-sdl, wasm)
 endif
 
-OBJS =	$(OBJDIR)/8x8dbl.o \
+OBJS =	$(OBJDIR)/8x8.o \
 	$(OBJDIR)/8x14.o \
 	\
 	$(OBJDIR)/cpu.o \
@@ -121,17 +121,17 @@ $(OBJDIR)/8x14.bin: $(FONTSDIR)/pc_ega.png $(TOOLSDIR)/font2raw.py
 	@mkdir -p $(@D)
 	python3 $(TOOLSDIR)/font2raw.py $< 8 14 a $@
 
-$(OBJDIR)/8x8dbl.o: $(OBJDIR)/8x8dbl.c
+$(OBJDIR)/8x8.o: $(OBJDIR)/8x8.c
 	@mkdir -p $(@D)
 	$(CC) -g -c -o $@ $<
 
-$(OBJDIR)/8x8dbl.c: $(OBJDIR)/8x8dbl.bin $(TOOLSDIR)/bin2c.py
+$(OBJDIR)/8x8.c: $(OBJDIR)/8x8.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)
-	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x8dbl_bin $(OBJDIR)/8x8dbl.c $(OBJDIR)/8x8dbl.h $(OBJDIR)/8x8dbl.bin
+	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x8_bin $(OBJDIR)/8x8.c $(OBJDIR)/8x8.h $(OBJDIR)/8x8.bin
 
-$(OBJDIR)/8x8dbl.bin: $(FONTSDIR)/pc_cga.png $(TOOLSDIR)/font2raw.py
+$(OBJDIR)/8x8.bin: $(FONTSDIR)/pc_cga.png $(TOOLSDIR)/font2raw.py
 	@mkdir -p $(@D)
-	python3 $(TOOLSDIR)/font2raw.py $< 8 8 dbl $@
+	python3 $(TOOLSDIR)/font2raw.py $< 8 8 a $@
 
 .PHONY: clean
 
