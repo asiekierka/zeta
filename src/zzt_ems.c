@@ -26,6 +26,8 @@
 #include <string.h>
 #include "zzt_ems.h"
 
+#include "logging.h"
+
 #ifdef USE_EMS_EMULATION
 
 #define EMS_HANDLE_ALLOC_UNIT 8

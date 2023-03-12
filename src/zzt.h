@@ -116,6 +116,8 @@ void zzt_get_screen_size(int *width, int *height);
 USER_FUNCTION
 u8 *zzt_get_charset(int *width, int *height);
 USER_FUNCTION
+bool zzt_get_charset_default(void);
+USER_FUNCTION
 u32 *zzt_get_palette(void);
 USER_FUNCTION
 int zzt_get_blink(void);
@@ -126,6 +128,8 @@ USER_FUNCTION
 void zzt_force_default_charset(zzt_default_charset_style_t style);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
+USER_FUNCTION
+int zzt_load_palette_default(void);
 USER_FUNCTION
 int zzt_load_ega_palette(u8* colors);
 USER_FUNCTION

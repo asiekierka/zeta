@@ -274,6 +274,10 @@ void zzt_mouse_axis(int axis, int value) {
 	}
 }
 
+bool zzt_get_charset_default(void) {
+	return zzt.charset_default;
+}
+
 static void zzt_load_charset_default() {
 	int width, height;
 	zzt_get_screen_size(&width, &height);
@@ -537,20 +541,20 @@ static void zzt_refresh_palette(void) {
 	for (int c = 0; c < PALETTE_COLOR_COUNT; c++) {
 		int i = zzt.palette_lut[c];
 		int color = 0xFF000000
-			| (((zzt.palette_dac[i * 3 + 0] * 255 / 63) & 0xFF) << 16)
-			| (((zzt.palette_dac[i * 3 + 1] * 255 / 63) & 0xFF) << 8)
-			| ((zzt.palette_dac[i * 3 + 2] * 255 / 63) & 0xFF);
+			| (zzt.palette_dac[i * 3 + 0] << 16)
+			| (zzt.palette_dac[i * 3 + 1] << 8)
+			| zzt.palette_dac[i * 3 + 2];
 		zzt.palette[c] = color;
 	}
 
 	zeta_update_palette(zzt.palette);
 }
 
-static void zzt_init_palette(void) {
+int zzt_load_palette_default(void) {
 	for (int c = 0; c < EGA_COLOR_COUNT; c++) {
-		zzt.palette_dac[c * 3 + 0] = ((c >> 2) & 0x1) * 0x2A + ((c >> 5) & 0x1) * 0x15;
-		zzt.palette_dac[c * 3 + 1] = ((c >> 1) & 0x1) * 0x2A + ((c >> 4) & 0x1) * 0x15;
-		zzt.palette_dac[c * 3 + 2] = (c & 0x1) * 0x2A + ((c >> 3) & 0x1) * 0x15;
+		zzt.palette_dac[c * 3 + 0] = ((c >> 2) & 0x1) * 0xAA + ((c >> 5) & 0x1) * 0x55;
+		zzt.palette_dac[c * 3 + 1] = ((c >> 1) & 0x1) * 0xAA + ((c >> 4) & 0x1) * 0x55;
+		zzt.palette_dac[c * 3 + 2] = (c & 0x1) * 0xAA + ((c >> 3) & 0x1) * 0x55;
 	}
 
 	for (int i = 0; i < LUT_COLOR_COUNT; i++) {
@@ -558,6 +562,7 @@ static void zzt_init_palette(void) {
 	}
 
 	zzt_refresh_palette();
+	return 0;
 }
 
 
@@ -668,18 +673,18 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					fprintf(stderr, "int 0x10: set color %d to [%d, %d, %d]\n", cpu->bx, cpu->dh, cpu->ch, cpu->cl);
 #endif
 					if (cpu->bx >= 0 && cpu->bx < EGA_COLOR_COUNT) {
-						zzt.palette_dac[cpu->bx * 3 + 0] = cpu->dh;
-						zzt.palette_dac[cpu->bx * 3 + 1] = cpu->ch;
-						zzt.palette_dac[cpu->bx * 3 + 2] = cpu->cl;
+						zzt.palette_dac[cpu->bx * 3 + 0] = (cpu->dh & 0x3F) * 255 / 63;
+						zzt.palette_dac[cpu->bx * 3 + 1] = (cpu->ch & 0x3F) * 255 / 63;
+						zzt.palette_dac[cpu->bx * 3 + 2] = (cpu->cl & 0x3F) * 255 / 63;
 						zzt_refresh_palette();
 					}
 				} return;
 				case 0x15: {
 					// read palette color
 					if (cpu->bl >= 0 && cpu->bl < EGA_COLOR_COUNT) {
-						cpu->dh = zzt.palette_dac[cpu->bl * 3 + 0];
-						cpu->ch = zzt.palette_dac[cpu->bl * 3 + 1];
-						cpu->cl = zzt.palette_dac[cpu->bl * 3 + 2];
+						cpu->dh = zzt.palette_dac[cpu->bl * 3 + 0] * 63 / 255;
+						cpu->ch = zzt.palette_dac[cpu->bl * 3 + 1] * 63 / 255;
+						cpu->cl = zzt.palette_dac[cpu->bl * 3 + 2] * 63 / 255;
 						zzt_refresh_palette();
 					}
 				} return;
@@ -692,9 +697,9 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					for (int i = 0; i < cpu->cx; i++) {
 						int pal_idx = cpu->bx + i;
 						if (pal_idx >= 0 && pal_idx < EGA_COLOR_COUNT) {
-							zzt.palette_dac[pal_idx * 3] = buffer[i * 3];
-							zzt.palette_dac[pal_idx * 3 + 1] = buffer[i * 3 + 1];
-							zzt.palette_dac[pal_idx * 3 + 2] = buffer[i * 3 + 2];
+							zzt.palette_dac[pal_idx * 3] = (buffer[i * 3] & 0x3F) * 255 / 63;
+							zzt.palette_dac[pal_idx * 3 + 1] = (buffer[i * 3 + 1] & 0x3F) * 255 / 63;
+							zzt.palette_dac[pal_idx * 3 + 2] = (buffer[i * 3 + 2] & 0x3F) * 255 / 63;
 						}
 					}
 
@@ -706,9 +711,9 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 					for (int i = 0; i < cpu->cx; i++) {
 						int pal_idx = cpu->bx + i;
 						if (pal_idx >= 0 && pal_idx < EGA_COLOR_COUNT) {
-							buffer[i * 3] = zzt.palette_dac[pal_idx * 3];
-							buffer[i * 3 + 1] = zzt.palette_dac[pal_idx * 3 + 1];
-							buffer[i * 3 + 2] = zzt.palette_dac[pal_idx * 3 + 2];
+							buffer[i * 3] = zzt.palette_dac[pal_idx * 3] * 63 / 255;
+							buffer[i * 3 + 1] = zzt.palette_dac[pal_idx * 3 + 1] * 63 / 255;
+							buffer[i * 3 + 2] = zzt.palette_dac[pal_idx * 3 + 2] * 63 / 255;
 						}
 					}
 				} return;
@@ -1327,7 +1332,7 @@ int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
 
 int zzt_load_ega_palette(u8 *colors) {
 	for (int i = 0; i < EGA_COLOR_COUNT * 3; i++) {
-		zzt.palette_dac[i] = colors[i];
+		zzt.palette_dac[i] = (colors[i] & 0x3F) * 255 / 63;
 	}
 
 	zzt_refresh_palette();
@@ -1337,9 +1342,9 @@ int zzt_load_ega_palette(u8 *colors) {
 int zzt_load_palette(u32 *colors) {
 	for (int c = 0; c < PALETTE_COLOR_COUNT; c++) {
 		int i = zzt.palette_lut[c];
-		zzt.palette_dac[i * 3 + 0] = ((colors[i] >> 16) & 0xFF) * 63 / 255;
-		zzt.palette_dac[i * 3 + 1] = ((colors[i] >> 8) & 0xFF) * 63 / 255;
-		zzt.palette_dac[i * 3 + 2] = (colors[i] & 0xFF) * 63 / 255;
+		zzt.palette_dac[i * 3 + 0] = ((colors[i] >> 16) & 0xFF);
+		zzt.palette_dac[i * 3 + 1] = ((colors[i] >> 8) & 0xFF);
+		zzt.palette_dac[i * 3 + 2] = (colors[i] & 0xFF);
 	}
 
 	zzt_refresh_palette();
@@ -1454,7 +1459,7 @@ void zzt_init(int memory_kbs) {
 
 	// default assets
 
-	zzt_init_palette();
+	zzt_load_palette_default();
 	zzt_load_charset_default();
 	zzt_load_blink(1);
 }

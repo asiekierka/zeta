@@ -35,23 +35,40 @@ static int zzt_load_chr(void *data, int dlen) {
 static int zzt_load_pal(void *data, int dlen) {
 	u32 palette[16];
 	u8 *data8 = (u8*) data;
+	bool is_8bpp = false;
 
 	if (dlen < 48) return -1;
+	for (int i = 0; i < 48; i++) {
+		if (data8[i] >= 0x40) {
+			is_8bpp = true;
+			break;
+		}
+	}
 
-	for (int i = 0; i < 16; i++) {
-		int pos = i * 3;
+	if (is_8bpp) {
+		for (int i = 0; i < 16; i++) {
+			int pos = i * 3;
 
-		palette[i] =
-			  (((u32) (data8[pos] & 0x3F) * 255 / 63) << 16)
-			| (((u32) (data8[pos + 1] & 0x3F) * 255 / 63) << 8)
-			| (((u32) (data8[pos + 2] & 0x3F) * 255 / 63));
+			palette[i] =
+				((u32) (data8[pos]) << 16)
+				| ((u32) (data8[pos + 1]) << 8)
+				| ((u32) (data8[pos + 2]));
+		}
+	} else {
+		for (int i = 0; i < 16; i++) {
+			int pos = i * 3;
+
+			palette[i] =
+				(((u32) (data8[pos] & 0x3F) * 255 / 63) << 16)
+				| (((u32) (data8[pos + 1] & 0x3F) * 255 / 63) << 8)
+				| (((u32) (data8[pos + 2] & 0x3F) * 255 / 63));
+		}
 	}
 
 	return zzt_load_palette(palette);
 }
 
 static int zzt_load_pld(void *data, int dlen) {
-
 	if (dlen < 192) return -1;
 
 	return zzt_load_ega_palette((u8*) data);
