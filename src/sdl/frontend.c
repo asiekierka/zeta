@@ -617,8 +617,8 @@ int main(int argc, char **argv) {
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
 					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
-						if (!(kcode >= 97 && kcode <= 122)) break;
-						kcode -= 96;
+						if (!((kcode >= 97 && kcode <= 122) || (kcode >= 65 && kcode <= 90))) break;
+						kcode &= 0x1F;
 						scode = 0;
 					}
 
@@ -648,8 +648,8 @@ int main(int argc, char **argv) {
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
 					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
-						if (!(kcode >= 97 && kcode <= 122)) break;
-						kcode -= 96;
+						if (!((kcode >= 97 && kcode <= 122) || (kcode >= 65 && kcode <= 90))) break;
+						kcode &= 0x1F;
 						scode = 0;
 					}
 
