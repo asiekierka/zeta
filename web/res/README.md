@@ -39,6 +39,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
     * charset: the character set (8x14 only!) to initially load, as one of:
         * string - filename of a Zeta-supported format,
         * array - of bytes as would be contained in such a .chr file.
+    * lock_charset: if true and a custom charset is provided, the charset cannot be changed by the emulated engine,
     * palette: the palette, to initially load, as one of:
         * string - filename of a Zeta-supported format,
         * object, with the following fields:
@@ -47,6 +48,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
             * colors - an array of sixteen colors, either:
                 * 3-component arrays of range min - max (inclusive),
                 * "#012345" or "#012"-format strings.
+    * lock_palette: if true and a custom palette is provided, the palette cannot be changed by the emulated engine,
     * memory_limit: the memory limit, in kilobytes (64-640)
     * extended_memory_limit: the extended (EMS) memory limit, in kilobytes
 * render:

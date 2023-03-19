@@ -508,11 +508,15 @@ export function createEmulator(render, audio, vfs, options) {
                 if (options.engine.charset) {
                     if (!emuObj.loadCharset(options.engine.charset)) {
                         console.error("Could not load charset from options!");
+                    } else {
+                        emu._zzt_set_lock_charset(options.engine.lock_charset);
                     }
                 }
                 if (options.engine.palette) {
                     if (!emuObj.loadPalette(options.engine.palette)) {
                         console.error("Could not load palette from options!");
+                    } else {
+                        emu._zzt_set_lock_palette(options.engine.lock_palette);
                     }
                 }
             }
