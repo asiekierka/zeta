@@ -35,7 +35,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Arguments ([] - parameter; * - may specify multiple times):\n");
 	fprintf(stderr, "  -b     disable blinking, enable bright backgrounds\n");
-	fprintf(stderr, "  -D []  set per-note delay, in milliseconds (floating-point)\n");
+	fprintf(stderr, "  -D []  set per-note delay, in milliseconds (supports fractions)\n");
 	fprintf(stderr, " *-e []  execute command - repeat to run multiple commands\n");
 	fprintf(stderr, "         by default, ZZT.EXE or SUPERZ.EXE is executed\n");
 	fprintf(stderr, "  -h     show help\n");
@@ -43,11 +43,13 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "         \"filename\" form to attempt a guess\n");
 	fprintf(stderr, "         available types/formats: \n");
 	fprintf(stderr, "         - charset:\n");
-	fprintf(stderr, "             - chr (MegaZeux-like; 8x[height], 256 chars)\n");
+	fprintf(stderr, "             - chr     (MegaZeux-like; 8x[height], 256 chars)\n");
+	fprintf(stderr, "             - chr2y   (as above, but doubled in height)\n");
 	fprintf(stderr, "             - default (builtin font; ega or cga)\n");
 	fprintf(stderr, "         - palette:\n");
 	fprintf(stderr, "             - pal (MegaZeux-like; 16 colors ranged 00-3F)\n");
 	fprintf(stderr, "             - pld (Toshiba UPAL; 64 EGA colors ranged 00-3F)\n");
+	fprintf(stderr, "         if type prefixed with !, lock value\n");
 	fprintf(stderr, "  -m []  set memory limit, in KB (64-640)\n");
 	fprintf(stderr, "  -M []  set extended memory limit, in KB\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
@@ -160,6 +162,12 @@ static int posix_zzt_init(int argc, char **argv) {
 
 	for (int i = 0; i < load_count; i++) {
 		char *type, *filename;
+		bool lock_on_load = false;
+
+		if (loads[i][0] == '!') {
+			lock_on_load = true;
+			loads[i]++;
+		}
 
 		if (strrchr(loads[i], ':') == NULL) {
 			filename = loads[i];
@@ -213,7 +221,13 @@ static int posix_zzt_init(int argc, char **argv) {
 		if (zzt_load_asset(type, buffer, (int) fsize) < 0) {
 			fprintf(stderr, "Could not load %s!\n", filename);
 		}
-
+		if (lock_on_load) {
+			if (strstr(type, "charset") == type) {
+				zzt_set_lock_charset(true);
+			} else if (strstr(type, "palette") == type) {
+				zzt_set_lock_palette(true);
+			}
+		}
 		free(buffer);
 	}
 

@@ -50,6 +50,8 @@ let ZetaKbdmap = {
 	" ": 57
 };
 
+let ZetaKbdCtrlMap = {};
+
 let ZetaKbdChrMap = {
 	8: 8,
 	9: 9,
@@ -71,9 +73,15 @@ addCharsInOrder("ASDFGHJKL:\"", 30);
 addCharsInOrder("zxcvbnm,./", 44);
 addCharsInOrder("ZXCVBNM<>?", 44);
 
+for (var i = 1; i <= 26; i++) {
+	ZetaKbdCtrlMap[String.fromCharCode(64+i)] = i;
+	ZetaKbdCtrlMap[String.fromCharCode(96+i)] = i;
+}
+
 for (var i = 1; i <= 10; i++) {
 	ZetaKbdmap["F" + i] = 0x3A + i;
 }
 
 export const keymap = ZetaKbdmap;
+export const keyctrlmap = ZetaKbdCtrlMap;
 export const keychrmap = ZetaKbdChrMap;

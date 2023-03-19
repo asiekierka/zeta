@@ -25,11 +25,11 @@
 #include <string.h>
 #include "zzt.h"
 
-static int zzt_load_chr(void *data, int dlen) {
+static int zzt_load_chr(void *data, int dlen, bool doubled) {
 	u8 *data8 = (u8*) data;
 
 	if ((dlen & 0xFF) != 0) return -1;
-	return zzt_load_charset(8, dlen >> 8, data8, false);
+	return zzt_load_charset(8, doubled ? -(dlen >> 8) : (dlen >> 8), data8, false);
 }
 
 static int zzt_load_pal(void *data, int dlen) {
@@ -83,7 +83,9 @@ int zzt_load_asset(char *type, void *data, int dlen) {
 
 	if (strcmp(category, "charset") == 0) {
 		if (strcmp(format, "chr") == 0) {
-			return zzt_load_chr(data, dlen);
+			return zzt_load_chr(data, dlen, false);
+		} else if (strcmp(format, "chr2y") == 0) {
+			return zzt_load_chr(data, dlen, true);
 		}
 	} else if (strcmp(category, "palette") == 0) {
 		if (strcmp(format, "pal") == 0) {

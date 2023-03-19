@@ -78,6 +78,8 @@ typedef struct {
 	bool charset_default;
 	u8 charset[256*16];
 	int blink;
+	bool lock_charset;
+	bool lock_palette;
 
 	u8 palette_dac[EGA_COLOR_COUNT * 3];
     u8 palette_lut[LUT_COLOR_COUNT];
@@ -128,12 +130,24 @@ static int zzt_memory_seg_limit() {
 	return (zzt.cpu.ram[0x413] | (zzt.cpu.ram[0x414] << 8)) << 6;
 }
 
+int zzt_kmod_get(void) {
+	return zzt.key_modifiers;
+}
+
 void zzt_kmod_set(int mask) {
 	zzt.key_modifiers |= mask;
 }
 
 void zzt_kmod_clear(int mask) {
 	zzt.key_modifiers &= ~mask;
+}
+
+void zzt_set_lock_charset(bool value) {
+	zzt.lock_charset = value;
+}
+
+void zzt_set_lock_palette(bool value) {
+	zzt.lock_palette = value;
 }
 
 static long zzt_internal_time(void) {
@@ -172,6 +186,12 @@ void zzt_key(int key_ch, int key_sc) {
 	// cull repeat presses
 	if (zzt.key.key_sc == key_sc) {
 		return;
+	}
+
+	// handle CTRL-key presses
+	if ((zzt.key_modifiers & ZZT_KMOD_CTRL) && zzt.key.key_ch >= 97 && zzt.key.key_ch <= 122) {
+		zzt.key.key_sc = zzt.key.key_ch - 96;
+		zzt.key.key_ch = 0;
 	}
 
 	zzt.key.key_ch = ((key_ch & 0x7F) == key_ch) ? key_ch : 0;
@@ -1317,6 +1337,8 @@ void zzt_load_binary(int handle, const char *arg) {
 }
 
 int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
+	if (zzt.lock_charset) return 0;
+
 	int do_doubling = 0;
 	if (height < 0) {
 		height = (-height) * 2;
@@ -1337,6 +1359,8 @@ int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
 }
 
 int zzt_load_ega_palette(u8 *colors) {
+	if (zzt.lock_palette) return 0;
+
 	for (int i = 0; i < EGA_COLOR_COUNT * 3; i++) {
 		zzt.palette_dac[i] = (colors[i] & 0x3F) * 255 / 63;
 	}
@@ -1346,6 +1370,8 @@ int zzt_load_ega_palette(u8 *colors) {
 }
 
 int zzt_load_palette(u32 *colors) {
+	if (zzt.lock_palette) return 0;
+
 	for (int c = 0; c < PALETTE_COLOR_COUNT; c++) {
 		int i = zzt.palette_lut[c];
 		zzt.palette_dac[i * 3 + 0] = ((colors[i] >> 16) & 0xFF);

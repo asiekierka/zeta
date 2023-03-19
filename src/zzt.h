@@ -44,6 +44,11 @@ typedef enum {
 // (65535 / 1193181.66) = SYS_TIMER_TIME (seconds)
 #define SYS_TIMER_TIME 54.92457871
 
+#define ZZT_KMOD_RSHIFT 0x01
+#define ZZT_KMOD_LSHIFT 0x02
+#define ZZT_KMOD_CTRL   0x04
+#define ZZT_KMOD_ALT    0x08
+
 USER_FUNCTION
 int zzt_video_mode(void);
 USER_FUNCTION
@@ -51,9 +56,15 @@ void zzt_key(int key_ch, int key_sc);
 USER_FUNCTION
 void zzt_keyup(int key_sc);
 USER_FUNCTION
+int zzt_kmod_get(void);
+USER_FUNCTION
 void zzt_kmod_set(int mask);
 USER_FUNCTION
 void zzt_kmod_clear(int mask);
+USER_FUNCTION
+void zzt_set_lock_charset(bool value);
+USER_FUNCTION
+void zzt_set_lock_palette(bool value);
 USER_FUNCTION
 void zzt_joy_set(int button);
 USER_FUNCTION

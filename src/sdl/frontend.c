@@ -251,10 +251,10 @@ static int zzt_thread_func(void *ptr) {
 #define KEYMOD_SHIFT(keymod) ((keymod) & (KMOD_RSHIFT | KMOD_LSHIFT))
 
 static void update_keymod(SDL_Keymod keymod) {
-	if (KEYMOD_RSHIFT(keymod)) zzt_kmod_set(0x01); else zzt_kmod_clear(0x01);
-	if (KEYMOD_LSHIFT(keymod)) zzt_kmod_set(0x02); else zzt_kmod_clear(0x02);
-	if (KEYMOD_CTRL(keymod)) zzt_kmod_set(0x04); else zzt_kmod_clear(0x04);
-	if (KEYMOD_ALT(keymod)) zzt_kmod_set(0x08); else zzt_kmod_clear(0x08);
+	if (KEYMOD_RSHIFT(keymod)) zzt_kmod_set(ZZT_KMOD_RSHIFT); else zzt_kmod_clear(ZZT_KMOD_RSHIFT);
+	if (KEYMOD_LSHIFT(keymod)) zzt_kmod_set(ZZT_KMOD_LSHIFT); else zzt_kmod_clear(ZZT_KMOD_LSHIFT);
+	if (KEYMOD_CTRL(keymod)) zzt_kmod_set(ZZT_KMOD_CTRL); else zzt_kmod_clear(ZZT_KMOD_CTRL);
+	if (KEYMOD_ALT(keymod)) zzt_kmod_set(ZZT_KMOD_ALT); else zzt_kmod_clear(ZZT_KMOD_ALT);
 }
 
 static SDL_Window *window;
@@ -616,6 +616,12 @@ int main(int argc, char **argv) {
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
+					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
+						if (!(kcode >= 97 && kcode <= 122)) break;
+						kcode -= 96;
+						scode = 0;
+					}
+
 					// 32-126 characters are handled via SDL_TEXTINPUT
 					if (kcode >= 32 && kcode <= 126) break;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
@@ -641,7 +647,14 @@ int main(int argc, char **argv) {
 					update_keymod(event.key.keysym.mod);
 					scode = event.key.keysym.scancode;
 					kcode = event.key.keysym.sym;
+					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
+						if (!(kcode >= 97 && kcode <= 122)) break;
+						kcode -= 96;
+						scode = 0;
+					}
+
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
+						// 32-126 characters are handled via SDL_TEXTINPUT
 						if (!(kcode >= 32 && kcode <= 126)) {
 							scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
 						}

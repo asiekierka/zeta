@@ -21,7 +21,7 @@
  */
 
 import { time_ms, drawErrorMessage } from "./util.js";
-import { keymap, keychrmap } from "./keymap.js";
+import { keymap, keychrmap, keyctrlmap } from "./keymap.js";
 import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
 // see zzt.h "SYS_TIMER_TIME"
@@ -121,6 +121,10 @@ class Emulator {
 
             let chr = (event.key.length == 1) ? event.key.charCodeAt(0) : (keychrmap[event.keyCode] || 0);
             let key = keymap[event.key] || 0;
+            if (emu._zzt_kmod_get() & 0x04) {
+                chr = keyctrlmap[event.key] || 0;
+                key = 0;
+            }
             if (key >= 0x46 && key <= 0x53) chr = 0;
             if (chr > 0 || key > 0) {
                 emu._zzt_key(chr, key);
@@ -144,10 +148,12 @@ class Emulator {
             else ret = false;
 
             var key = keymap[event.key] || 0;
-            if (key > 0) {
-                emu._zzt_keyup(key);
-                ret = true;
+            if (emu._zzt_kmod_get() & 0x04) {
+                key = 0;
             }
+
+            emu._zzt_keyup(key);
+            ret = true;
 
             if (ret) {
                 event.preventDefault();
