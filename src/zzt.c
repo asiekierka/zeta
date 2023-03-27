@@ -285,11 +285,11 @@ void zzt_mouse_axis(int axis, int value) {
 	switch (axis) {
 		case 0:
 			zzt.mouse_xd += value;
-			zzt.mouse_x = m_clamp(zzt.mouse_x + value, 0, 639);
+			zzt.mouse_x = m_clamp(zzt.mouse_x + value, 0, zzt.char_width * 80 - 1);
 			break;
 		case 1:
 			zzt.mouse_yd += value;
-			zzt.mouse_y = m_clamp(zzt.mouse_y + value, 0, 349);
+			zzt.mouse_y = m_clamp(zzt.mouse_y + value, 0, zzt.char_height * 25 - 1);
 			break;
 	}
 }
