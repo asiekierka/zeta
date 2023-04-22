@@ -137,14 +137,38 @@ static void vfs_fix_case(char *fn) { }
 int vfs_findfirst(u8* ptr, u16 mask, char* spec) { return -1; }
 int vfs_findnext(u8* ptr) { return -1; }
 #else
-static void vfs_fix_case(char *fn) {
+// TODO: This could be optimized better.
+static void vfs_fix_case(char *pathname, bool do_case_fix) {
+	char path_dir[MAX_FNLEN];
 	DIR *dir;
 	struct dirent *entry;
 
-	dir = opendir(vfs_curdir);
+	char *last_path_sep = NULL;
+	char *filename = NULL;
+	for (int i = 0; i < strlen(pathname); i++) {
+		if (do_case_fix && pathname[i] == '\\') {
+			pathname[i] = 0;
+			vfs_fix_case(pathname, false);
+			pathname[i] = PATH_SEP;
+		}
+		if (pathname[i] == PATH_SEP) {
+			last_path_sep = pathname + i;
+		}
+	}
+	if (last_path_sep != NULL) {
+		*last_path_sep = 0;
+		strncpy(path_dir, vfs_curdir, MAX_FNLEN);
+		vfs_path_cat(path_dir, pathname, MAX_FNLEN);
+		*last_path_sep = PATH_SEP;
+		dir = opendir(path_dir);
+		filename = last_path_sep + 1;
+	} else {
+		dir = opendir(vfs_curdir);
+		filename = pathname;
+	}
 	while ((entry = readdir(dir)) != NULL) {
-		if (strcasecmp(fn, entry->d_name) == 0) {
-			strncpy(fn, entry->d_name, strlen(fn));
+		if (strcasecmp(filename, entry->d_name) == 0) {
+			strncpy(filename, entry->d_name, strlen(filename));
 			break;
 		}
 	}
@@ -414,7 +438,7 @@ int vfs_open(const char* filename, int mode) {
 	while (*path_filename == PATH_SEP) {
 		path_filename++;
 	}
-	vfs_fix_case(path_filename);
+	vfs_fix_case(path_filename, true);
 
 	mode_str = (mode & 0x10000) ? "w+b" : (((mode & 0x03) == 0) ? "rb" : "r+b");
 	file = fopen(path, mode_str);
