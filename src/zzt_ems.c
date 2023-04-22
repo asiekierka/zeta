@@ -200,9 +200,7 @@ static ems_status ems_dealloc_pages(ems_state *ems, int handle) {
 }
 
 void cpu_func_intr_ems(cpu_state *cpu, ems_state *ems) {
-#ifdef DEBUG_EMS
-    u8 cmd_id = cpu->ah;
-#endif
+	u8 cmd_id = cpu->ah;
 
 	switch (cpu->ah) {
         case 0x40: // Status
@@ -242,10 +240,10 @@ void cpu_func_intr_ems(cpu_state *cpu, ems_state *ems) {
                 cpu->ah = EMS_STATUS_INVALID_HANDLE;
             }
         } break;
-		default:
-			fprintf(stderr, "ems: unimplemented call %02X\n", cpu->ah);
+        default: {
+	    fprintf(stderr, "ems: unimplemented call %02X\n", cmd_id);
             cpu->ah = EMS_STATUS_UNDEFINED_FUNCTION;
-			break;
+        } break;
     }
 
 #ifdef DEBUG_EMS

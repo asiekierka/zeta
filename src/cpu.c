@@ -47,7 +47,7 @@ static u8 ram_u8(cpu_state* cpu, u32 addr) {
 }
 
 static u16 ram_u16(cpu_state* cpu, u32 addr) {
-#if defined(UNALIGNED_OK) && !defined(BIG_ENDIAN)
+#if defined(UNALIGNED_OK) && !defined(ZETA_BIG_ENDIAN)
 	return *((u16*) (cpu->ram + addr));
 #else
 	return ((u16) ram_u8(cpu, addr + 1) << 8) | ram_u8(cpu, addr);
@@ -59,7 +59,7 @@ static u16 ram_u16(cpu_state* cpu, u32 addr) {
 }
 
 static s16 ram_s16(cpu_state* cpu, u32 addr) {
-#if defined(UNALIGNED_OK) && !defined(BIG_ENDIAN)
+#if defined(UNALIGNED_OK) && !defined(ZETA_BIG_ENDIAN)
 	return *((s16*) (cpu->ram + addr));
 #else
 	return (s16) ram_u16(cpu, addr);
@@ -71,7 +71,7 @@ static void ram_w8(cpu_state* cpu, u32 addr, u8 v) {
 }
 
 static void ram_w16(cpu_state* cpu, u32 addr, u16 v) {
-#if defined(UNALIGNED_OK) && !defined(BIG_ENDIAN)
+#if defined(UNALIGNED_OK) && !defined(ZETA_BIG_ENDIAN)
 	*((u16*) (cpu->ram + addr)) = v;
 #else
 	ram_w8(cpu, addr, (u8) v);

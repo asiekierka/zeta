@@ -25,7 +25,7 @@
 #include "logging.h"
 
 void fput16le(FILE *output, unsigned short i) {
-#ifdef BIG_ENDIAN
+#ifdef ZETA_BIG_ENDIAN
 	fputc((i & 0xFF), output);
 	fputc(((i >> 8) & 0xFF), output);
 #else
@@ -34,7 +34,7 @@ void fput16le(FILE *output, unsigned short i) {
 }
 
 void fput32le(FILE *output, unsigned int i) {
-#ifdef BIG_ENDIAN
+#ifdef ZETA_BIG_ENDIAN
 	fputc((i & 0xFF), output);
 	fputc(((i >> 8) & 0xFF), output);
 	fputc(((i >> 16) & 0xFF), output);
@@ -45,7 +45,7 @@ void fput32le(FILE *output, unsigned int i) {
 }
 
 void fput16be(FILE *output, unsigned short i) {
-#ifdef BIG_ENDIAN
+#ifdef ZETA_BIG_ENDIAN
 	fwrite(&i, 2, 1, output);
 #else
 	fputc(((i >> 8) & 0xFF), output);
@@ -54,7 +54,7 @@ void fput16be(FILE *output, unsigned short i) {
 }
 
 void fput32be(FILE *output, unsigned int i) {
-#ifdef BIG_ENDIAN
+#ifdef ZETA_BIG_ENDIAN
 	fwrite(&i, 4, 1, output);
 #else
 	fputc(((i >> 24) & 0xFF), output);

@@ -71,7 +71,7 @@
 
 // General configuration
 
-//#define BIG_ENDIAN
+//#define ZETA_BIG_ENDIAN
 #define UNALIGNED_OK
 
 // Audio configuration

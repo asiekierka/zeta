@@ -48,7 +48,7 @@ struct s_cpu_state {
 	struct {
 		union {
 			struct {
-				#ifdef BIG_ENDIAN
+				#ifdef ZETA_BIG_ENDIAN
 					u8 ah, al;
 				#else
 					u8 al, ah;
@@ -60,7 +60,7 @@ struct s_cpu_state {
 	struct {
 		union {
 			struct {
-				#ifdef BIG_ENDIAN
+				#ifdef ZETA_BIG_ENDIAN
 					u8 ch, cl;
 				#else
 					u8 cl, ch;
@@ -72,7 +72,7 @@ struct s_cpu_state {
 	struct {
 		union {
 			struct {
-				#ifdef BIG_ENDIAN
+				#ifdef ZETA_BIG_ENDIAN
 					u8 dh, dl;
 				#else
 					u8 dl, dh;
@@ -84,7 +84,7 @@ struct s_cpu_state {
 	struct {
 		union {
 			struct {
-				#ifdef BIG_ENDIAN
+				#ifdef ZETA_BIG_ENDIAN
 					u8 bh, bl;
 				#else
 					u8 bl, bh;

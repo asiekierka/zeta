@@ -34,7 +34,7 @@ static SDL_Texture *playfieldtex = NULL;
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static int charw, charh;
-#ifdef BIG_ENDIAN
+#ifdef ZETA_BIG_ENDIAN
 static int pformat = SDL_PIXELFORMAT_ARGB32;
 #else
 static int pformat = SDL_PIXELFORMAT_BGRA32;

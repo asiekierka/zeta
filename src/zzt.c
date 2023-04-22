@@ -38,7 +38,7 @@
 #define LUT_BORDER_COLOR PALETTE_COLOR_COUNT
 #define LUT_COLOR_COUNT (PALETTE_COLOR_COUNT + 1)
 
-static u8 ega_palette_lut[] = {
+static const u8 ega_palette_lut[] = {
 	0, 1, 2, 3, 4, 5, 20, 7,
 	56, 57, 58, 59, 60, 61, 62, 63, 0
 };
@@ -446,7 +446,9 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 	zzt_state *state = (zzt_state*) cpu;
 	
 #ifdef DEBUG_INTERRUPTS
-	fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
+	if (!(intr == 0x21 && cpu->ah == 0x06) /* DOS direct write */) {
+		fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
+	}
 #endif
 	switch (intr) {
 		case 0x08: {
@@ -1008,6 +1010,9 @@ static int cpu_func_intr_0x21(cpu_state* cpu) {
 			cpu->bh = 0;
 			return STATE_CONTINUE;
 		case 0x06: // d.c.output
+#ifdef DEBUG_INTERRUPTS
+			fputc(cpu->dl, stderr);
+#endif
 			cpu_0x10_output(cpu, cpu->dl);
 			cpu->al = cpu->dl;
 			return STATE_CONTINUE;
