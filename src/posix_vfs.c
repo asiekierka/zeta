@@ -166,13 +166,15 @@ static void vfs_fix_case(char *pathname, bool do_case_fix) {
 		dir = opendir(vfs_curdir);
 		filename = pathname;
 	}
-	while ((entry = readdir(dir)) != NULL) {
-		if (strcasecmp(filename, entry->d_name) == 0) {
-			strncpy(filename, entry->d_name, strlen(filename));
-			break;
+	if (dir != NULL) {
+		while ((entry = readdir(dir)) != NULL) {
+			if (strcasecmp(filename, entry->d_name) == 0) {
+				strncpy(filename, entry->d_name, strlen(filename));
+				break;
+			}
 		}
+		closedir(dir);
 	}
-	closedir(dir);
 }
 
 #define VFS_ATTR_DIR 0x10
@@ -276,23 +278,25 @@ int vfs_findfirst(u8* ptr, u16 mask, char* spec) {
 		}
 		vfs_dirent_count = 0;
 		dir = opendir(vfs_curdir);
-		while ((entry = readdir(dir)) != NULL) {
-			vfs_dirents[vfs_dirent_count] = vfs_process_entry(entry, mask, spec + 1);
-			if (vfs_dirents[vfs_dirent_count].name[0] != 0) {
-				vfs_dirent_count++;
-				if (vfs_dirent_count >= vfs_dirent_size) {
-					vfs_dirent_size *= 2;
-					vfs_dirents_new = realloc(vfs_dirents, vfs_dirent_size * sizeof(vfs_dirent));
-					if (vfs_dirents_new != NULL) {
-						vfs_dirents = vfs_dirents_new;
-					} else {
-						goto FindFirstDirentEarlyExit;
+		if (dir != NULL) {
+			while ((entry = readdir(dir)) != NULL) {
+				vfs_dirents[vfs_dirent_count] = vfs_process_entry(entry, mask, spec + 1);
+				if (vfs_dirents[vfs_dirent_count].name[0] != 0) {
+					vfs_dirent_count++;
+					if (vfs_dirent_count >= vfs_dirent_size) {
+						vfs_dirent_size *= 2;
+						vfs_dirents_new = realloc(vfs_dirents, vfs_dirent_size * sizeof(vfs_dirent));
+						if (vfs_dirents_new != NULL) {
+							vfs_dirents = vfs_dirents_new;
+						} else {
+							goto FindFirstDirentEarlyExit;
+						}
 					}
 				}
 			}
-		}
 FindFirstDirentEarlyExit:
-		closedir(dir);
+			closedir(dir);
+		}
 		vfs_dirent_pos = 0;
 
 		qsort(vfs_dirents, vfs_dirent_count, sizeof(vfs_dirent), vfs_find_strcmp);

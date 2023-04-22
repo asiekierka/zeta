@@ -75,6 +75,10 @@ void ui_activate(void) {
     ui_state = &ui_state_prealloc;
 #else
     ui_state = malloc(sizeof(ui_state_t));
+    if (ui_state == NULL) {
+        fprintf(stderr, "ui_activate(): out of memory\n");
+        return;
+    }
 #endif
     ui_state->screen_redraw = true;
     ui_state->option_y = 0;
