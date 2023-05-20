@@ -53,6 +53,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "  -m []  set memory limit, in KB (64-640)\n");
 	fprintf(stderr, "  -M []  set extended memory limit, in KB\n");
 	fprintf(stderr, "  -t     enable world testing mode (skip K, C, ENTER)\n");
+	fprintf(stderr, "  -V []  set starting volume (0-100)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "See <https://zeta.asie.pl/> for more information.\n");
 }
@@ -74,9 +75,10 @@ static int posix_zzt_init(int argc, char **argv) {
 	int memory_kbs = -1;
 	int extended_memory_kbs = -1;
 	int video_blink = 1;
+	int starting_volume = 20;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "D:be:hl:m:M:t")) >= 0) {
+	while ((c = getopt(argc, argv, "D:be:hl:m:M:tV:")) >= 0) {
 		switch(c) {
 			case 'D':
 				posix_zzt_arg_note_delay = atof(optarg);
@@ -116,6 +118,9 @@ static int posix_zzt_init(int argc, char **argv) {
 			case 't':
 				skip_kc = 1;
 				break;
+			case 'V':
+				starting_volume = atoi(optarg);
+				break;
 			case '?':
 				fprintf(stderr, "Could not parse options! Try %s -h for help.\n", argv > 0 ? argv[0] : "running with");
 				exit(0);
@@ -127,6 +132,9 @@ static int posix_zzt_init(int argc, char **argv) {
 	zzt_init(memory_kbs);
 	zzt_set_max_extended_memory(extended_memory_kbs);
 	zzt_load_blink(video_blink);
+	if (starting_volume >= 0) {
+		audio_stream_set_volume(starting_volume * 6 / 10);
+	}
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {

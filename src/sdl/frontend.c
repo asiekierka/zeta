@@ -456,7 +456,6 @@ int main(int argc, char **argv) {
 		if (posix_zzt_arg_note_delay >= 0.0) {
 			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}
-		audio_stream_set_volume(audio_stream_get_max_volume() / 10);
 		SDL_PauseAudioDevice(audio_device, 0);
 	}
 
