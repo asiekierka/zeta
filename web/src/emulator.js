@@ -523,6 +523,18 @@ export function createEmulator(render, audio, vfs, options) {
 
             emuObj._resetLastTimerTime();
             emuObj._tick();
+
+            if (options && options.engine) {
+                if (options.engine.skip_kc) {
+                    emu._zzt_key(107, 0x25); // 'k'
+                    emu._zzt_keyup(0x25);
+                    emu._zzt_key(99, 0x2E); // 'c'
+                    emu._zzt_keyup(0x2E);
+                    emu._zzt_key(13, 0x1C); // '\r'
+                    emu._zzt_keyup(0x1C);
+                }
+            }
+
             resolve(emuObj);
         });
     });
