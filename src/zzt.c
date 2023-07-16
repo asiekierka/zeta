@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "audio_shared.h"
+#include "cpu.h"
 #include "ui.h"
 #include "zzt.h"
 #include "zzt_ems.h"
@@ -123,6 +124,10 @@ typedef struct {
 } zzt_state;
 
 zzt_state zzt;
+
+u32 zzt_get_ip(void) {
+	return cpu_get_ip(&zzt.cpu);
+}
 
 int zzt_get_cycles(void) {
 	return zzt.cpu.cycles;

@@ -103,15 +103,18 @@ void cpu_ext_log(const char *s) {
 
 void zeta_show_developer_warning(const char *format, ...) {
 	char debug_message[4097];
+	char debug_title[129];
 	va_list val;
 	
 	if (!developer_mode) return;
+	debug_title[128] = 0;
+	snprintf(debug_title, 128, "Developer Warning @ %04X:%04X", zzt_get_ip() >> 16, zzt_get_ip() & 0xFFFF);
 	debug_message[4096] = 0;
 	va_start(val, format);
 	vsnprintf(debug_message, 4096, format, val);
 	va_end(val);
 
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Developer Warning", debug_message, NULL);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, debug_title, debug_message, NULL);
 }
 
 int zeta_has_feature(int feature) {

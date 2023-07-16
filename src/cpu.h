@@ -125,6 +125,7 @@ void cpu_push16(cpu_state* cpu, u16 v);
 u16 cpu_pop16(cpu_state* cpu);
 
 void cpu_emit_interrupt(cpu_state* cpu, u8 intr);
+u32 cpu_get_ip(cpu_state *cpu);
 void cpu_set_ip(cpu_state* cpu, u16 cs, u16 ip);
 
 // external

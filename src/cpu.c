@@ -183,6 +183,18 @@ static u16 incdec_dir(cpu_state* cpu, u16 reg, u16 amount) {
 	}
 }
 
+u32 cpu_get_ip(cpu_state *cpu) {
+	u16 cs = cpu->seg[SEG_CS], ip = cpu->ip;
+	if (((cpu->ip & 0xFF00) == 0x1100) && (cpu->seg[SEG_CS] == 0xF000)) {
+		// If we're inside an HLE interrupt handler, try to retrieve the actual IP.
+		// TODO: This still points to a system library, most likely.
+		// A "real" call stack will be necessary.
+		ip = ram_u16(cpu, SEG(SEG_SS, cpu->sp));
+		cs = ram_u16(cpu, SEG(SEG_SS, cpu->sp + 2));
+	}
+	return ip | (cs << 16);
+}
+
 void cpu_set_ip(cpu_state* cpu, u16 cs, u16 ip) {
 	cpu->seg[SEG_CS] = cs;
 	cpu->ip = ip;

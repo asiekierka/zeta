@@ -57,7 +57,7 @@
 #define MAX_FILES_START 16
 #define MAX_FILES_LIMIT 256
 
-#define DEBUG_VFS
+// #define DEBUG_VFS
 
 static FILE **file_pointers;
 static char **file_pointer_names;
@@ -538,9 +538,14 @@ int vfs_open(const char* filename, int mode) {
 		fprintf(stderr, "posix vfs: opened %s (%s) at %d\n", path, mode_str, i+1);
 #endif
 		file_pointers[i] = file;
+#ifdef HAS_DEVELOPER_MODE
 		if (vfs_debug_enabled) {
-			file_pointer_names[i] = strdup(path_filename);
+			file_pointer_names[i] = malloc(strlen(path_filename) + 20);
+			if (file_pointer_names[i] != NULL) {
+				sprintf(file_pointer_names[i], "%s @ %04X:%04X", path_filename, zzt_get_ip() >> 16, zzt_get_ip() & 0xFFFF);
+			}
 		}
+#endif
 		return i+1;
 	}
 }

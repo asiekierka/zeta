@@ -121,6 +121,9 @@ typedef struct {
 
 USER_FUNCTION
 zzt_key_t zzt_key_pop(void);
+USER_FUNCTION
+u32 zzt_get_ip(void);
+USER_FUNCTION
 int zzt_get_cycles(void);
 
 USER_FUNCTION
