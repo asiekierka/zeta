@@ -26,6 +26,6 @@
 #include "types.h"
 
 USER_FUNCTION
-void init_posix_vfs(const char* path);
+void init_posix_vfs(const char* path, bool debug_enabled);
 
 #endif

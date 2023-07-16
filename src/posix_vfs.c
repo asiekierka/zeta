@@ -24,6 +24,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,10 +53,15 @@
 #define MAX_VFS_FNLEN 12
 #define MAX_VFS_DIRLEN 63
 
+#define MAX_FILES_START 16
+#define MAX_FILES_LIMIT 256
+
 // #define DEBUG_VFS
 
-static FILE* file_pointers[MAX_FILES];
-static int vfs_initialized = 0;
+static FILE **file_pointers;
+static char **file_pointer_names;
+static uint16_t file_pointers_size = 0;
+static bool vfs_debug_enabled;
 
 static char vfs_curdir[MAX_FNLEN+1];
 static char vfs_basedir[MAX_FNLEN+1];
@@ -364,17 +370,65 @@ int vfs_findnext(u8* ptr) {
 #endif
 #endif /* HAVE_OPENDIR */
 
-void init_posix_vfs(const char* path) {
-	if (vfs_initialized > 0) {
-		for (int i = 0; i < MAX_FILES; i++) {
-			if (file_pointers[i] != NULL) {
-				fclose(file_pointers[i]);
-				file_pointers[i] = NULL;
+static int vfs_alloc_file_pointer(void) {
+	int i = 0;
+	while (i < file_pointers_size && file_pointers[i] != NULL) i++;
+	if (i == file_pointers_size) {
+		if (file_pointers_size < MAX_FILES_LIMIT) {
+			FILE **new_file_pointers = realloc(file_pointers, sizeof(FILE*) * file_pointers_size * 2);
+			if (new_file_pointers == NULL) {
+				return -1;
 			}
+			if (vfs_debug_enabled) {
+				char **new_file_pointer_names = realloc(file_pointer_names, sizeof(char*) * file_pointers_size * 2);
+				if (new_file_pointer_names == NULL) {
+					return -1;
+				}
+				file_pointer_names = new_file_pointer_names;
+			}
+			file_pointers = new_file_pointers;
+			file_pointers_size *= 2;
+		}
+		if (i == file_pointers_size) {
+			return -1;
+		}
+	}
+	return i;
+}
+
+static int vfs_free_file_pointer(int i) {
+	if (file_pointers[i] != NULL) {
+		int result = fclose(file_pointers[i]);
+		file_pointers[i] = NULL;
+		if (vfs_debug_enabled) {
+			free(file_pointer_names[i]);
+			file_pointer_names[i] = NULL;
+		}
+		return result;
+	} else {
+		return 0;
+	}
+}
+
+void init_posix_vfs(const char* path, bool debug_enabled) {
+	if (file_pointers_size > 0) {
+		for (int i = 0; i < file_pointers_size; i++) {
+			vfs_free_file_pointer(i);
+		}
+		if (!vfs_debug_enabled && debug_enabled) {
+			file_pointer_names = malloc(sizeof(char*) * file_pointers_size);
+		} else if (vfs_debug_enabled && !debug_enabled) {
+			free(file_pointer_names);
+		}
+	} else {
+		file_pointers_size = MAX_FILES_START;
+		file_pointers = malloc(sizeof(FILE*) * file_pointers_size);
+		if (debug_enabled) {
+			file_pointer_names = malloc(sizeof(char*) * file_pointers_size);
 		}
 	}
 
-	for (int i = 0; i < MAX_FILES; i++) {
+	for (int i = 0; i < file_pointers_size; i++) {
 		file_pointers[i] = NULL;
 	}
 
@@ -385,7 +439,6 @@ void init_posix_vfs(const char* path) {
 	}
 	vfs_subdir[0] = 0;
 	vfs_update_dirs();
-	vfs_initialized = 1;
 }
 
 int vfs_open(const char* filename, int mode) {
@@ -434,10 +487,8 @@ int vfs_open(const char* filename, int mode) {
 		return -1;
 	}
 
-
-	i = 0;
-	while (i < MAX_FILES && file_pointers[i] != NULL) i++;
-	if (i == MAX_FILES) return -1;
+	i = vfs_alloc_file_pointer();
+	if (i < 0) return -1;
 
 	while (*path_filename == PATH_SEP) {
 		path_filename++;
@@ -456,6 +507,9 @@ int vfs_open(const char* filename, int mode) {
 		fprintf(stderr, "posix vfs: opened %s (%s) at %d\n", path, mode_str, i+1);
 #endif
 		file_pointers[i] = file;
+		if (vfs_debug_enabled) {
+			file_pointer_names[i] = strdup(path_filename);
+		}
 		return i+1;
 	}
 }
@@ -468,7 +522,7 @@ static void vfs_check_error(FILE* fptr) {
 }
 
 int vfs_read(int handle, u8* ptr, int amount) {
-	if (handle <= 0 || handle > MAX_FILES) return -1;
+	if (handle <= 0 || handle > file_pointers_size) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	int count = fread(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
@@ -479,7 +533,7 @@ int vfs_read(int handle, u8* ptr, int amount) {
 }
 
 int vfs_write(int handle, u8* ptr, int amount) {
-	if (handle <= 0 || handle > MAX_FILES) return -1;
+	if (handle <= 0 || handle > file_pointers_size) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	int count = fwrite(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
@@ -491,7 +545,7 @@ int vfs_write(int handle, u8* ptr, int amount) {
 
 int vfs_truncate(int handle) {
 #ifdef HAVE_FTRUNCATE
-	if (handle <= 0 || handle > MAX_FILES) return -1;
+	if (handle <= 0 || handle > file_pointers_size) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	int res = ftruncate(fileno(fptr), ftell(fptr));
 #ifdef DEBUG_VFS
@@ -505,7 +559,7 @@ int vfs_truncate(int handle) {
 }
 
 int vfs_seek(int handle, int amount, int type) {
-	if (handle <= 0 || handle > MAX_FILES) return -1;
+	if (handle <= 0 || handle > file_pointers_size) return -1;
 	FILE* fptr = file_pointers[handle-1];
 	switch (type) {
 		default:
@@ -520,8 +574,6 @@ int vfs_close(int handle) {
 #ifdef DEBUG_VFS
 	fprintf(stderr, "posix vfs: closing %d\n", handle);
 #endif
-	if (handle <= 0 || handle > MAX_FILES) return -1;
-	FILE* fptr = file_pointers[handle-1];
-	file_pointers[handle-1] = NULL;
-	return fclose(fptr);
+	if (handle <= 0 || handle > file_pointers_size) return -1;
+	return vfs_free_file_pointer(handle-1);
 }

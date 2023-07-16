@@ -22,6 +22,7 @@
 
 #include "../config.h"
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 
 #ifdef USE_GETOPT
 #ifndef _POSIX_C_SOURCE
@@ -375,7 +376,7 @@ int main(int argc, char **argv) {
 
 	SDL_Thread* zzt_thread;
 
-	init_posix_vfs("");
+	init_posix_vfs("", false);
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
