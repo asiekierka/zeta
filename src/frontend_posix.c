@@ -35,6 +35,7 @@ static void posix_zzt_help(int argc, char **argv) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Arguments ([] - parameter; * - may specify multiple times):\n");
 	fprintf(stderr, "  -b     disable blinking, enable bright backgrounds\n");
+	fprintf(stderr, "  -d     developer mode: more debug for engine/fork developers\n");
 	fprintf(stderr, "  -D []  set per-note delay, in milliseconds (supports fractions)\n");
 	fprintf(stderr, " *-e []  execute command - repeat to run multiple commands\n");
 	fprintf(stderr, "         by default, ZZT.EXE or SUPERZ.EXE is executed\n");
@@ -78,8 +79,11 @@ static int posix_zzt_init(int argc, char **argv) {
 	int starting_volume = 20;
 
 #ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "D:be:hl:m:M:tV:")) >= 0) {
+	while ((c = getopt(argc, argv, "dD:be:hl:m:M:tV:")) >= 0) {
 		switch(c) {
+			case 'd':
+				developer_mode = true;
+				break;
 			case 'D':
 				posix_zzt_arg_note_delay = atof(optarg);
 				break;
@@ -129,6 +133,7 @@ static int posix_zzt_init(int argc, char **argv) {
 	}
 #endif
 
+	init_posix_vfs("", developer_mode);
 	zzt_init(memory_kbs);
 	zzt_set_max_extended_memory(extended_memory_kbs);
 	zzt_load_blink(video_blink);
@@ -182,7 +187,7 @@ static int posix_zzt_init(int argc, char **argv) {
 			if (IS_EXTENSION(filename, ".chr")) type = "charset:chr";
 			else if (IS_EXTENSION(filename, ".pal")) type = "palette:pal";
 			else if (IS_EXTENSION(filename, ".pld")) type = "palette:pld";
-			else {
+			else { 
 				fprintf(stderr, "Could not guess type of %s!\n", filename);
 				continue;
 			}

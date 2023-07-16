@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#include <stdbool.h>
 #include <string.h>
 #include "audio_shared.h"
 #include "ui.h"
@@ -42,6 +43,7 @@ static const u8 ega_palette_lut[] = {
 	0, 1, 2, 3, 4, 5, 20, 7,
 	56, 57, 58, 59, 60, 61, 62, 63, 0
 };
+bool developer_mode = false;
 
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS

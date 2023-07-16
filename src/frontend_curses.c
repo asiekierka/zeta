@@ -91,8 +91,11 @@ static void init_ncurses_colors(void) {
 	}
 }
 
+void zeta_show_developer_warning(const char *format, ...) {
+	
+}
+
 int main(int argc, char** argv) {
-	init_posix_vfs("");
 	init_map_char_to_key();
 
 	if (posix_zzt_init(argc, argv) < 0) {

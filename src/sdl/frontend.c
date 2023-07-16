@@ -21,8 +21,10 @@
  */
 
 #include "../config.h"
-#include <SDL2/SDL.h>
+#include <SDL2/SDL_messagebox.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef USE_GETOPT
 #ifndef _POSIX_C_SOURCE
@@ -97,6 +99,19 @@ long zeta_time_ms(void) {
 
 void cpu_ext_log(const char *s) {
 	fprintf(stderr, "%s\n", s);
+}
+
+void zeta_show_developer_warning(const char *format, ...) {
+	char debug_message[4097];
+	va_list val;
+	
+	if (!developer_mode) return;
+	debug_message[4096] = 0;
+	va_start(val, format);
+	vsnprintf(debug_message, 4096, format, val);
+	va_end(val);
+
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Developer Warning", debug_message, NULL);
 }
 
 int zeta_has_feature(int feature) {
@@ -375,8 +390,6 @@ int main(int argc, char **argv) {
 	int scode, kcode;
 
 	SDL_Thread* zzt_thread;
-
-	init_posix_vfs("", false);
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
@@ -739,6 +752,32 @@ int main(int argc, char **argv) {
 	}
 	renderer->deinit();
 	SDL_StopTextInput();
+
+	if (developer_mode) {
+		char *debug_line = malloc(1025);
+		char *debug_text = malloc(131073);
+		if (debug_line != NULL && debug_text != NULL) {
+			debug_line[1024] = 0;
+			debug_text[131072] = 0;
+
+			// Print open file informations.
+			int unclosed_files = 0;
+			strcpy(debug_text, "The following files were opened, but not closed:\n");
+			for (int i = 0; i < vfs_posix_get_file_pointer_count(); i++) {
+				char *name = vfs_posix_get_file_pointer_name(i);
+				if (name != NULL) {
+					unclosed_files++;
+					snprintf(debug_line, 1024, "- %s\n", name);
+					strcat(debug_text, debug_line);
+				}
+			}
+			if (unclosed_files > 0) {
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Developer Warning", debug_text, NULL);
+			}
+		}
+	}
+	exit_posix_vfs();
+
 	SDL_Quit();
 	return 0;
 }

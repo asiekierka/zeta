@@ -32,6 +32,10 @@
 #define USE_GETOPT
 #define POSIX_VFS_SORTED_DIRS
 
+#ifndef __EMSCRIPTEN__
+#define HAS_DEVELOPER_MODE
+#endif
+
 // #define DEBUG_OPENGL
 
 // Zeta emulator core configuration

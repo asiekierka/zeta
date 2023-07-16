@@ -30,6 +30,8 @@
 #define MAX_MEMORY_KBS 736
 #define TEXT_ADDR(x,y) (0xB8000 + ((y)*160) + ((x)*2))
 
+extern bool developer_mode;
+
 typedef enum {
 	DEFAULT_CHARSET_STYLE_EGA,
 	DEFAULT_CHARSET_STYLE_CGA
@@ -181,7 +183,8 @@ int vfs_chdir(const char *path);
 #define FEATURE_MOUSE_CONNECTED 2
 IMPLEMENT_FUNCTION
 int zeta_has_feature(int feature);
-
+IMPLEMENT_FUNCTION
+void zeta_show_developer_warning(const char *format, ...);
 IMPLEMENT_FUNCTION
 void zeta_update_charset(int width, int height, u8* data);
 IMPLEMENT_FUNCTION

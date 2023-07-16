@@ -27,5 +27,11 @@
 
 USER_FUNCTION
 void init_posix_vfs(const char* path, bool debug_enabled);
+USER_FUNCTION
+void exit_posix_vfs(void);
+USER_FUNCTION
+int vfs_posix_get_file_pointer_count(void);
+USER_FUNCTION
+char *vfs_posix_get_file_pointer_name(int i);
 
 #endif

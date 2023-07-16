@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#include "posix_vfs.h"
 #ifdef HAVE_OPENDIR
 #define _DEFAULT_SOURCE
 #endif
@@ -56,7 +57,7 @@
 #define MAX_FILES_START 16
 #define MAX_FILES_LIMIT 256
 
-// #define DEBUG_VFS
+#define DEBUG_VFS
 
 static FILE **file_pointers;
 static char **file_pointer_names;
@@ -66,6 +67,15 @@ static bool vfs_debug_enabled;
 static char vfs_curdir[MAX_FNLEN+1];
 static char vfs_basedir[MAX_FNLEN+1];
 static char vfs_subdir[MAX_VFS_DIRLEN+1];
+
+int vfs_posix_get_file_pointer_count(void) {
+	return file_pointers_size;
+}
+
+char *vfs_posix_get_file_pointer_name(int i) {
+	if (!vfs_debug_enabled || i < 0 || i >= file_pointers_size) return NULL;
+	return file_pointer_names[i];
+}
 
 static void vfs_path_cat(char *dest, const char *src, size_t n) {
 	size_t len = strlen(dest);
@@ -396,7 +406,7 @@ static int vfs_alloc_file_pointer(void) {
 	return i;
 }
 
-static int vfs_free_file_pointer(int i) {
+static int vfs_free_file_pointer(int i, bool user) {
 	if (file_pointers[i] != NULL) {
 		int result = fclose(file_pointers[i]);
 		file_pointers[i] = NULL;
@@ -406,14 +416,31 @@ static int vfs_free_file_pointer(int i) {
 		}
 		return result;
 	} else {
+		if (user && developer_mode) {
+			zeta_show_developer_warning("Tried to close already closed file handle %d!", i);
+		}
 		return 0;
+	}
+}
+
+void exit_posix_vfs(void) {
+	if (file_pointers_size > 0) {
+		for (int i = 0; i < file_pointers_size; i++) {
+			vfs_free_file_pointer(i, false);
+		}
+		if (vfs_debug_enabled) {
+			free(file_pointer_names);
+			vfs_debug_enabled = false;
+		}
+		free(file_pointers);
+		file_pointers_size = 0;
 	}
 }
 
 void init_posix_vfs(const char* path, bool debug_enabled) {
 	if (file_pointers_size > 0) {
 		for (int i = 0; i < file_pointers_size; i++) {
-			vfs_free_file_pointer(i);
+			vfs_free_file_pointer(i, false);
 		}
 		if (!vfs_debug_enabled && debug_enabled) {
 			file_pointer_names = malloc(sizeof(char*) * file_pointers_size);
@@ -428,8 +455,12 @@ void init_posix_vfs(const char* path, bool debug_enabled) {
 		}
 	}
 
+	vfs_debug_enabled = debug_enabled;
 	for (int i = 0; i < file_pointers_size; i++) {
 		file_pointers[i] = NULL;
+		if (vfs_debug_enabled) {
+			file_pointer_names[i] = NULL;
+		}
 	}
 
 	if (strlen(path) == 0) {
@@ -575,5 +606,5 @@ int vfs_close(int handle) {
 	fprintf(stderr, "posix vfs: closing %d\n", handle);
 #endif
 	if (handle <= 0 || handle > file_pointers_size) return -1;
-	return vfs_free_file_pointer(handle-1);
+	return vfs_free_file_pointer(handle-1, true);
 }

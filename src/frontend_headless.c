@@ -60,12 +60,19 @@ void zeta_update_palette(u32* data) {
 void zeta_update_blink(int blink) {
 }
 
+void zeta_show_developer_warning(const char *format, ...) {
+	va_list val;
+	
+	if (!developer_mode) return;
+	va_start(val, format);
+	vfprintf(stderr, format, val);
+	va_end(val);
+}
+
 #include "asset_loader.h"
 #include "frontend_posix.c"
 
 int main(int argc, char** argv) {
-	init_posix_vfs("");
-
 	if (posix_zzt_init(argc, argv) < 0) {
 		fprintf(stderr, "Could not load ZZT!\n");
 		return 1;
