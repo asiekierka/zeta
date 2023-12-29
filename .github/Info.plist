@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleIdentifier</key>
+    <string>pl.asie.zeta</string>
+    <key>CFBundleExecutable</key>
+    <string>zeta86</string>
+    <key>CFBundleIconFile</key>
+    <string>zeta86.icns</string>
+    <key>CFBundleDisplayName</key>
+    <string>Zeta</string>
+    <key>CFBundleName</key>
+    <string>Zeta</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.5</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.5</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright (c) 2019, 2020, 2021, 2022, 2023 Adrian Siekierka</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.games</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+

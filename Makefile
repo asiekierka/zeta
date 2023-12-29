@@ -16,7 +16,7 @@ CC = gcc
 endif
 endif
 
-VERSION ?= unknown
+VERSION ?= 1.0.5
 
 RESDIR = res
 SRCDIR = src
@@ -37,6 +37,18 @@ endif
 CFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
+else ifeq (${PLATFORM},macos-sdl)
+USE_SDL = 1
+CC = clang
+LIBS = -framework OpenGL -lSDL2 -lSDL2main -lpng -lm
+TARGET = $(BUILDDIR)/zeta86
+ifeq (${ARCH},x86_64)
+CFLAGS += -target x86_64-apple-macos10.12
+LDFLAGS += -target x86_64-apple-macos10.12
+else ifeq (${ARCH},aarch64)
+CFLAGS += -target arm64-apple-macos11
+LDFLAGS += -target arm64-apple-macos11
+endif
 else ifeq (${PLATFORM},unix-sdl)
 USE_SDL = 1
 LIBS = -lGL -lSDL2 -lSDL2main -lpng -lm
@@ -65,7 +77,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
-$(error Please specify PLATFORM: mingw32-sdl, unix-curses, unix-headless, unix-sdl, wasm)
+$(error Please specify PLATFORM: macos-sdl, mingw32-sdl, unix-curses, unix-headless, unix-sdl, wasm)
 endif
 
 OBJS =	$(OBJDIR)/8x8.o \
@@ -111,7 +123,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 
 $(OBJDIR)/8x14.o: $(OBJDIR)/8x14.c
 	@mkdir -p $(@D)
-	$(CC) -g -c -o $@ $<
+	$(CC) $(CFLAGS) -g -c -o $@ $<
 
 $(OBJDIR)/8x14.c: $(OBJDIR)/8x14.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)
@@ -123,7 +135,7 @@ $(OBJDIR)/8x14.bin: $(FONTSDIR)/pc_ega.png $(TOOLSDIR)/font2raw.py
 
 $(OBJDIR)/8x8.o: $(OBJDIR)/8x8.c
 	@mkdir -p $(@D)
-	$(CC) -g -c -o $@ $<
+	$(CC) $(CFLAGS) -g -c -o $@ $<
 
 $(OBJDIR)/8x8.c: $(OBJDIR)/8x8.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)

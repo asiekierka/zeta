@@ -1,0 +1,68 @@
+name: Build CI-specific versions
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows_x64:
+    env:
+      SYSROOT: /usr/x86_64-w64-mingw32/sys-root/mingw
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: sudo dnf -y install autoconf automake binutils cpp gcc make pkgconf pkgconf-m4 pkgconf-pkg-config zip unzip git mingw64-gcc mingw64-gcc-c++ mingw64-zlib mingw64-zlib-static mingw64-libpng mingw64-libpng-static mingw64-SDL2 mingw64-win-iconv python3-pillow
+      - name: Build
+        run: make PLATFORM=mingw32-sdl ARCH=x86_64
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE docs/* build/x86_64-mingw32-sdl/zeta86.exe $SYSROOT/bin/SDL2.dll dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Windows)
+          path: dist/*
+
+  build_linux_x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update Ubuntu packages
+        run: sudo apt-get update
+      - name: Set up Ubuntu packages
+        run: sudo apt-get install -y git zip libsdl2-dev && pip install Pillow
+      - name: Build
+        run: make PLATFORM=unix-sdl
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/unix-sdl/zeta86 dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Linux)
+          path: dist/*
+
+  build_macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up macOS packages
+        run: brew install sdl2 dylibbundler && pip install Pillow
+      - name: Build (x86_64)
+        run: make PLATFORM=macos-sdl ARCH=x86_64 && cp /usr/local/lib/libSDL2.dylib build/x86_64-macos-sdl/
+      - name: Package (x86_64)
+        run: mkdir -p dist/Zeta.app/Contents/MacOS && mkdir -p dist/Zeta.app/Contents/libs/x86_64 && dylibbundler -od -b -x build/x86_64-macos-sdl/zeta86 -d dist/Zeta.app/Contents/libs/x86_64/ -p @executable_path/../libs/x86_64/
+      - name: Set up macOS packages (AArch64)
+        run: brew uninstall --ignore-dependencies zlib libpng sdl2 && brew fetch --force --bottle-tag=arm64_monterey sdl2 && brew install $(brew --cache --bottle-tag=arm64_monterey sdl2) && brew fetch --force --bottle-tag=arm64_monterey zlib && brew install $(brew --cache --bottle-tag=arm64_monterey zlib) && brew fetch --force --bottle-tag=arm64_monterey libpng && brew install $(brew --cache --bottle-tag=arm64_monterey libpng)
+      - name: Build (AArch64)
+        run: make PLATFORM=macos-sdl clean && make PLATFORM=macos-sdl ARCH=aarch64 && cp /usr/local/lib/libSDL2.dylib build/aarch64-macos-sdl/
+      - name: Package (AArch64)
+        run: mkdir -p dist/Zeta.app/Contents/MacOS && mkdir -p dist/Zeta.app/Contents/libs/aarch64 && dylibbundler -od -b -x build/aarch64-macos-sdl/zeta86 -d dist/Zeta.app/Contents/libs/aarch64/ -p @executable_path/../libs/aarch64/
+      - name: Package (combined)
+        run: mkdir -p dist/Zeta.app/Contents/Resources && cp LICENSE docs/* .github/Info.plist dist/Zeta.app/Contents && cp .github/zeta86.icns dist/Zeta.app/Contents/Resources && lipo -create -output dist/Zeta.app/Contents/MacOS/zeta86 build/x86_64-macos-sdl/zeta86 build/aarch64-macos-sdl/zeta86
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (macOS)
+          path: dist/*
