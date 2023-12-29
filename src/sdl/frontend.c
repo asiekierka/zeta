@@ -408,14 +408,24 @@ int main(int argc, char **argv) {
 
 	int posix_init_result = posix_zzt_init(argc, argv);
 	if (posix_init_result < 0) {
-		fprintf(stderr, "Could not load ZZT!\n");
+		char cwd[1025];
+		char message[1281];
+
+		getcwd(cwd, 1024);
+		cwd[1024] = 0;
+		fprintf(stderr, "Could not load ZZT from '%s'!\n", cwd);
+
 		switch (posix_init_result) {
-			case INIT_ERR_NO_EXECUTABLE:
-				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "No executable", "Missing executable. Is your downloaded game package complete?", NULL);
-				break;
-			case INIT_ERR_NO_EXECUTABLE_ZZT:
-				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ZZT.EXE not found", "ZZT.EXE not found. Please download a version of ZZT or Super ZZT and unpack it in the same directory as Zeta.", NULL);
-				break;
+			case INIT_ERR_NO_EXECUTABLE: {
+				snprintf(message, 1280, "Requested executable not found. Is your downloaded game package complete?\n\n%s", cwd);
+				message[1280] = 0;
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing executable", message, NULL);
+			} break;
+			case INIT_ERR_NO_EXECUTABLE_ZZT: {
+				snprintf(message, 1280, "ZZT.EXE not found. Is your downloaded game package complete?\n\n%s", cwd);
+				message[1280] = 0;
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ZZT.EXE not found", message, NULL);
+			} break;
 		}
 		SDL_Quit();
 		return 1;
