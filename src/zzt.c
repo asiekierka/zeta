@@ -993,6 +993,8 @@ static int cpu_func_intr_0xa5(cpu_state* cpu) {
 
 static int cpu_func_intr_0x21(cpu_state* cpu) {
 	zzt_state* zzt = (zzt_state*) cpu;
+	if (cpu->ah != 0x2c && cpu->ah != 0x3f)
+	fprintf(stderr, "dbg: interrupt %02X %04X\n", 0x21, cpu->ax);
 
 	switch (cpu->ah) {
 		case 0x48: { // allocation (unsupported)

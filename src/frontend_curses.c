@@ -78,6 +78,8 @@ static void platform_kbd_tick(void) {
 }
 
 #include "asset_loader.h"
+
+#define FRONTEND_POSIX_NO_AUDIO
 #include "frontend_posix.c"
 
 static int nc_color_map[] = {

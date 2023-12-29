@@ -57,7 +57,7 @@
 #define MAX_FILES_START 16
 #define MAX_FILES_LIMIT 256
 
-// #define DEBUG_VFS
+#define DEBUG_VFS
 
 static FILE **file_pointers;
 static char **file_pointer_names;
@@ -562,7 +562,7 @@ int vfs_read(int handle, u8* ptr, int amount) {
 	FILE* fptr = file_pointers[handle-1];
 	int count = fread(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
-	fprintf(stderr, "posix vfs: read %d/%d bytes from %d\n", count, amount, handle);
+//	fprintf(stderr, "posix vfs: read %d/%d bytes from %d\n", count, amount, handle);
 	vfs_check_error(fptr);
 #endif
 	return count;
@@ -573,7 +573,7 @@ int vfs_write(int handle, u8* ptr, int amount) {
 	FILE* fptr = file_pointers[handle-1];
 	int count = fwrite(ptr, 1, amount, fptr);
 #ifdef DEBUG_VFS
-	fprintf(stderr, "posix vfs: wrote %d/%d bytes to %d\n", count, amount, handle);
+//	fprintf(stderr, "posix vfs: wrote %d/%d bytes to %d\n", count, amount, handle);
 	vfs_check_error(fptr);
 #endif
 	return count;
