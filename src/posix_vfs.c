@@ -57,7 +57,7 @@
 #define MAX_FILES_START 16
 #define MAX_FILES_LIMIT 256
 
-#define DEBUG_VFS
+// #define DEBUG_VFS
 
 static FILE **file_pointers;
 static char **file_pointer_names;
