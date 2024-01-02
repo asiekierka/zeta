@@ -42,7 +42,9 @@
 
 #define IDLEHACK_MAX_PLAYER_CLONES 8
 #define USE_EMS_EMULATION
-// #define USE_EMS_REALLOC
+#ifndef __EMSCRIPTEN__
+#define USE_EMS_REALLOC
+#endif
 #define USE_ZETA_INTERRUPT_EXTENSIONS
 
 // Zeta-preconfigured CPU core settings - do not touch!
