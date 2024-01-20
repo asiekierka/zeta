@@ -453,6 +453,17 @@ int main(int argc, char **argv) {
 	window = renderer->get_window();
 	sdl_resize_window(0, false, false);
 
+#ifdef _WIN32
+	{
+		float dpi = 0.0f;
+		int display_index = SDL_GetWindowDisplayIndex(window);
+		if (display_index >= 0 && !SDL_GetDisplayDPI(display_index, &dpi, NULL, NULL) && dpi > 96.0f) {
+			sdl_resize_window((int) ceil(dpi / 96.0f), false, true);
+			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+		}
+	}
+#endif
+
 	SDL_zero(requested_audio_spec);
 	requested_audio_spec.freq = 48000;
 	requested_audio_spec.format = AUDIO_S16;
