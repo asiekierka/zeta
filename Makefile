@@ -29,7 +29,9 @@ LDFLAGS = -g -O3 -flto -std=gnu18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
+WINDRES = windres
 ifneq (${ARCH},)
+WINDRES = ${ARCH}-w64-mingw32-windres
 ifneq (${USE_CLANG},)
 CC = ${ARCH}-w64-mingw32-clang
 else
@@ -113,6 +115,10 @@ OBJS += $(OBJDIR)/frontend_headless.o \
 	$(OBJDIR)/posix_vfs.o
 endif
 
+ifeq (${PLATFORM},mingw32-sdl)
+OBJS += $(OBJDIR)/win32-resources.o
+endif
+
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
@@ -146,6 +152,10 @@ $(OBJDIR)/8x8.c: $(OBJDIR)/8x8.bin $(TOOLSDIR)/bin2c.py
 $(OBJDIR)/8x8.bin: $(FONTSDIR)/pc_cga.png $(TOOLSDIR)/font2raw.py
 	@mkdir -p $(@D)
 	python3 $(TOOLSDIR)/font2raw.py $< 8 8 a $@
+
+$(OBJDIR)/win32-resources.o: mingw/resources.rc
+	@mkdir -p $(@D)
+	$(WINDRES) -i $< -o $@	
 
 .PHONY: clean
 
