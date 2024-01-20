@@ -39,6 +39,7 @@ CC = ${ARCH}-w64-mingw32-gcc
 endif
 endif
 CFLAGS += -mwindows
+LDFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
 else ifeq (${PLATFORM},macos-sdl)
