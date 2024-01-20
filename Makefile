@@ -29,10 +29,12 @@ LDFLAGS = -g -O3 -flto -std=gnu18 -Wall
 
 ifeq (${PLATFORM},mingw32-sdl)
 USE_SDL = 1
+ifneq (${ARCH},)
 ifneq (${USE_CLANG},)
 CC = ${ARCH}-w64-mingw32-clang
 else
 CC = ${ARCH}-w64-mingw32-gcc
+endif
 endif
 CFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
