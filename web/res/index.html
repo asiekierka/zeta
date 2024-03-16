@@ -17,6 +17,15 @@ ZetaLoad({
 	},
 	storage: { // optional - if not present, saves to RAM (lost on page refresh)
 		type: "auto", // can also be "localstorage" or "indexeddb"; "auto" is recommended
+
+		// This configures the name of the localStorage database used to store save data
+		// for your ZZT game world.
+		// Databases are shared per domain, and many platforms (like Itch.io) use the same
+		// domain for every game hosted - if you don't change this, the save data for
+		// your game will be shared with every game on said platform using the same
+		// database name. In short,
+		//
+		// !! PLEASE CHANGE THIS NAME BEFORE YOU SHIP YOUR WEBPAGE! !!
 		database: "test_database"
 	},
 	path: "./",
