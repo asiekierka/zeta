@@ -85,7 +85,7 @@ static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access
 static void prepare_render_opengl(void) {
 	SDL_Rect rect;
 	int w, h, scale;
-	SDL_GL_GetDrawableSize(window, &w, &h);
+	SDL_GetWindowSizeInPixels(window, &w, &h);
 	calc_render_area(&rect, w, h, &scale, AREA_WITHOUT_SCALE);
 
 	glViewport(0, 0, scale * (rect.w + (rect.x * 2)), scale * (rect.h + (rect.y * 2)));
@@ -243,7 +243,6 @@ static void free_opengl_tables(void) {
 }
 
 static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
-	float texw, texh;
 	int width, height;
 
 	zzt_get_screen_size(&width, &height);
@@ -296,9 +295,9 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 
 	// pass 2: foreground colors
 	if (chartex != NULL) {
-		if (SDL_GL_BindTexture(chartex, &texw, &texh)) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not bind OpenGL texture! %s", SDL_GetError());
-		}
+		SDL_PropertiesID props;
+		props = SDL_GetTextureProperties(chartex);
+		glBindTexture(GL_TEXTURE_2D, SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER, -1));
 		glAlphaFunc(GL_GREATER, 0.5);
 		glEnable(GL_ALPHA_TEST);
 		glEnable(GL_TEXTURE_2D);
@@ -319,8 +318,6 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
-
-		SDL_GL_UnbindTexture(chartex);
 	}
 }
 
@@ -340,8 +337,8 @@ static int sdl_render_opengl_init(const char *window_name, int charw, int charh)
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
-	window = SDL_CreateWindow(window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		80*charw, 25*charh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	window = SDL_CreateWindow(window_name,
+		80*charw, 25*charh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	if (window == NULL) {
 		return -1;
 	} else if ((gl_context = SDL_GL_CreateContext(window)) == NULL) {
@@ -351,9 +348,8 @@ static int sdl_render_opengl_init(const char *window_name, int charw, int charh)
 
 	SDL_GL_SetSwapInterval(1);
 	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {
 		SDL_DestroyWindow(window);
         return -1;
@@ -381,6 +377,7 @@ static void sdl_render_opengl_update_charset(int charw_arg, int charh_arg, u8 *d
 	if (chartex != NULL) SDL_DestroyTexture(chartex);
 	chartex = create_texture_from_array(renderer, SDL_TEXTUREACCESS_STATIC, data_arg, charh_arg);
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(chartex, SDL_SCALEMODE_NEAREST);
 
 	update_opengl_tables();
 	force_update = 1;
@@ -410,7 +407,7 @@ static SDL_Window *sdl_render_opengl_get_window(void) {
 
 static sdl_render_size sdl_render_opengl_get_render_size(void) {
 	sdl_render_size s;
-	SDL_GL_GetDrawableSize(window, &s.w, &s.h);
+	SDL_GetWindowSizeInPixels(window, &s.w, &s.h);
 	return s;
 }
 

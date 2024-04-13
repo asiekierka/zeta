@@ -21,7 +21,7 @@
  */
 
 #include "../config.h"
-#include <SDL2/SDL_messagebox.h>
+#include <SDL3/SDL_messagebox.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <SDL2/SDL_main.h>
+#include <SDL3/SDL_main.h>
 #include "../util.h"
 #include "../zzt.h"
 #include "../audio_shared.h"
@@ -122,9 +122,8 @@ int zeta_has_feature(int feature) {
 	return 1;
 }
 
-static SDL_AudioDeviceID audio_device;
-static SDL_AudioSpec audio_spec;
-static SDL_mutex *audio_mutex;
+static SDL_AudioStream *audio_stream;
+static SDL_Mutex *audio_mutex;
 
 static double audio_time;
 #ifdef ENABLE_AUDIO_WRITER
@@ -135,10 +134,17 @@ static gif_writer_state *gif_writer_s = NULL;
 static u32 gif_writer_ticks;
 #endif
 
-static void audio_callback(void *userdata, Uint8 *stream, int len) {
-	SDL_LockMutex(audio_mutex);
-	audio_stream_generate(zeta_time_ms(), stream, len);
-	SDL_UnlockMutex(audio_mutex);
+static void audio_callback(void *userdata, SDL_AudioStream *stream, int additional_amount, int total_amount) {
+	if (additional_amount) {
+		uint8_t *data = SDL_stack_alloc(uint8_t, additional_amount);
+		if (data) {
+			SDL_LockMutex(audio_mutex);
+			audio_stream_generate(zeta_time_ms(), data, additional_amount);
+			SDL_UnlockMutex(audio_mutex);
+			SDL_PutAudioStreamData(stream, data, additional_amount);
+			SDL_stack_free(data);
+		}
+	}
 }
 
 void speaker_on(int cycles, double freq) {
@@ -164,10 +170,10 @@ void speaker_off(int cycles) {
 }
 
 // used for marking render data updates
-static SDL_mutex *render_data_update_mutex;
+static SDL_Mutex *render_data_update_mutex;
 
-static SDL_mutex *zzt_thread_lock;
-static SDL_cond *zzt_thread_cond;
+static SDL_Mutex *zzt_thread_lock;
+static SDL_Condition *zzt_thread_cond;
 static u8 zzt_vram_copy[80*25*2];
 static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
@@ -207,7 +213,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 		tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
 	}
 
-	SDL_CondBroadcast(zzt_thread_cond);
+	SDL_BroadcastCondition(zzt_thread_cond);
 	SDL_UnlockMutex(zzt_thread_lock);
 	return tick_time;
 }
@@ -224,42 +230,41 @@ static int zzt_thread_func(void *ptr) {
 	int opcodes = 1000;
 
 	while (zzt_thread_running) {
-		if (SDL_LockMutex(zzt_thread_lock) == 0) {
-			while (zzt_renderer_waiting > 0) {
-				SDL_CondWait(zzt_thread_cond, zzt_thread_lock);
-			}
-			long duration = zeta_time_ms();
-			int rcode = zzt_execute(opcodes);
-			duration = zeta_time_ms() - duration;
-			if (rcode == STATE_CONTINUE) {
-				if (duration < 2) {
-					opcodes = (opcodes * 20 / 19);
-				} else if ((duration > 4) && (opcodes >= 525)) {
-					opcodes = (opcodes * 19 / 20);
-				}
-			}
-			SDL_CondBroadcast(zzt_thread_cond);
-			if (rcode >= STATE_WAIT_FRAME) {
-				// TODO: Make the counting code more accurate.
-				int timeout_time = STATE_WAIT_PIT ? 20 : 10;
-				if (rcode >= STATE_WAIT_TIMER) timeout_time = rcode - STATE_WAIT_TIMER;
-				if (zzt_turbo) zzt_mark_timer_turbo();
-				else SDL_CondWaitTimeout(zzt_thread_cond, zzt_thread_lock, timeout_time);
-			} else if (rcode == STATE_END) {
-				zzt_thread_running = 0;
-			}
-			SDL_UnlockMutex(zzt_thread_lock);
+		SDL_LockMutex(zzt_thread_lock);
+		while (zzt_renderer_waiting > 0) {
+			SDL_WaitCondition(zzt_thread_cond, zzt_thread_lock);
 		}
+		long duration = zeta_time_ms();
+		int rcode = zzt_execute(opcodes);
+		duration = zeta_time_ms() - duration;
+		if (rcode == STATE_CONTINUE) {
+			if (duration < 2) {
+				opcodes = (opcodes * 20 / 19);
+			} else if ((duration > 4) && (opcodes >= 525)) {
+				opcodes = (opcodes * 19 / 20);
+			}
+		}
+		SDL_BroadcastCondition(zzt_thread_cond);
+		if (rcode >= STATE_WAIT_FRAME) {
+			// TODO: Make the counting code more accurate.
+			int timeout_time = STATE_WAIT_PIT ? 20 : 10;
+			if (rcode >= STATE_WAIT_TIMER) timeout_time = rcode - STATE_WAIT_TIMER;
+			if (zzt_turbo) zzt_mark_timer_turbo();
+			else SDL_WaitConditionTimeout(zzt_thread_cond, zzt_thread_lock, timeout_time);
+		} else if (rcode == STATE_END) {
+			zzt_thread_running = 0;
+		}
+		SDL_UnlockMutex(zzt_thread_lock);
 	}
 
 	return 0;
 }
 
-#define KEYMOD_ALT(keymod) ((keymod) & (KMOD_LALT | KMOD_RALT))
-#define KEYMOD_CTRL(keymod) ((keymod) & (KMOD_LCTRL | KMOD_RCTRL))
-#define KEYMOD_RSHIFT(keymod) ((keymod) & (KMOD_RSHIFT))
-#define KEYMOD_LSHIFT(keymod) ((keymod) & (KMOD_LSHIFT))
-#define KEYMOD_SHIFT(keymod) ((keymod) & (KMOD_RSHIFT | KMOD_LSHIFT))
+#define KEYMOD_ALT(keymod) ((keymod) & (SDL_KMOD_LALT | SDL_KMOD_RALT))
+#define KEYMOD_CTRL(keymod) ((keymod) & (SDL_KMOD_LCTRL | SDL_KMOD_RCTRL))
+#define KEYMOD_RSHIFT(keymod) ((keymod) & (SDL_KMOD_RSHIFT))
+#define KEYMOD_LSHIFT(keymod) ((keymod) & (SDL_KMOD_LSHIFT))
+#define KEYMOD_SHIFT(keymod) ((keymod) & (SDL_KMOD_RSHIFT | SDL_KMOD_LSHIFT))
 
 static void update_keymod(SDL_Keymod keymod) {
 	if (KEYMOD_RSHIFT(keymod)) zzt_kmod_set(ZZT_KMOD_RSHIFT); else zzt_kmod_clear(ZZT_KMOD_RSHIFT);
@@ -387,14 +392,12 @@ int main(int argc, char **argv) {
 	int scancodes_lifted[sdl_to_pc_scancode_max + 1];
 	int slc = 0;
 
-	SDL_AudioSpec requested_audio_spec;
-
 	SDL_Event event;
 	int scode, kcode;
 
 	SDL_Thread* zzt_thread;
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD) < 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not initialize SDL!", NULL);
 		return 1;
@@ -403,7 +406,7 @@ int main(int argc, char **argv) {
 
 	render_data_update_mutex = SDL_CreateMutex();
 	zzt_thread_lock = SDL_CreateMutex();
-	zzt_thread_cond = SDL_CreateCond();
+	zzt_thread_cond = SDL_CreateCondition();
 	audio_mutex = SDL_CreateMutex();
 
 	int posix_init_result = posix_zzt_init(argc, argv);
@@ -456,7 +459,7 @@ int main(int argc, char **argv) {
 #ifdef _WIN32
 	{
 		float dpi = 0.0f;
-		int display_index = SDL_GetWindowDisplayIndex(window);
+		int display_index = SDL_GetDisplayForWindow(window);
 		if (display_index >= 0 && !SDL_GetDisplayDPI(display_index, &dpi, NULL, NULL) && dpi > 96.0f) {
 			sdl_resize_window((int) ceil(dpi / 96.0f), false, true);
 			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
@@ -464,15 +467,9 @@ int main(int argc, char **argv) {
 	}
 #endif
 
-	SDL_zero(requested_audio_spec);
-	requested_audio_spec.freq = 48000;
-	requested_audio_spec.format = AUDIO_S16;
-	requested_audio_spec.channels = 1;
-	requested_audio_spec.samples = 4096;
-	requested_audio_spec.callback = audio_callback;
-
-	audio_device = SDL_OpenAudioDevice(NULL, 0, &requested_audio_spec, &audio_spec, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-	if (audio_device == 0) {
+	const SDL_AudioSpec audio_spec = { SDL_AUDIO_S16LE, 1, 48000 };
+	audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_OUTPUT, &audio_spec, audio_callback, NULL);
+	if (audio_stream == 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open audio device! %s", SDL_GetError());
 	}
 
@@ -487,14 +484,15 @@ int main(int argc, char **argv) {
 	}
 
 	audio_generate_init();
-	if (audio_device != 0) {
-		audio_stream_init(zeta_time_ms(), audio_spec.freq,
-			audio_spec.format == AUDIO_S8 || audio_spec.format == AUDIO_S16,
-			audio_spec.format == AUDIO_U16 || audio_spec.format == AUDIO_S16);
+	if (audio_stream != 0) {
+		// TODO: Does SDL3 allow picking a more preferable format?
+		/*	audio_spec.format == SDL_AUDIO_S8 || audio_spec.format == SDL_AUDIO_S16LE,
+			audio_spec.format == AUDIO_U16 || audio_spec.format == SDL_AUDIO_S16LE); */
+		audio_stream_init(zeta_time_ms(), audio_spec.freq, true, true);
 		if (posix_zzt_arg_note_delay >= 0.0) {
 			audio_set_note_delay(posix_zzt_arg_note_delay);
 		}
-		SDL_PauseAudioDevice(audio_device, 0);
+		SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(audio_stream));
 	}
 
 	sdl_timer_init();
@@ -524,14 +522,14 @@ int main(int argc, char **argv) {
 
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
-				case SDL_TEXTINPUT:
+				case SDL_EVENT_TEXT_INPUT:
 					kcode = event.text.text[0];
 					if (kcode >= 32 && kcode < 127) {
 						zzt_key(kcode, TEXT_CHAR_TO_SCANCODE(kcode));
 						zzt_keyup(TEXT_CHAR_TO_SCANCODE(kcode));
 					}
 					break;
-				case SDL_KEYDOWN:
+				case SDL_EVENT_KEY_DOWN:
 					if (windowed && (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)) {
 						if (SDL_GetRelativeMouseMode() != 0) {
 							SDL_SetRelativeMouseMode(0);
@@ -634,9 +632,10 @@ int main(int argc, char **argv) {
 						// Alt+ENTER
 						if (windowed) {
 							SDL_GetWindowSize(window, &windowed_old_w, &windowed_old_h);
-							SDL_DisplayMode mode;
-							SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(window), &mode);
-							SDL_SetWindowSize(window, mode.w, mode.h);
+							const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window));
+							if (mode) {
+								SDL_SetWindowSize(window, mode->w, mode->h);
+							}
 							SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 							// force focus
 							SDL_SetRelativeMouseMode(1);
@@ -659,14 +658,14 @@ int main(int argc, char **argv) {
 						scode = 0;
 					}
 
-					// 32-126 characters are handled via SDL_TEXTINPUT
+					// 32-126 characters are handled via SDL_EVENT_TEXT_INPUT
 					if (kcode >= 32 && kcode <= 126) break;
 					if (kcode < 0 || kcode >= 127) kcode = 0;
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
 						zzt_key(kcode, sdl_to_pc_scancode[scode]);
 					}
 					break;
-				case SDL_KEYUP:
+				case SDL_EVENT_KEY_UP:
 					if (KEYMOD_CTRL(event.key.keysym.mod)) {
 						kcode = event.key.keysym.sym;
 						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
@@ -691,13 +690,13 @@ int main(int argc, char **argv) {
 					}
 
 					if (scode >= 0 && scode <= sdl_to_pc_scancode_max) {
-						// 32-126 characters are handled via SDL_TEXTINPUT
+						// 32-126 characters are handled via SDL_EVENT_TEXT_INPUT
 						if (!(kcode >= 32 && kcode <= 126)) {
 							scancodes_lifted[slc++] = sdl_to_pc_scancode[scode];
 						}
 					}
 					break;
-				case SDL_MOUSEBUTTONDOWN:
+				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 					if (SDL_GetRelativeMouseMode() == 0) {
 						if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) {
 							SDL_SetRelativeMouseMode(1);
@@ -712,7 +711,7 @@ int main(int argc, char **argv) {
 						}
 					}
 					break;
-				case SDL_MOUSEBUTTONUP:
+				case SDL_EVENT_MOUSE_BUTTON_UP:
 					if (event.button.button == SDL_BUTTON_LEFT) {
 						zzt_mouse_clear(0);
 					} else if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -721,19 +720,19 @@ int main(int argc, char **argv) {
 						zzt_mouse_clear(2);
 					}
 					break;
-				case SDL_MOUSEMOTION:
+				case SDL_EVENT_MOUSE_MOTION:
 					if (SDL_GetRelativeMouseMode() != 0) {
 						zzt_mouse_axis(0, event.motion.xrel);
 						zzt_mouse_axis(1, event.motion.yrel);
 					}
 					break;
-				case SDL_QUIT:
+				case SDL_EVENT_QUIT:
 					cont_loop = 0;
 					break;
 			}
 		}
 
-		SDL_CondBroadcast(zzt_thread_cond);
+		SDL_BroadcastCondition(zzt_thread_cond);
 		SDL_UnlockMutex(zzt_thread_lock);
 
 		SDL_LockMutex(render_data_update_mutex);
@@ -771,8 +770,8 @@ int main(int argc, char **argv) {
 #endif
 
 	zzt_thread_running = 0;
-	if (audio_device != 0) {
-		SDL_CloseAudioDevice(audio_device);
+	if (audio_stream != 0) {
+		SDL_CloseAudioDevice(SDL_GetAudioStreamDevice(audio_stream));
 	}
 	renderer->deinit();
 	SDL_StopTextInput();
