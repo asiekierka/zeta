@@ -24,12 +24,12 @@
 #define __FRONTEND_SDL_H__
 
 #include "../types.h"
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #ifdef USE_OPENGL
 #ifdef USE_OPENGL_ES
-#include <SDL2/SDL_opengles.h>
+#include <SDL3/SDL_opengles.h>
 #else
-#include <SDL2/SDL_opengl.h>
+#include <SDL3/SDL_opengl.h>
 #endif
 #endif
 

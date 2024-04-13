@@ -13,7 +13,7 @@ zeta_SOURCES = \
 	src/util.c \
 	src/asset_loader.c
 
-if FRONTEND_SDL2
+if FRONTEND_SDL3
 zeta_SOURCES += \
 	src/posix_vfs.c \
 	src/render_software.c \

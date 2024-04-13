@@ -40,12 +40,12 @@ endif
 endif
 CFLAGS += -mwindows
 LDFLAGS += -mwindows
-LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
+LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lpng -lz -lssp -Wl,-Bdynamic -lSDL3 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
 else ifeq (${PLATFORM},macos-sdl)
 USE_SDL = 1
 CC = clang
-LIBS = -framework OpenGL -lSDL2 -lSDL2main -lpng -lm
+LIBS = -framework OpenGL -lSDL3 -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
 ifeq (${ARCH},x86_64)
 CFLAGS += -target x86_64-apple-macos10.12
@@ -56,7 +56,7 @@ LDFLAGS += -target arm64-apple-macos11
 endif
 else ifeq (${PLATFORM},unix-sdl)
 USE_SDL = 1
-LIBS = -lGL -lSDL2 -lSDL2main -lpng -lm
+LIBS = -lGL -lSDL3 -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},unix-curses)
 USE_CURSES = 1

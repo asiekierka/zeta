@@ -44,20 +44,18 @@ static int force_update;
 static int last_blink_mode;
 
 static int sdl_render_software_init(const char *window_name, int charw, int charh) {
-	window = SDL_CreateWindow(window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		80*charw, 25*charh, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	window = SDL_CreateWindow(window_name,
+		80*charw, 25*charh, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == NULL) {
         return -1;
     }
 
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {
         return -1;
     }
-
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
 	force_update = 1;
 	return 0;
@@ -84,6 +82,7 @@ static void sdl_render_software_update_charset(int charw_arg, int charh_arg, u8 
         }
 
         playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
+        SDL_SetTextureScaleMode(playfieldtex, SDL_SCALEMODE_NEAREST);
     }
 
     force_update = 1;
@@ -117,7 +116,7 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 			break;
 	}
 
-	SDL_GetRendererOutputSize(renderer, &w, &h);
+	SDL_GetCurrentRenderOutputSize(renderer, &w, &h);
 	calc_render_area(&dest, w, h, NULL, 0);
 
 	if (should_render) {
@@ -134,7 +133,7 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, playfieldtex, NULL, &dest);
+	SDL_RenderTexture(renderer, playfieldtex, NULL, &dest);
 
 	SDL_RenderPresent(renderer);
 
@@ -152,7 +151,7 @@ static void sdl_render_software_update_vram(u8 *vram) {
 
 static sdl_render_size sdl_render_software_get_render_size(void) {
 	sdl_render_size s;
-	SDL_GetRendererOutputSize(renderer, &s.w, &s.h);
+	SDL_GetCurrentRenderOutputSize(renderer, &s.w, &s.h);
 	return s;
 }
 
