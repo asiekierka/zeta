@@ -1386,9 +1386,9 @@ int zzt_load_palette(u32 *colors) {
 
 	for (int c = 0; c < PALETTE_COLOR_COUNT; c++) {
 		int i = zzt.palette_lut[c];
-		zzt.palette_dac[i * 3 + 0] = ((colors[i] >> 16) & 0xFF);
-		zzt.palette_dac[i * 3 + 1] = ((colors[i] >> 8) & 0xFF);
-		zzt.palette_dac[i * 3 + 2] = (colors[i] & 0xFF);
+		zzt.palette_dac[i * 3 + 0] = ((colors[c] >> 16) & 0xFF);
+		zzt.palette_dac[i * 3 + 1] = ((colors[c] >> 8) & 0xFF);
+		zzt.palette_dac[i * 3 + 2] = (colors[c] & 0xFF);
 	}
 
 	zzt_refresh_palette();
