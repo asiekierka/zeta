@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #endif
+#include <limits.h>
 
 double posix_zzt_arg_note_delay = -1.0;
 
@@ -137,6 +138,7 @@ static int posix_try_run_zzt(int exec_count, char **execs, char *arg_name, bool 
 }
 
 static int posix_zzt_init(int argc, char **argv) {
+	char cwd[PATH_MAX+1];
 	char arg_name[257];
 	char *execs[16];
 	char *loads[16];
@@ -149,13 +151,13 @@ static int posix_zzt_init(int argc, char **argv) {
 	int video_blink = 1;
 	int starting_volume = 20;
 
+	getcwd(cwd, PATH_MAX);
+
 #ifdef __APPLE__
 	if (access("../Info.plist", F_OK) == 0) {
 		// We're in a relative path inside the .app.
 		chdir("../../..");
 	} else {
-		char cwd[1025];
-		getcwd(cwd, 1024);
 		if (!strcmp(cwd, "/") || !strncmp(cwd, "/Applications", 13)) {
 			// We're in no reasonable path. Assume the user's root directory.
 			struct passwd *pw = getpwuid(geteuid());
@@ -342,6 +344,7 @@ static int posix_zzt_init(int argc, char **argv) {
 		}
 		result = posix_try_run_zzt(exec_count, execs, arg_name, true);
 		if (result != 0) {
+			chdir(cwd);
 			return result;
 		}
 	}
