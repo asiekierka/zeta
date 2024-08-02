@@ -27,6 +27,22 @@
 
 double posix_zzt_arg_note_delay = -1.0;
 
+static void posix_vfs_chdir_arg0(char *argv0) {
+	if (argv0 == NULL || argv0[0] == 0) return;
+
+	char *path = strdup(argv0);
+	if (path == NULL) return;
+	char *final_path = strrchr(path, PATH_SEP);
+	if (final_path == NULL) final_path = strrchr(path, '/');
+	if (final_path == NULL) {
+		free(path);
+		return;
+	}
+	*final_path = 0;
+	chdir(path);
+	free(path);
+}
+
 static int posix_vfs_exists(const char *filename) {
 	int h = vfs_open(filename, 0);
 	if (h >= 0) { vfs_close(h); return 1; }
@@ -71,6 +87,54 @@ static void posix_zzt_help(int argc, char **argv) {
 #define INIT_ERR_GENERIC -1
 #define INIT_ERR_NO_EXECUTABLE -2
 #define INIT_ERR_NO_EXECUTABLE_ZZT -3
+
+static int posix_try_run_zzt(int exec_count, char **execs, char *arg_name, bool is_final_attempt) {
+	if (exec_count > 0) {
+		int exeh = 0;
+		for (int i = 0; i < exec_count; i++) {
+			char *space_ptr = strchr(execs[i], ' ');
+			if (space_ptr != NULL) {
+				space_ptr[0] = '\0';
+				exeh = vfs_open(execs[i], 0);
+				if (exeh < 0) {
+					if (is_final_attempt) {
+						fprintf(stderr, "Could not load %s!\n", execs[i]);
+					}
+					space_ptr[0] = ' ';
+					return INIT_ERR_NO_EXECUTABLE;
+				}
+				space_ptr[0] = ' ';
+				fprintf(stderr, "'%s'\n", space_ptr + 1);
+				zzt_load_binary(exeh, space_ptr + 1);
+				vfs_close(exeh);
+			} else {
+				exeh = vfs_open(execs[i], 0);
+				if (exeh < 0) {
+					if (is_final_attempt) {
+						fprintf(stderr, "Could not load %s!\n", execs[i]);
+					}
+					return INIT_ERR_NO_EXECUTABLE;
+				}
+				zzt_load_binary(exeh, (i == exec_count - 1) ? arg_name : NULL);
+				vfs_close(exeh);
+			}
+
+			// last binary is engine
+			if (i == exec_count - 1) break;
+			while (zzt_execute(10000) != STATE_END) { }
+		}
+	} else {
+		int exeh = vfs_open("zzt.exe", 0);
+		if (exeh < 0)
+			exeh = vfs_open("superz.exe", 0);
+		if (exeh < 0)
+			return INIT_ERR_NO_EXECUTABLE_ZZT;
+		zzt_load_binary(exeh, arg_name);
+		vfs_close(exeh);
+	}
+
+	return 0;
+}
 
 static int posix_zzt_init(int argc, char **argv) {
 	char arg_name[257];
@@ -271,44 +335,15 @@ static int posix_zzt_init(int argc, char **argv) {
 		free(buffer);
 	}
 
-	if (exec_count > 0) {
-		int exeh = 0;
-		for (int i = 0; i < exec_count; i++) {
-			char *space_ptr = strchr(execs[i], ' ');
-			if (space_ptr != NULL) {
-				space_ptr[0] = '\0';
-				exeh = vfs_open(execs[i], 0);
-				if (exeh < 0) {
-					fprintf(stderr, "Could not load %s!\n", execs[i]);
-					space_ptr[0] = ' ';
-					return INIT_ERR_NO_EXECUTABLE;
-				}
-				space_ptr[0] = ' ';
-				fprintf(stderr, "'%s'\n", space_ptr + 1);
-				zzt_load_binary(exeh, space_ptr + 1);
-				vfs_close(exeh);
-			} else {
-				exeh = vfs_open(execs[i], 0);
-				if (exeh < 0) {
-					fprintf(stderr, "Could not load %s!\n", execs[i]);
-					return INIT_ERR_NO_EXECUTABLE;
-				}
-				zzt_load_binary(exeh, (i == exec_count - 1) ? arg_name : NULL);
-				vfs_close(exeh);
-			}
-
-			// last binary is engine
-			if (i == exec_count - 1) break;
-			while (zzt_execute(10000) != STATE_END) { }
+	int result = posix_try_run_zzt(exec_count, execs, arg_name, false);
+	if (result != 0) {
+		if (argv != NULL) {
+			posix_vfs_chdir_arg0(argv[0]);
 		}
-	} else {
-		int exeh = vfs_open("zzt.exe", 0);
-		if (exeh < 0)
-			exeh = vfs_open("superz.exe", 0);
-		if (exeh < 0)
-			return INIT_ERR_NO_EXECUTABLE_ZZT;
-		zzt_load_binary(exeh, arg_name);
-		vfs_close(exeh);
+		result = posix_try_run_zzt(exec_count, execs, arg_name, true);
+		if (result != 0) {
+			return result;
+		}
 	}
 
 	zzt_set_timer_offset((time(NULL) % 86400) * 1000L);

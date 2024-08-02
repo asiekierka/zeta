@@ -25,6 +25,12 @@
 
 #include "types.h"
 
+#ifdef _WIN32
+#define PATH_SEP '\\'
+#else
+#define PATH_SEP '/'
+#endif
+
 USER_FUNCTION
 void init_posix_vfs(const char* path, bool debug_enabled);
 USER_FUNCTION

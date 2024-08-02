@@ -43,12 +43,6 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef _WIN32
-#define PATH_SEP '\\'
-#else
-#define PATH_SEP '/'
-#endif
-
 #define MAX_FNLEN 259
 #define MAX_SPECLEN 16
 #define MAX_VFS_FNLEN 12
