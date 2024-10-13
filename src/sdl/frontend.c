@@ -179,7 +179,7 @@ static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 zzt_turbo = 0;
 
-static long first_timer_tick;
+static Uint64 first_timer_tick;
 static double timer_time;
 
 static void sdl_pit_tick(void) {
@@ -193,9 +193,9 @@ static void sdl_pit_tick(void) {
 	zzt_mark_timer();
 }
 
-static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
+static Uint64 sdl_timer_thread(void *param, SDL_TimerID timerID, Uint64 interval) {
 	if (!zzt_thread_running) return 0;
-	long curr_timer_tick = zeta_time_ms();
+        Uint64 curr_timer_tick = SDL_GetTicksNS();
 
 	atomic_fetch_add(&zzt_renderer_waiting, 1);
 	SDL_LockMutex(zzt_thread_lock);
@@ -204,13 +204,13 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 
 	audio_time = zeta_time_ms();
 	timer_time += SYS_TIMER_TIME;
-	long duration = curr_timer_tick - first_timer_tick;
-	long tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
+	Sint64 duration = curr_timer_tick - first_timer_tick;
+	Sint64 tick_time = ((Sint64) ((timer_time + SYS_TIMER_TIME) * 1000000)) - duration;
 
 	while (tick_time <= 0) {
 		sdl_pit_tick();
 		timer_time += SYS_TIMER_TIME;
-		tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
+		tick_time = ((Sint64) ((timer_time + SYS_TIMER_TIME) * 1000000)) - duration;
 	}
 
 	SDL_BroadcastCondition(zzt_thread_cond);
@@ -219,9 +219,9 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 }
 
 static void sdl_timer_init(void) {
-	first_timer_tick = zeta_time_ms();
+	first_timer_tick = SDL_GetTicksNS();
 	timer_time = 0;
-	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
+	SDL_AddTimerNS((Uint64) (SYS_TIMER_TIME * 1000000), sdl_timer_thread, (void*)NULL);
 }
 
 // try to keep a budget of ~5ms per call
@@ -285,7 +285,7 @@ static u32* palette_update_data = NULL;
 static u8 windowed = 1;
 static int windowed_old_w, windowed_old_h;
 
-void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
+void calc_render_area(SDL_FRect *rect, int w, int h, int *scale_out, int flags) {
 	int iw = 80*charw;
 	int ih = 25*charh;
 
@@ -397,12 +397,12 @@ int main(int argc, char **argv) {
 
 	SDL_Thread* zzt_thread;
 
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD) < 0) {
+        SDL_SetAppMetadata("zeta", VERSION, "pl.asie.zeta");
+	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not initialize SDL!", NULL);
 		return 1;
 	}
-	SDL_StartTextInput();
 
 	render_data_update_mutex = SDL_CreateMutex();
 	zzt_thread_lock = SDL_CreateMutex();
@@ -455,6 +455,7 @@ int main(int argc, char **argv) {
 	}
 	window = renderer->get_window();
 	sdl_resize_window(0, false, false);
+	SDL_StartTextInput(window);
 
 #ifdef _WIN32
 	{
@@ -468,7 +469,7 @@ int main(int argc, char **argv) {
 #endif
 
 	const SDL_AudioSpec audio_spec = { SDL_AUDIO_S16LE, 1, 48000 };
-	audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_OUTPUT, &audio_spec, audio_callback, NULL);
+	audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, audio_callback, NULL);
 	if (audio_stream == 0) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not open audio device! %s", SDL_GetError());
 	}
@@ -530,17 +531,17 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_EVENT_KEY_DOWN:
-					if (windowed && (event.key.keysym.sym == 'q' || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)) {
-						if (SDL_GetRelativeMouseMode() != 0) {
-							SDL_SetRelativeMouseMode(0);
+					if (windowed && (event.key.key == 'q' || event.key.scancode == SDL_SCANCODE_ESCAPE)) {
+						if (SDL_GetWindowRelativeMouseMode(window) != 0) {
+							SDL_SetWindowRelativeMouseMode(window, 0);
 							break;
 						}
 					}
-					if (event.key.keysym.sym == SDLK_F11) {
+					if (event.key.key == SDLK_F11) {
 						ui_activate();
 					}
 #ifdef ENABLE_SCREENSHOTS
-					if (event.key.keysym.sym == SDLK_F12) {
+					if (event.key.key == SDLK_F12) {
 						FILE *file;
 						char filename[24];
 
@@ -573,13 +574,13 @@ int main(int argc, char **argv) {
 						break;
 					}
 #endif
-					if (event.key.keysym.sym == SDLK_F9) {
+					if (event.key.key == SDLK_F9) {
 						zzt_turbo = 1;
 						break;
 					}
 
 #ifdef ENABLE_AUDIO_WRITER
-					if (event.key.keysym.sym == SDLK_F6 && KEYMOD_CTRL(event.key.keysym.mod)) {
+					if (event.key.key == SDLK_F6 && KEYMOD_CTRL(event.key.mod)) {
 						// audio writer
 						if (audio_writer_s == NULL) {
 							FILE *file;
@@ -603,7 +604,7 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_GIF_WRITER
-					if (event.key.keysym.sym == SDLK_F5 && KEYMOD_CTRL(event.key.keysym.mod)) {
+					if (event.key.key == SDLK_F5 && KEYMOD_CTRL(event.key.mod)) {
 						// gif writer
 						if (gif_writer_s == NULL) {
 							FILE *file;
@@ -611,7 +612,7 @@ int main(int argc, char **argv) {
 							file = create_inc_file(filename, 23, "screen%d.gif", "wb");
 							if (file != NULL) {
 								fclose(file);
-								bool optimized = !KEYMOD_SHIFT(event.key.keysym.mod);
+								bool optimized = !KEYMOD_SHIFT(event.key.mod);
 								gif_writer_ticks = 0;
 								if ((gif_writer_s = gif_writer_start(filename, optimized, true)) != NULL) {
 									fprintf(stderr, "GIF writing started [%s, %s].\n", filename, optimized ? "optimized" : "unoptimized");
@@ -628,7 +629,7 @@ int main(int argc, char **argv) {
 					}
 #endif
 
-					if (event.key.keysym.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.keysym.mod)) {
+					if (event.key.scancode == SDL_SCANCODE_RETURN && KEYMOD_ALT(event.key.mod)) {
 						// Alt+ENTER
 						if (windowed) {
 							SDL_GetWindowSize(window, &windowed_old_w, &windowed_old_h);
@@ -638,20 +639,20 @@ int main(int argc, char **argv) {
 							}
 							SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 							// force focus
-							SDL_SetRelativeMouseMode(1);
+							SDL_SetWindowRelativeMouseMode(window, 1);
 						} else {
 							SDL_SetWindowFullscreen(window, 0);
 							SDL_SetWindowSize(window, windowed_old_w, windowed_old_h);
 							sdl_resize_window(0, true, false);
 							// drop focus
-							SDL_SetRelativeMouseMode(0);
+							SDL_SetWindowRelativeMouseMode(window, 0);
 						}
 						windowed = 1 - windowed;
 						break;
 					}
-					update_keymod(event.key.keysym.mod);
-					scode = event.key.keysym.scancode;
-					kcode = event.key.keysym.sym;
+					update_keymod(event.key.mod);
+					scode = event.key.scancode;
+					kcode = event.key.key;
 					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
 						if (!((kcode >= 97 && kcode <= 122) || (kcode >= 65 && kcode <= 90))) break;
 						kcode &= 0x1F;
@@ -666,8 +667,8 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_EVENT_KEY_UP:
-					if (KEYMOD_CTRL(event.key.keysym.mod)) {
-						kcode = event.key.keysym.sym;
+					if (KEYMOD_CTRL(event.key.mod)) {
+						kcode = event.key.key;
 						if (kcode == '-' || kcode == SDLK_KP_MINUS) {
 							sdl_resize_window(-1, false, false);
 							break;
@@ -676,13 +677,13 @@ int main(int argc, char **argv) {
 							break;
 						}
 					}
-					if (event.key.keysym.sym == SDLK_F9) {
+					if (event.key.key == SDLK_F9) {
 						zzt_turbo = 0;
 						break;
 					}
-					update_keymod(event.key.keysym.mod);
-					scode = event.key.keysym.scancode;
-					kcode = event.key.keysym.sym;
+					update_keymod(event.key.mod);
+					scode = event.key.scancode;
+					kcode = event.key.key;
 					if (zzt_kmod_get() & ZZT_KMOD_CTRL) {
 						if (!((kcode >= 97 && kcode <= 122) || (kcode >= 65 && kcode <= 90))) break;
 						kcode &= 0x1F;
@@ -697,9 +698,9 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
-					if (SDL_GetRelativeMouseMode() == 0) {
+					if (SDL_GetWindowRelativeMouseMode(window) == 0) {
 						if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) {
-							SDL_SetRelativeMouseMode(1);
+							SDL_SetWindowRelativeMouseMode(window, 1);
 						}
 					} else {
 						if (event.button.button == SDL_BUTTON_LEFT) {
@@ -721,7 +722,7 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case SDL_EVENT_MOUSE_MOTION:
-					if (SDL_GetRelativeMouseMode() != 0) {
+					if (SDL_GetWindowRelativeMouseMode(window) != 0) {
 						zzt_mouse_axis(0, event.motion.xrel);
 						zzt_mouse_axis(1, event.motion.yrel);
 					}
@@ -770,11 +771,11 @@ int main(int argc, char **argv) {
 #endif
 
 	zzt_thread_running = 0;
+	SDL_StopTextInput(window);
 	if (audio_stream != 0) {
 		SDL_CloseAudioDevice(SDL_GetAudioStreamDevice(audio_stream));
 	}
 	renderer->deinit();
-	SDL_StopTextInput();
 
 	if (developer_mode) {
 		char *debug_line = malloc(1025);

@@ -58,6 +58,6 @@ typedef struct {
 
 #define AREA_WITHOUT_SCALE 1
 
-void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags);
+void calc_render_area(SDL_FRect *rect, int w, int h, int *scale_out, int flags);
 
 #endif /* __FRONTEND_SDL_H__ */

@@ -28,6 +28,11 @@
 #include "audio_stream.h"
 #include "ui.h"
 #include "zzt.h"
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#elif defined(USE_SDL)
+#include <SDL3/SDL.h>
+#endif
 
 typedef struct {
     uint8_t screen_backup[80 * 25 * 2];
@@ -43,12 +48,10 @@ static ui_state_t *ui_state = NULL;
 
 #ifdef __EMSCRIPTEN__
 static const char* ui_lines_header[] = {
-    "zeta " VERSION,
 };
-#define UI_LINES_HEADER_COUNT 1
+#define UI_LINES_HEADER_COUNT 0
 #else
 static const char* ui_lines_header[] = {
-    "zeta " VERSION,
     "",
     //2345678901234567890123456789012345
     "CTRL-F5/F6 .GIF/.WAV record mode",
@@ -57,7 +60,7 @@ static const char* ui_lines_header[] = {
     "CTRL-+/-   window resize up/down",
     "ALT-ENTER  fullscreen toggle    ",
 };
-#define UI_LINES_HEADER_COUNT 7
+#define UI_LINES_HEADER_COUNT 6
 #endif
 
 static const char* ui_lines_options[] = {
@@ -157,7 +160,7 @@ static uint8_t get_blink_char(int value) {
 void ui_tick(void) {
     char sbuf[37];
 
-    int wwidth = 36, wheight = UI_LINES_HEADER_COUNT + UI_LINES_OPTIONS_COUNT + 3;
+    int wwidth = 36, wheight = 1 + UI_LINES_HEADER_COUNT + UI_LINES_OPTIONS_COUNT + 3;
     int swidth, sheight;
     zzt_get_screen_size(&swidth, &sheight);
     int wx = (swidth - wwidth) >> 1;
@@ -190,16 +193,36 @@ void ui_tick(void) {
         ui_draw_char(wx+wwidth-1, wy+wheight-1, 0xBC, 0x1F);
 
         // draw header lines
+        {
+#if defined(__EMSCRIPTEN__)
+            char is[80];
+            snprintf(is, sizeof(is) - 1, "zeta " VERSION " (emsdk %d.%d.%d)",
+                __EMSCRIPTEN_major__,
+                __EMSCRIPTEN_minor__,
+                __EMSCRIPTEN_tiny__);
+#elif defined(USE_SDL)
+            int sdl_v = SDL_GetVersion();
+            char is[80];
+            snprintf(is, sizeof(is) - 1, "zeta " VERSION " (SDL %d.%d.%d)",
+                SDL_VERSIONNUM_MAJOR(sdl_v),
+                SDL_VERSIONNUM_MINOR(sdl_v),
+                SDL_VERSIONNUM_MICRO(sdl_v));
+#else
+            const char *is = "zeta " VERSION;
+#endif
+            ui_draw_string((swidth - strlen(is)) >> 1, wy + 1, is, 0x1E);
+        }
+
         for (int iy = 0; iy < UI_LINES_HEADER_COUNT; iy++) {
             const char *is = ui_lines_header[iy];
-            ui_draw_string((swidth - strlen(is)) >> 1, wy + 1 + iy, is, iy == 0 ? 0x1E : 0x1F);
+            ui_draw_string((swidth - strlen(is)) >> 1, wy + 2 + iy, is, 0x1F);
         }
 
         ui_state->screen_redraw = false;
     }
 
     {
-        int woptx = wx + 2, wopty = wy + 2 + UI_LINES_HEADER_COUNT;
+        int woptx = wx + 2, wopty = wy + 3 + UI_LINES_HEADER_COUNT;
 
         // draw options lines
         for (int iy = 0; iy < UI_LINES_OPTIONS_COUNT; iy++) {
