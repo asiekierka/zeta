@@ -96,6 +96,7 @@ OBJS =	$(OBJDIR)/8x8.o \
 	$(OBJDIR)/audio_shared.o
 
 ifeq (${USE_SDL},1)
+CFLAGS += -DUSE_SDL
 OBJS += $(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/posix_vfs.o \
 	$(OBJDIR)/util.o \

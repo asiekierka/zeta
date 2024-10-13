@@ -52,7 +52,7 @@ static int sdl_render_software_init(const char *window_name, int charw, int char
 
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
-	renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, NULL);
     if (renderer == NULL) {
         return -1;
     }
@@ -94,7 +94,7 @@ static void sdl_render_software_update_palette(u32 *data_arg) {
 }
 
 static void sdl_render_software_draw(u8 *vram, int blink_mode) {
-	SDL_Rect dest;
+	SDL_FRect dest;
 	void *buffer;
 	int w, h, pitch;
 

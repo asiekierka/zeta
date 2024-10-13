@@ -46,11 +46,11 @@ AS_CASE([$with_frontend],
 		PKG_CHECK_MODULES(SDL3, sdl3 >= 3.1.1)
 		case "${host_os}" in
 			mingw*)
-				FRONTEND_CFLAGS="$FRONTEND_CFLAGS -mwindows $SDL3_CFLAGS"
+				FRONTEND_CFLAGS="$FRONTEND_CFLAGS -mwindows $SDL3_CFLAGS -DUSE_SDL"
 				FRONTEND_LDFLAGS="$FRONTEND_LDFLAGS -Wl,-Bstatic -lstdc++ -lpthread -lmingw32 -Wl,-Bdynamic $SDL3_LIBS -static-libgcc -static-libstdc++"
 				;;
 			*)
-				FRONTEND_CFLAGS="$FRONTEND_CFLAGS $SDL3_CFLAGS"
+				FRONTEND_CFLAGS="$FRONTEND_CFLAGS $SDL3_CFLAGS -DUSE_SDL"
 				FRONTEND_LDFLAGS="$FRONTEND_LDFLAGS $SDL3_LIBS"
 				;;
 		esac

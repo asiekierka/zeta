@@ -83,7 +83,7 @@ static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access
 }
 
 static void prepare_render_opengl(void) {
-	SDL_Rect rect;
+	SDL_FRect rect;
 	int w, h, scale;
 	SDL_GetWindowSizeInPixels(window, &w, &h);
 	calc_render_area(&rect, w, h, &scale, AREA_WITHOUT_SCALE);
@@ -348,8 +348,9 @@ static int sdl_render_opengl_init(const char *window_name, int charw, int charh)
 
 	SDL_GL_SetSwapInterval(1);
 	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
-	renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
+	renderer = SDL_CreateRenderer(window, NULL);
     if (renderer == NULL) {
 		SDL_DestroyWindow(window);
         return -1;
