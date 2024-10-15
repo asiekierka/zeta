@@ -397,7 +397,7 @@ int main(int argc, char **argv) {
 
 	SDL_Thread* zzt_thread;
 
-        SDL_SetAppMetadata("zeta", VERSION, "pl.asie.zeta");
+        SDL_SetAppMetadata("Zeta", VERSION, "pl.asie.zeta");
 	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not initialize SDL!", NULL);
