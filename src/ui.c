@@ -104,15 +104,17 @@ bool ui_is_active(void) {
 static void ui_draw_char(int x, int y, uint8_t chr, uint8_t col) {
     if (x < 0 || y < 0 || x >= 80 || y >= 25) return;
 
+    int x_mul = (zzt_video_mode() & 2) ? 160 : 80;
     uint8_t *vid_mem = zzt_get_ram() + 0xB8000;
-    vid_mem[y * 160 + x * 2] = chr;
-    vid_mem[y * 160 + x * 2 + 1] = col;
+    vid_mem[y * x_mul + x * 2] = chr;
+    vid_mem[y * x_mul + x * 2 + 1] = col;
 }
 
 static void ui_darken_char(int x, int y) {
     if (x < 0 || y < 0 || x >= 80 || y >= 25) return;
 
-    uint8_t *vid_mem = zzt_get_ram() + 0xB8000 + y * 160 + x * 2 + 1;
+    int x_mul = (zzt_video_mode() & 2) ? 160 : 80;
+    uint8_t *vid_mem = zzt_get_ram() + 0xB8000 + y * x_mul + x * 2 + 1;
     uint8_t col = (*vid_mem) & 0x0F;
     if (col >= 0x9) {
         col -= 0x8;
