@@ -457,16 +457,13 @@ int main(int argc, char **argv) {
 	sdl_resize_window(0, false, false);
 	SDL_StartTextInput(window);
 
-#ifdef _WIN32
 	{
-		float dpi = 0.0f;
-		int display_index = SDL_GetDisplayForWindow(window);
-		if (display_index >= 0 && !SDL_GetDisplayDPI(display_index, &dpi, NULL, NULL) && dpi > 96.0f) {
-			sdl_resize_window((int) ceil(dpi / 96.0f), false, true);
+		float scale = SDL_GetWindowDisplayScale(window);
+		if (scale > 1.0f) {
+			sdl_resize_window((int) ceil(scale / 1.0f), false, true);
 			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 		}
 	}
-#endif
 
 	const SDL_AudioSpec audio_spec = { SDL_AUDIO_S16LE, 1, 48000 };
 	audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, audio_callback, NULL);
