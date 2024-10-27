@@ -72,7 +72,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
   -s STRICT=1 --closure 1 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc","_free","_audio_generate_init"]' \
-  -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString"]' \
+  -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString", "HEAPU8", "HEAPU32"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
   -s SUPPORT_ERRNO=0 \
   -s ALLOW_MEMORY_GROWTH=1 -s ASSERTIONS=0 \
