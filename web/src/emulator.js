@@ -445,7 +445,7 @@ export function createEmulator(render, audio, vfs, options) {
             if (blinkCycleDuration < 0) {
                 // high colors
                 emu._zzt_load_blink(0);
-                emu._zzt_set_blink_disable_user_override(3);
+                emu._zzt_set_blink_user_override(3);
 	    } else if (!blinkCycleDuration && blinkCycleDuration !== 0) {
                 // blinkCycleDuration not set
                 emu._zzt_load_blink(1);
@@ -455,7 +455,7 @@ export function createEmulator(render, audio, vfs, options) {
                 if (blinkCycleDuration !== 0) {
                     emuObj.render.setBlinkCycleDuration(blinkCycleDuration);
                 } else {
-                    emu._zzt_set_blink_disable_user_override(1);
+                    emu._zzt_set_blink_user_override(1);
                 }
             }
 
