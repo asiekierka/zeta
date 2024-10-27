@@ -37,6 +37,13 @@ typedef enum {
 	DEFAULT_CHARSET_STYLE_CGA
 } zzt_default_charset_style_t;
 
+typedef enum {
+	BLINK_OVERRIDE_OFF,
+	BLINK_OVERRIDE_FREEZE, // blink off
+	BLINK_OVERRIDE_ENABLE, // blink on
+	BLINK_OVERRIDE_DISABLE // high colors
+} zzt_blink_override_t;
+
 // the long story:
 // 3.579545 MHz - NTSC dotclock
 // dotclock * 4 = 14.31818
@@ -103,9 +110,9 @@ void zzt_set_blink_duration_ms(int value);
 USER_FUNCTION
 int zzt_get_active_blink_duration_ms(void);
 USER_FUNCTION
-bool zzt_get_blink_disable_user_override(void);
+int zzt_get_blink_user_override(void);
 USER_FUNCTION
-void zzt_set_blink_disable_user_override(bool value);
+void zzt_set_blink_user_override(int value);
 USER_FUNCTION
 void zzt_key_set_delay(int ms, int repeat_ms);
 USER_FUNCTION

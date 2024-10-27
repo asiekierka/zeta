@@ -119,7 +119,7 @@ typedef struct {
 #endif
 
 	u8 disable_idle_hacks;
-	bool blink_disable_user_override;
+	u8 blink_user_override;
 	int blink_duration_ms;
 } zzt_state;
 
@@ -1420,12 +1420,12 @@ int zzt_get_blink(void) {
 	return zzt.blink;
 }
 
-bool zzt_get_blink_disable_user_override(void) {
-	return zzt.blink_disable_user_override;
+int zzt_get_blink_user_override(void) {
+	return zzt.blink_user_override;
 }
 
-void zzt_set_blink_disable_user_override(bool value) {
-	zzt.blink_disable_user_override = value;
+void zzt_set_blink_user_override(int value) {
+	zzt.blink_user_override = value;
 	zeta_update_blink(zzt_get_active_blink_duration_ms());
 }
 
@@ -1434,12 +1434,16 @@ int zzt_get_blink_duration_ms(void) {
 }
 
 int zzt_get_active_blink_duration_ms(void) {
+	// Handle user overrides
+	if (zzt.blink_user_override == BLINK_OVERRIDE_FREEZE)
+		return 0;
+	if (zzt.blink_user_override == BLINK_OVERRIDE_ENABLE)
+		return zzt.blink_duration_ms;
+	if (zzt.blink_user_override == BLINK_OVERRIDE_DISABLE)
+		return -1;
 	// High colors?
 	if (!zzt.blink)
 		return -1;
-	// Blinking disabled by user?
-	if (zzt.blink_disable_user_override)
-		return 0;
 	return zzt.blink_duration_ms;
 }
 
@@ -1463,7 +1467,7 @@ void zzt_init(int memory_kbs) {
 
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
-	zzt.blink_disable_user_override = false;
+	zzt.blink_user_override = BLINK_OVERRIDE_OFF;
 	zzt.blink_duration_ms = 267;
 
 	zzt.timer_time = 0;

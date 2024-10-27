@@ -63,7 +63,7 @@ static const char* ui_lines_header[] = {
 static const char* ui_lines_options[] = {
     "  Volume:      ",
     "  Player step sound: [ ]",
-    "  Blinking allowed: [ ]",
+    "  Blinking disabled: [ ]",
     "  Exit"
 };
 #define UI_LINES_OPTIONS_COUNT 4
@@ -132,10 +132,26 @@ static void ui_draw_string(int x, int y, const char *s, uint8_t col) {
     }
 }
 
+static void ui_draw_check_char(int x, int y, const char *s, uint8_t value, uint8_t col) {
+    ui_draw_char(x + strlen(s) - 2, y, value, col);
+}
+
 static void ui_draw_check(int x, int y, const char *s, bool value, uint8_t col) {
     if (value) {
-        ui_draw_char(x + strlen(s) - 2, y, 'x', col);
+        ui_draw_check_char(x, y, s, 'x', col);
     }
+}
+
+static uint8_t get_blink_char(int value) {
+    if (value == BLINK_OVERRIDE_FREEZE)
+        return 'x';
+    if (value == BLINK_OVERRIDE_ENABLE)
+        return 'F';
+    if (value == BLINK_OVERRIDE_DISABLE)
+        return 'H';
+    if (value == BLINK_OVERRIDE_OFF)
+        return ' ';
+    return '?';
 }
 
 void ui_tick(void) {
@@ -195,7 +211,7 @@ void ui_tick(void) {
         snprintf(sbuf, sizeof(sbuf) - 1, "%d%%", audio_stream_get_volume() * 10 / 6);
         ui_draw_string(woptx + 10, wopty, sbuf, 0x1F);
         ui_draw_check(woptx, wopty + 1, ui_lines_options[1], !audio_get_remove_player_movement_sound(), 0x1F);
-        ui_draw_check(woptx, wopty + 2, ui_lines_options[2], !zzt_get_blink_disable_user_override(), 0x1F);
+        ui_draw_check_char(woptx, wopty + 2, ui_lines_options[2], get_blink_char(zzt_get_blink_user_override()), 0x1F);
 
         // draw arrow
         ui_draw_char(woptx, wopty + ui_state->option_y, '>', 0x1F);
@@ -217,7 +233,18 @@ void ui_tick(void) {
             } else if (ui_state->option_y == 1) {
                 audio_set_remove_player_movement_sound(!audio_get_remove_player_movement_sound());
             } else if (ui_state->option_y == 2) {
-                zzt_set_blink_disable_user_override(!zzt_get_blink_disable_user_override());
+                switch (zzt_get_blink_user_override()) {
+                    case BLINK_OVERRIDE_OFF:
+                        zzt_set_blink_user_override(BLINK_OVERRIDE_FREEZE);
+                        break;
+                    case BLINK_OVERRIDE_FREEZE:
+                        zzt_set_blink_user_override(BLINK_OVERRIDE_DISABLE);
+                        break;
+                    case BLINK_OVERRIDE_DISABLE:
+                    default:
+                        zzt_set_blink_user_override(BLINK_OVERRIDE_OFF);
+                        break;
+                }
             } else if (ui_state->option_y == UI_LINES_OPTIONS_COUNT - 1 && key.chr == 13) {
                 ui_deactivate();
                 return;
