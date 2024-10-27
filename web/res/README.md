@@ -47,28 +47,29 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
             * max - maximum palette value in the array (f.e. 255),
             * colors - an array of sixteen colors, either:
                 * 3-component arrays of range min - max (inclusive),
-                * "#012345" or "#012"-format strings.
-    * lock_palette: if true and a custom palette is provided, the palette cannot be changed by the emulated engine,
-    * memory_limit: the memory limit, in kilobytes (64-640)
-    * extended_memory_limit: the extended (EMS) memory limit, in kilobytes
-    * skip_kc: if true, press "K, C, ENTER" on start
+                * "#012345" or "#024"-format RGB hex strings.
+    * lock_palette: if true and a custom palette is provided, the palette cannot be changed by the emulated engine.
+    * memory_limit: the memory limit, in kilobytes (64-640).
+    * extended_memory_limit: the extended (EMS) memory limit, in kilobytes.
+    * skip_kc: if true, press "K, C, ENTER" on start.
 * render:
-    * type: the engine to use for video rendering; can be "auto" (preferred) or "canvas"
-    * blink_cycle_duration: the length of a full blink cycle, in seconds; <= 0 to disable; the default is 0.466
-    * charset_override: the location of a PNG image file (16x16 chars) overriding the engine's character set, if present
+    * type: the engine to use for video rendering; can be "auto" (preferred) or "canvas".
+    * blink_cycle_duration: the length of a full blink cycle, in seconds. The default is 0.534 (534 ms).
+      * Set to 0 to disable blinking - force low colors (can be changed back in the F11 menu).
+      * Set to -1 to disable blinking - enable high colors (can be changed back by the running engine).
+    * charset_override: the location of a PNG image file (16x16 chars) overriding the engine's character set, if present.
 * audio:
-    * type: the engine to use for audio rendering; can be "auto" (preferred), "buffer" or "oscillator" (pre-beta15; deprecated)
-    * bufferSize (buffer): the audio buffer size, in samples
-    * sampleRate (buffer): the audio sampling rate, in Hz
-    * noteDelay: the minimum note delay, in milliseconds; 1 is default
-    * volume: the volume of the outputted audio stream (range 0.0 - 1.0); 0.2 by default
+    * bufferSize (buffer): the audio buffer size, in samples.
+    * sampleRate (buffer): the audio sampling rate, in Hz.
+    * noteDelay: the minimum note delay, in milliseconds; 1 by default.
+    * volume: the volume of the outputted audio stream (range 0.0 - 1.0); 0.2 by default.
 
 File entries are stored in the form of an object containing the following keys:
 
 * type:
-  - array: local file to be directly added
-  - file: remote file to be directly added
-  - zip: remote .ZIP file to be unpacked into the VFS
+  - array: local file to be directly added,
+  - file: remote file to be directly added,
+  - zip: remote .ZIP file to be unpacked into the VFS.
 * url: For remotely-acquired types, denotes the URL leading to the file.
 * filename: For single-file types, denotes the target filename.
 * data: For the "array" type, a byte array containing the file's data.

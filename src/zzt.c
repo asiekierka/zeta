@@ -1397,7 +1397,7 @@ int zzt_load_palette(u32 *colors) {
 
 int zzt_load_blink(int blink) {
 	zzt.blink = blink;
-	zeta_update_blink(zzt.blink);
+	zeta_update_blink(zzt_get_active_blink_duration_ms());
 	return 0;
 }
 
@@ -1426,6 +1426,7 @@ bool zzt_get_blink_disable_user_override(void) {
 
 void zzt_set_blink_disable_user_override(bool value) {
 	zzt.blink_disable_user_override = value;
+	zeta_update_blink(zzt_get_active_blink_duration_ms());
 }
 
 int zzt_get_blink_duration_ms(void) {
@@ -1433,11 +1434,18 @@ int zzt_get_blink_duration_ms(void) {
 }
 
 int zzt_get_active_blink_duration_ms(void) {
-	return zzt.blink_disable_user_override ? -1 : zzt.blink_duration_ms;
+	// High colors?
+	if (!zzt.blink)
+		return -1;
+	// Blinking disabled by user?
+	if (zzt.blink_disable_user_override)
+		return 0;
+	return zzt.blink_duration_ms;
 }
 
 void zzt_set_blink_duration_ms(int value) {
 	zzt.blink_duration_ms = value;
+	zeta_update_blink(zzt_get_active_blink_duration_ms());
 }
 
 void zzt_init(int memory_kbs) {

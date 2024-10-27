@@ -217,15 +217,6 @@ static void sdl_timer_init(void) {
 	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
 }
 
-static bool sdl_is_blink_phase(long curr_time) {
-	int blink_duration_ms = zzt_get_active_blink_duration_ms();
-	if (blink_duration_ms <= 0) {
-		return false;
-	} else {
-		return ((curr_time % (blink_duration_ms*2)) >= blink_duration_ms);
-	}
-}
-
 // try to keep a budget of ~5ms per call
 
 static int zzt_thread_func(void *ptr) {
@@ -341,10 +332,18 @@ static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_s
 	}
 }
 
-static u8 video_blink = 1;
+static int blink_duration_ms = 0;
+
+static bool sdl_is_blink_phase(long curr_time) {
+	if (blink_duration_ms <= 0) {
+		return false;
+	} else {
+		return ((curr_time % (blink_duration_ms*2)) >= blink_duration_ms);
+	}
+}
 
 void zeta_update_blink(int blink) {
-	video_blink = (blink != 0) ? 1 : 0;
+	blink_duration_ms = blink;
 }
 
 void zeta_update_charset(int width, int height, u8* data) {
@@ -550,7 +549,7 @@ int main(int argc, char **argv) {
 						int swidth;
 						zzt_get_screen_size(&swidth, NULL);
 
-						if (!video_blink) sflags |= RENDER_BLINK_OFF;
+						if (blink_duration_ms < 0) sflags |= RENDER_BLINK_OFF;
 						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
 
 #ifdef USE_LIBPNG
@@ -752,7 +751,7 @@ int main(int argc, char **argv) {
 		SDL_UnlockMutex(render_data_update_mutex);
 
 		long curr_time = zeta_time_ms();
-		int blink_mode = video_blink ? (sdl_is_blink_phase(curr_time) ? BLINK_MODE_2 : BLINK_MODE_1) : BLINK_MODE_NONE;
+		int blink_mode = blink_duration_ms >= 0 ? (sdl_is_blink_phase(curr_time) ? BLINK_MODE_2 : BLINK_MODE_1) : BLINK_MODE_NONE;
 		renderer->draw(zzt_vram_copy, blink_mode);
 	}
 

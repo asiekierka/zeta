@@ -83,8 +83,8 @@ export class CanvasBasedRenderer {
 		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));
 		if (this.scale < 1) this.scale = 1;
 
-		if (this.emu._zzt_get_blink()) {
-			let blink_duration = this.emu._zzt_get_active_blink_duration_ms();
+		let blink_duration = this.emu._zzt_get_active_blink_duration_ms();
+		if (blink_duration >= 0) {
 			if (blink_duration > 0 && (time % (blink_duration * 2)) >= blink_duration) {
 				this.blink_state = 2;
 			} else {
@@ -227,10 +227,6 @@ export class CanvasBasedRenderer {
 			this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 			this.ctx.drawImage(targetCanvas, 0, 0, 80*this.chrWidth / xScale, 25*this.chrHeight, this.x_offset, this.y_offset, 80*this.chrWidth * this.scale, 25*this.chrHeight * this.scale);
 		}
-	}
-
-	setBlinkEnabled(blink) {
-		this.emu._zzt_load_blink(blink != 0);
 	}
 
 	setBlinkCycleDuration(duration) {
