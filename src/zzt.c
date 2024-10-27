@@ -49,6 +49,7 @@ bool developer_mode = false;
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
+// #define DEBUG_PORTS
 
 #define STR_DS_DX (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF])
 #define STR_DS_SI (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->si) & 0xFFFFF])
@@ -352,7 +353,9 @@ static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
 			return zzt->port_201;
 		case 0x3D4: return zzt->cga_crt_index;
 		case 0x3D5:
+#ifdef DEBUG_PORTS
 			fprintf(stderr, "CRT port in %02X\n", zzt->cga_crt_index);
+#endif
 			return 0;
 		case 0x3D9: return zzt->cga_palette;
 		case 0x3DA: {
@@ -361,7 +364,9 @@ static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
 			return old_status;
 		}
 		default:
+#ifdef DEBUG_PORTS
 			fprintf(stderr, "port in %04X\n", addr);
+#endif
 			return 0;
 	}
 }
@@ -403,12 +408,16 @@ static void cpu_func_port_out_main(cpu_state* cpu, u16 addr, u16 val) {
 					// we do not render the cursor, so we do not need those values
 					break;
 				default:
+#ifdef DEBUG_PORTS
 					fprintf(stderr, "CRT port out %02X = %02X\n", zzt->cga_crt_index, val);
+#endif
 			}
 			return;
 		case 0x3D9: zzt->cga_palette = val; return;
 		default:
+#ifdef DEBUG_PORTS
 			fprintf(stderr, "port out %04X = %04X\n", addr, val);
+#endif
 	}
 }
 
@@ -434,7 +443,7 @@ static void cpu_func_intr_0x33(cpu_state* cpu) {
 			zzt->mouse_yd = 0;
 			break;
 		default:
-			fprintf(stderr, "mouse %04X\n", cpu->ax);
+			fprintf(stderr, "todo: mouse %04X\n", cpu->ax);
 			break;
 	}
 }
@@ -1345,7 +1354,7 @@ void zzt_load_binary(int handle, const char *arg) {
 	vfs_seek(handle, 0, VFS_SEEK_SET);
 	u8 *data_ptr = &(zzt.cpu.ram[(offset_pars * 16) + 256]);
 	int bytes_read = vfs_read(handle, data_ptr, 65536 - 256);
-	fprintf(stderr, "wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
+	fprintf(stderr, "zzt_load_binary: wrote %d bytes to %d\n", bytes_read, (offset_pars * 16 + 256));
 }
 
 int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
