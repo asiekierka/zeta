@@ -43,6 +43,24 @@ jobs:
           name: Zeta (Linux)
           path: dist/*
 
+  build_linux_aarch64:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update Ubuntu packages
+        run: sudo apt-get update
+      - name: Set up Ubuntu packages
+        run: sudo apt-get install -y git zip libsdl2-dev && pip install Pillow
+      - name: Build
+        run: make PLATFORM=unix-sdl
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/unix-sdl/zeta86 dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Linux, AArch64)
+          path: dist/*
+
   build_macos:
     runs-on: macos-latest
     steps:
