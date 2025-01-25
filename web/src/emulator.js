@@ -159,7 +159,7 @@ class Emulator {
             return false;
         }, false);
 
-        this.element.addEventListener("mousemove", function(e) {
+        this.element.addEventListener("mousemove", (e) => {
             if (emu == undefined) return;
 
             const mx = e.movementX * self.mouseSensitivity;
@@ -174,8 +174,8 @@ class Emulator {
             else if (mouseY >= 350) mouseY = 349; */
         });
 
-        this.element.addEventListener("mousedown", function(e) {
-            element.requestPointerLock();
+        this.element.addEventListener("mousedown", async (e) => {
+            await element.requestPointerLock();
 
             if (emu == undefined) return;
             if (e.button == 0) emu._zzt_mouse_set(0);
@@ -183,12 +183,23 @@ class Emulator {
             else if (e.button == 1) emu._zzt_mouse_set(2);
         });
 
-        this.element.addEventListener("mouseup", function(e) {
+        this.element.addEventListener("mouseup", (e) => {
             if (emu == undefined) return;
             if (e.button == 0) emu._zzt_mouse_clear(0);
             else if (e.button == 2) emu._zzt_mouse_clear(1);
             else if (e.button == 1) emu._zzt_mouse_clear(2);
         });
+
+        // pass Escape to application when using fullscreen mode on Chrome
+        if (("keyboard" in navigator) && ("lock" in navigator.keyboard)) {
+            document.addEventListener("fullscreenchange", async () => {
+                if (document.fullscreenElement) {
+                    await navigator.keyboard.lock(["Escape"]);
+                } else {
+                    navigator.keyboard.unlock();
+                }
+            });
+        }
     }
 
     loadCharset(charset) {
