@@ -91,19 +91,24 @@ LIBS = -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},wasm)
 CC = EMCC_CLOSURE_ARGS="--js $(realpath ${SRCDIR})/emscripten_externs.js" emcc
-CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
-  -s STRICT=1 --closure 1 \
+CFLAGS = -O3 -s STRICT=1 \
+  -DNO_MEMSET -DAVOID_MALLOC --no-entry -DVERSION=\"${VERSION}\"
+LDFLAGS = ${CFLAGS} \
+   --closure 1 \
   -s ENVIRONMENT=web \
   -s 'EXPORTED_FUNCTIONS=["_malloc","_free","_audio_generate_init"]' \
   -s 'EXPORTED_RUNTIME_METHODS=["AsciiToString", "HEAPU8", "HEAPU32"]' \
   -s MODULARIZE=1 -s 'EXPORT_NAME="ZetaNative"' \
-  -s SUPPORT_ERRNO=0 \
-  -s ALLOW_MEMORY_GROWTH=1 -s ASSERTIONS=0 \
+  -s ALLOW_MEMORY_GROWTH=1 \
   -s 'MALLOC="emmalloc"' -s FILESYSTEM=0 \
   -s INITIAL_MEMORY=4194304 -s STACK_SIZE=262144 \
-  -DNO_MEMSET -DAVOID_MALLOC --no-entry -DVERSION=\"${VERSION}\"
-LDFLAGS = ${CFLAGS}
+  -L $(realpath ${SRCDIR}) -lemscripten_glue.js
 TARGET = $(BUILDDIR)/zeta_native.js
+ifeq (${DEBUG},)
+LDFLAGS += -s ASSERTIONS=0
+else
+LDFLAGS += -s ASSERTIONS=1
+endif
 else
 $(error Please specify PLATFORM: macos-sdl3, mingw32-sdl3, unix-curses, unix-headless, unix-sdl2, unix-sdl3, wasm)
 endif
