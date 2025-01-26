@@ -774,6 +774,7 @@ int main(int argc, char **argv) {
 	if (audio_device != 0) {
 		SDL_CloseAudioDevice(audio_device);
 	}
+	SDL_DetachThread(zzt_thread);
 	renderer->deinit();
 	SDL_StopTextInput();
 

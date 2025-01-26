@@ -772,6 +772,7 @@ int main(int argc, char **argv) {
 	if (audio_stream != 0) {
 		SDL_CloseAudioDevice(SDL_GetAudioStreamDevice(audio_stream));
 	}
+	SDL_DetachThread(zzt_thread);
 	renderer->deinit();
 
 	if (developer_mode) {
