@@ -500,9 +500,11 @@ export function createEmulator(render, audio, vfs, options) {
                 let executable = "zzt.exe";
                 let handle = vfsg_open(executable, 0);
                 let extension = ".zzt";
+                let vfs_arg = "";
                 if (handle < 0) {
                     executable = "superz.exe";
                     handle = vfsg_open(executable, 0);
+                    vfs_arg = "/e ";
                     extension = undefined;
                 }
 
@@ -510,13 +512,12 @@ export function createEmulator(render, audio, vfs, options) {
                     throw new Error("Could not find ZZT/Super ZZT executable!");
                 }
 
-                let vfs_arg = "";
                 if (options && options.arg) {
-                    vfs_arg = options.arg;
+                    vfs_arg += options.arg;
                 } else if (extension != undefined) {
                     const candidates = vfs.list(s => s.toLowerCase().endsWith(extension));
                     if (candidates.length > 0) {
-                        vfs_arg = candidates[0];
+                        vfs_arg += candidates[0];
                     }
                 }
 

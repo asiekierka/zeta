@@ -89,7 +89,13 @@ static void posix_zzt_help(int argc, char **argv) {
 #define INIT_ERR_NO_EXECUTABLE -2
 #define INIT_ERR_NO_EXECUTABLE_ZZT -3
 
-static int posix_try_run_zzt(int exec_count, char **execs, char *arg_name, bool is_final_attempt) {
+#define MAX_BUFFER_SIZE 256
+
+static int posix_try_run_zzt(int exec_count, char **execs, const char *arg_name, bool is_final_attempt) {
+	char arg_buf[MAX_BUFFER_SIZE + 1];
+	arg_buf[0] = 0;
+	arg_buf[256] = 0;
+
 	if (exec_count > 0) {
 		int exeh = 0;
 		for (int i = 0; i < exec_count; i++) {
@@ -126,11 +132,14 @@ static int posix_try_run_zzt(int exec_count, char **execs, char *arg_name, bool 
 		}
 	} else {
 		int exeh = vfs_open("zzt.exe", 0);
-		if (exeh < 0)
+		if (exeh < 0) {
 			exeh = vfs_open("superz.exe", 0);
+			strcat(arg_buf, "/e ");
+		}
 		if (exeh < 0)
 			return INIT_ERR_NO_EXECUTABLE_ZZT;
-		zzt_load_binary(exeh, arg_name);
+		strncat(arg_buf, arg_name, MAX_BUFFER_SIZE);
+		zzt_load_binary(exeh, arg_buf);
 		vfs_close(exeh);
 	}
 
@@ -138,8 +147,8 @@ static int posix_try_run_zzt(int exec_count, char **execs, char *arg_name, bool 
 }
 
 static int posix_zzt_init(int argc, char **argv) {
-	char cwd[PATH_MAX+1];
-	char arg_name[257];
+	char cwd[PATH_MAX + 1];
+	char arg_name[MAX_BUFFER_SIZE + 1];
 	char *execs[16];
 	char *loads[16];
 	int exec_count = 0;
@@ -236,10 +245,10 @@ static int posix_zzt_init(int argc, char **argv) {
 
 #ifdef USE_GETOPT
 	if (argc > optind && posix_vfs_exists(argv[optind])) {
-		strncpy(arg_name, argv[optind], 256);
+		strncpy(arg_name, argv[optind], MAX_BUFFER_SIZE);
 #else
 	if (argc > 1 && posix_vfs_exists(argv[1])) {
-		strncpy(arg_name, argv[1], 256);
+		strncpy(arg_name, argv[1], MAX_BUFFER_SIZE);
 #endif
 	} else if (argc > 0) {
 		char *sl_ptr = strrchr(argv[0], '/');
@@ -248,15 +257,15 @@ static int posix_zzt_init(int argc, char **argv) {
 		if (sl_ptr == NULL)
 			sl_ptr = argv[0] - 1;
 
-		strncpy(arg_name, sl_ptr + 1, 256);
+		strncpy(arg_name, sl_ptr + 1, MAX_BUFFER_SIZE);
 		char *dot_ptr = strrchr(arg_name, '.');
 		if (dot_ptr == NULL) dot_ptr = arg_name + strlen(arg_name);
 		*dot_ptr = 0;
 		if (strcasecmp(arg_name, "zeta86") != 0) {
-			strncpy(dot_ptr, ".zzt", 256 - (dot_ptr - arg_name));
+			strncpy(dot_ptr, ".zzt", MAX_BUFFER_SIZE - (dot_ptr - arg_name));
 
 			if (!posix_vfs_exists(arg_name)) {
-				strncpy(dot_ptr, ".szt", 256 - (dot_ptr - arg_name));
+				strncpy(dot_ptr, ".szt", MAX_BUFFER_SIZE - (dot_ptr - arg_name));
 				if (!posix_vfs_exists(arg_name)) {
 					arg_name[0] = 0;
 				}
