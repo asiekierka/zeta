@@ -48,12 +48,10 @@ static ui_state_t *ui_state = NULL;
 
 #ifdef __EMSCRIPTEN__
 static const char* ui_lines_header[] = {
-    "zeta " VERSION,
 };
-#define UI_LINES_HEADER_COUNT 1
+#define UI_LINES_HEADER_COUNT 0
 #else
 static const char* ui_lines_header[] = {
-    "zeta " VERSION,
     "",
     //2345678901234567890123456789012345
     "CTRL-F5/F6 .GIF/.WAV record mode",
@@ -62,7 +60,7 @@ static const char* ui_lines_header[] = {
     "CTRL-+/-   window resize up/down",
     "ALT-ENTER  fullscreen toggle    ",
 };
-#define UI_LINES_HEADER_COUNT 7
+#define UI_LINES_HEADER_COUNT 6
 #endif
 
 static const char* ui_lines_options[] = {
@@ -162,7 +160,7 @@ static uint8_t get_blink_char(int value) {
 void ui_tick(void) {
     char sbuf[37];
 
-    int wwidth = 36, wheight = UI_LINES_HEADER_COUNT + UI_LINES_OPTIONS_COUNT + 3;
+    int wwidth = 36, wheight = 1 + UI_LINES_HEADER_COUNT + UI_LINES_OPTIONS_COUNT + 3;
     int swidth, sheight;
     zzt_get_screen_size(&swidth, &sheight);
     int wx = (swidth - wwidth) >> 1;
@@ -217,14 +215,14 @@ void ui_tick(void) {
 
         for (int iy = 0; iy < UI_LINES_HEADER_COUNT; iy++) {
             const char *is = ui_lines_header[iy];
-            ui_draw_string((swidth - strlen(is)) >> 1, wy + 1 + iy, is, iy == 0 ? 0x1E : 0x1F);
+            ui_draw_string((swidth - strlen(is)) >> 1, wy + 2 + iy, is, 0x1F);
         }
 
         ui_state->screen_redraw = false;
     }
 
     {
-        int woptx = wx + 2, wopty = wy + 2 + UI_LINES_HEADER_COUNT;
+        int woptx = wx + 2, wopty = wy + 3 + UI_LINES_HEADER_COUNT;
 
         // draw options lines
         for (int iy = 0; iy < UI_LINES_OPTIONS_COUNT; iy++) {
