@@ -804,6 +804,19 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				case 0x12: {
 					zzt_load_charset(8, -8, res_8x8_bin, true);
 				} return;
+				case 0x30: {
+					if (cpu->bh == 0x00 || cpu->bh == 0x04) {
+						cpu->seg[SEG_ES] = 0xF000;
+						cpu->bp = 0xFA6E;
+					} else if (cpu->bh == 0x03) {
+						cpu->seg[SEG_ES] = 0xF000;
+						cpu->bp = 0xF66E;
+					} else {
+						fprintf(stderr, "int 0x10: unimplemented font pointer specifier %02X\n", cpu->bh);
+					}
+					cpu->cx = zzt.char_height;
+					cpu->dl = 25;
+				} return;
 			}
 			break;
 		case 0x12:
@@ -832,8 +845,8 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			return;
 	}
 
-	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BL=%02X\n",
-		cpu->ax, cpu->ah, cpu->al, cpu->bl);
+	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BX=%04X BL=%02X\n",
+		cpu->ax, cpu->ah, cpu->al, cpu->bx, cpu->bl);
 	cpu->flags |= FLAG_CARRY;
 }
 
@@ -1517,6 +1530,10 @@ void zzt_init(int memory_kbs) {
 	zzt.cpu.ram[0x44A] = 80;
 	zzt.cpu.ram[0x463] = 0xD4;
 	zzt.cpu.ram[0x464] = 0x03;
+
+        memcpy(zzt.cpu.ram + 0xFF66E, res_8x8_bin, 2048);
+	zzt.cpu.ram[0x1F * 4] = 0x6E;
+	zzt.cpu.ram[0x1F * 4 + 1] = 0xFA;
 
 	zzt.cpu.func_port_in = cpu_func_port_in_main;
 	zzt.cpu.func_port_out = cpu_func_port_out_main;
