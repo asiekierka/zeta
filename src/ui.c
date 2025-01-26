@@ -28,6 +28,11 @@
 #include "audio_stream.h"
 #include "ui.h"
 #include "zzt.h"
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#elif defined(USE_SDL3)
+#include <SDL3/SDL.h>
+#endif
 
 typedef struct {
     uint8_t screen_backup[80 * 25 * 2];
@@ -190,6 +195,26 @@ void ui_tick(void) {
         ui_draw_char(wx+wwidth-1, wy+wheight-1, 0xBC, 0x1F);
 
         // draw header lines
+        {
+#if defined(__EMSCRIPTEN__)
+            char is[80];
+            snprintf(is, sizeof(is) - 1, "zeta " VERSION " (emsdk %d.%d.%d)",
+                __EMSCRIPTEN_major__,
+                __EMSCRIPTEN_minor__,
+                __EMSCRIPTEN_tiny__);
+#elif defined(USE_SDL3)
+            int sdl_v = SDL_GetVersion();
+            char is[80];
+            snprintf(is, sizeof(is) - 1, "zeta " VERSION " (SDL %d.%d.%d)",
+                SDL_VERSIONNUM_MAJOR(sdl_v),
+                SDL_VERSIONNUM_MINOR(sdl_v),
+                SDL_VERSIONNUM_MICRO(sdl_v));
+#else
+            const char *is = "zeta " VERSION;
+#endif
+            ui_draw_string((swidth - strlen(is)) >> 1, wy + 1, is, 0x1E);
+        }
+
         for (int iy = 0; iy < UI_LINES_HEADER_COUNT; iy++) {
             const char *is = ui_lines_header[iy];
             ui_draw_string((swidth - strlen(is)) >> 1, wy + 1 + iy, is, iy == 0 ? 0x1E : 0x1F);

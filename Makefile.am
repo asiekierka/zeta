@@ -20,9 +20,21 @@ zeta_SOURCES += \
 	src/audio_writer.c \
 	src/gif_writer.c \
 	src/screenshot_writer.c \
-	src/sdl/frontend.c \
-	src/sdl/render_software.c \
-	src/sdl/render_opengl.c
+	src/sdl2/frontend.c \
+	src/sdl2/render_software.c \
+	src/sdl2/render_opengl.c
+endif
+
+if FRONTEND_SDL3
+zeta_SOURCES += \
+	src/posix_vfs.c \
+	src/render_software.c \
+	src/audio_writer.c \
+	src/gif_writer.c \
+	src/screenshot_writer.c \
+	src/sdl3/frontend.c \
+	src/sdl3/render_software.c \
+	src/sdl3/render_opengl.c
 endif
 
 if FRONTEND_NCURSES

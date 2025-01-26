@@ -27,8 +27,23 @@ OBJDIR = ${BUILDDIR}/obj
 CFLAGS = -g -O3 -flto -std=gnu18 -Wall -DVERSION=\"${VERSION}\"
 LDFLAGS = -g -O3 -flto -std=gnu18 -Wall
 
-ifeq (${PLATFORM},mingw32-sdl)
-USE_SDL = 1
+ifeq (${PLATFORM},mingw32-sdl3)
+USE_SDL3 = 1
+WINDRES = windres
+ifneq (${ARCH},)
+WINDRES = ${ARCH}-w64-mingw32-windres
+ifneq (${USE_CLANG},)
+CC = ${ARCH}-w64-mingw32-clang
+else
+CC = ${ARCH}-w64-mingw32-gcc
+endif
+endif
+CFLAGS += -mwindows
+LDFLAGS += -mwindows
+LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lpng -lz -lssp -Wl,-Bdynamic -lSDL3 -lopengl32
+TARGET = $(BUILDDIR)/zeta86.exe
+else ifeq (${PLATFORM},mingw32-sdl2)
+USE_SDL2 = 1
 WINDRES = windres
 ifneq (${ARCH},)
 WINDRES = ${ARCH}-w64-mingw32-windres
@@ -42,10 +57,14 @@ CFLAGS += -mwindows
 LDFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
-else ifeq (${PLATFORM},macos-sdl)
-USE_SDL = 1
+else ifeq (${PLATFORM},macos-sdl3)
+USE_SDL3 = 1
 CC = clang
-LIBS = -framework OpenGL -lSDL2 -lSDL2main -lpng -lm
+LIBS = -framework OpenGL -lSDL3 -lpng -lm
+else ifeq (${PLATFORM},macos-sdl2)
+USE_SDL2 = 1
+CC = clang
+LIBS = -framework OpenGL -lSDL2main -lSDL2 -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
 ifeq (${ARCH},x86_64)
 CFLAGS += -target x86_64-apple-macos10.12
@@ -54,9 +73,13 @@ else ifeq (${ARCH},aarch64)
 CFLAGS += -target arm64-apple-macos11
 LDFLAGS += -target arm64-apple-macos11
 endif
-else ifeq (${PLATFORM},unix-sdl)
-USE_SDL = 1
+else ifeq (${PLATFORM},unix-sdl2)
+USE_SDL2 = 1
 LIBS = -lGL -lSDL2 -lSDL2main -lpng -lm
+TARGET = $(BUILDDIR)/zeta86
+else ifeq (${PLATFORM},unix-sdl3)
+USE_SDL3 = 1
+LIBS = -lGL -lSDL3 -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
 else ifeq (${PLATFORM},unix-curses)
 USE_CURSES = 1
@@ -82,7 +105,7 @@ CFLAGS = -O3 --js-library ${SRCDIR}/emscripten_glue.js \
 LDFLAGS = ${CFLAGS}
 TARGET = $(BUILDDIR)/zeta_native.js
 else
-$(error Please specify PLATFORM: macos-sdl, mingw32-sdl, unix-curses, unix-headless, unix-sdl, wasm)
+$(error Please specify PLATFORM: macos-sdl3, mingw32-sdl3, unix-curses, unix-headless, unix-sdl2, unix-sdl3, wasm)
 endif
 
 OBJS =	$(OBJDIR)/8x8.o \
@@ -95,7 +118,8 @@ OBJS =	$(OBJDIR)/8x8.o \
 	$(OBJDIR)/audio_stream.o \
 	$(OBJDIR)/audio_shared.o
 
-ifeq (${USE_SDL},1)
+ifeq (${USE_SDL2},1)
+CFLAGS += -DUSE_SDL -DUSE_SDL2
 OBJS += $(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/posix_vfs.o \
 	$(OBJDIR)/util.o \
@@ -103,9 +127,21 @@ OBJS += $(OBJDIR)/asset_loader.o \
 	$(OBJDIR)/audio_writer.o \
 	$(OBJDIR)/gif_writer.o \
 	$(OBJDIR)/screenshot_writer.o \
-	$(OBJDIR)/sdl/frontend.o \
-	$(OBJDIR)/sdl/render_software.o \
-	$(OBJDIR)/sdl/render_opengl.o
+	$(OBJDIR)/sdl2/frontend.o \
+	$(OBJDIR)/sdl2/render_software.o \
+	$(OBJDIR)/sdl2/render_opengl.o
+else ifeq (${USE_SDL3},1)
+CFLAGS += -DUSE_SDL -DUSE_SDL3
+OBJS += $(OBJDIR)/asset_loader.o \
+	$(OBJDIR)/posix_vfs.o \
+	$(OBJDIR)/util.o \
+	$(OBJDIR)/render_software.o \
+	$(OBJDIR)/audio_writer.o \
+	$(OBJDIR)/gif_writer.o \
+	$(OBJDIR)/screenshot_writer.o \
+	$(OBJDIR)/sdl3/frontend.o \
+	$(OBJDIR)/sdl3/render_software.o \
+	$(OBJDIR)/sdl3/render_opengl.o
 else ifeq (${USE_CURSES},1)
 OBJS += $(OBJDIR)/frontend_curses.o \
 	$(OBJDIR)/asset_loader.o \
