@@ -191,7 +191,7 @@ class Emulator {
         });
 
         // pass Escape to application when using fullscreen mode on Chrome
-        if (("keyboard" in navigator) && ("lock" in navigator.keyboard)) {
+        if (("keyboard" in navigator) && navigator.keyboard && ("lock" in navigator.keyboard)) {
             document.addEventListener("fullscreenchange", async () => {
                 if (document.fullscreenElement) {
                     await navigator.keyboard.lock(["Escape"]);
