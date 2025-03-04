@@ -20,7 +20,7 @@ jobs:
       - name: Package artifact
         run: mkdir dist && cp LICENSE docs/* build/x86_64-mingw32-sdl3/zeta86.exe $SYSROOT/bin/SDL3.dll dist/
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Zeta (Windows)
           path: dist/*
@@ -38,7 +38,7 @@ jobs:
       - name: Package artifact
         run: mkdir dist && cp LICENSE build/unix-sdl2/zeta86 dist/
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Zeta (Linux)
           path: dist/*
@@ -56,7 +56,7 @@ jobs:
       - name: Package artifact
         run: mkdir dist && cp LICENSE build/unix-sdl2/zeta86 dist/
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Zeta (Linux, AArch64)
           path: dist/*
@@ -81,7 +81,7 @@ jobs:
       - name: Package (combined)
         run: mkdir -p dist/Zeta.app/Contents/Resources && cp LICENSE docs/* .github/Info.plist dist/Zeta.app/Contents && cp .github/zeta86.icns dist/Zeta.app/Contents/Resources && lipo -create -output dist/Zeta.app/Contents/MacOS/zeta86 build/x86_64-macos-sdl2/zeta86 build/aarch64-macos-sdl2/zeta86
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Zeta (macOS)
           path: dist/*
