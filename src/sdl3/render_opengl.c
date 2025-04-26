@@ -301,6 +301,8 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 		glAlphaFunc(GL_GREATER, 0.5);
 		glEnable(GL_ALPHA_TEST);
 		glEnable(GL_TEXTURE_2D);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
@@ -378,7 +380,6 @@ static void sdl_render_opengl_update_charset(int charw_arg, int charh_arg, u8 *d
 	if (chartex != NULL) SDL_DestroyTexture(chartex);
 	chartex = create_texture_from_array(renderer, SDL_TEXTUREACCESS_STATIC, data_arg, charh_arg);
 	SDL_SetTextureBlendMode(chartex, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(chartex, SDL_SCALEMODE_NEAREST);
 
 	update_opengl_tables();
 	force_update = 1;

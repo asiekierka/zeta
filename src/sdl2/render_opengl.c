@@ -302,6 +302,8 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 		glAlphaFunc(GL_GREATER, 0.5);
 		glEnable(GL_ALPHA_TEST);
 		glEnable(GL_TEXTURE_2D);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 

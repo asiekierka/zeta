@@ -49,7 +49,7 @@ bool developer_mode = false;
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
-#define DEBUG_PORTS
+// #define DEBUG_PORTS
 
 #define STR_DS_DX (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF])
 #define STR_DS_SI (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->si) & 0xFFFFF])
