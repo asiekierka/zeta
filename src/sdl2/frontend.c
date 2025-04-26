@@ -197,14 +197,14 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 	sdl_pit_tick();
 
 	audio_time = zeta_time_ms();
-	timer_time += SYS_TIMER_TIME;
+	timer_time += zzt_get_pit_tick_ms();
 	long duration = curr_timer_tick - first_timer_tick;
-	long tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
+	long tick_time = ((long) (timer_time + zzt_get_pit_tick_ms())) - duration;
 
 	while (tick_time <= 0) {
 		sdl_pit_tick();
-		timer_time += SYS_TIMER_TIME;
-		tick_time = ((long) (timer_time + SYS_TIMER_TIME)) - duration;
+		timer_time += zzt_get_pit_tick_ms();
+		tick_time = ((long) (timer_time + zzt_get_pit_tick_ms())) - duration;
 	}
 
 	SDL_CondBroadcast(zzt_thread_cond);
@@ -215,7 +215,7 @@ static Uint32 sdl_timer_thread(Uint32 interval, void *param) {
 static void sdl_timer_init(void) {
 	first_timer_tick = zeta_time_ms();
 	timer_time = 0;
-	SDL_AddTimer((int) SYS_TIMER_TIME, sdl_timer_thread, (void*)NULL);
+	SDL_AddTimer((int) zzt_get_pit_tick_ms(), sdl_timer_thread, (void*)NULL);
 }
 
 // try to keep a budget of ~5ms per call

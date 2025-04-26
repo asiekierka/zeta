@@ -203,14 +203,14 @@ static Uint64 sdl_timer_thread(void *param, SDL_TimerID timerID, Uint64 interval
 	sdl_pit_tick();
 
 	audio_time = zeta_time_ms();
-	timer_time += SYS_TIMER_TIME;
+	timer_time += zzt_get_pit_tick_ms();
 	Sint64 duration = curr_timer_tick - first_timer_tick;
-	Sint64 tick_time = ((Sint64) ((timer_time + SYS_TIMER_TIME) * 1000000)) - duration;
+	Sint64 tick_time = ((Sint64) ((timer_time + zzt_get_pit_tick_ms()) * 1000000)) - duration;
 
 	while (tick_time <= 0) {
 		sdl_pit_tick();
-		timer_time += SYS_TIMER_TIME;
-		tick_time = ((Sint64) ((timer_time + SYS_TIMER_TIME) * 1000000)) - duration;
+		timer_time += zzt_get_pit_tick_ms();
+		tick_time = ((Sint64) ((timer_time + zzt_get_pit_tick_ms()) * 1000000)) - duration;
 	}
 
 	SDL_BroadcastCondition(zzt_thread_cond);
@@ -221,7 +221,7 @@ static Uint64 sdl_timer_thread(void *param, SDL_TimerID timerID, Uint64 interval
 static void sdl_timer_init(void) {
 	first_timer_tick = SDL_GetTicksNS();
 	timer_time = 0;
-	SDL_AddTimerNS((Uint64) (SYS_TIMER_TIME * 1000000), sdl_timer_thread, (void*)NULL);
+	SDL_AddTimerNS((Uint64) (zzt_get_pit_tick_ms() * 1000000), sdl_timer_thread, (void*)NULL);
 }
 
 // try to keep a budget of ~5ms per call

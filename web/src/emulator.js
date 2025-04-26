@@ -24,8 +24,6 @@ import { time_ms, drawErrorMessage } from "./util.js";
 import { keymap, keychrmap, keyctrlmap } from "./keymap.js";
 import { initVfsWrapper, setWrappedEmu, setWrappedVfs } from "./vfs_wrapper.js";
 
-// see zzt.h "SYS_TIMER_TIME"
-const TIMER_DURATION = 54.92457871;
 const CPU_STATE_END = 0;
 const CPU_STATE_CONTINUE = 1;
 const CPU_STATE_BLOCK = 2;
@@ -348,14 +346,15 @@ class Emulator {
     }
 
     _tick() {
+        let timer_duration = this.emu._zzt_get_pit_tick_ms();
         this.time_ms_cached = time_ms();
 
-        while ((this.time_ms_cached - this.last_timer_time) >= TIMER_DURATION) {
-            /* var drift = (this.time_ms_cached - this.last_timer_time - TIMER_DURATION);
+        while ((this.time_ms_cached - this.last_timer_time) >= timer_duration) {
+            /* var drift = (this.time_ms_cached - this.last_timer_time - timer_duration);
             if (drift >= 2) {
                 console.warn("large timer drift! " + drift + " ms");
             } */
-            this.last_timer_time += TIMER_DURATION;
+            this.last_timer_time += timer_duration;
             this.emu._zzt_mark_timer();
         }
 
@@ -373,7 +372,7 @@ class Emulator {
                 window.requestAnimationFrame(() => this._frame());
             }
 
-            const time_to_timer = TIMER_DURATION - ((this.time_ms_cached + duration) - this.last_timer_time);
+            const time_to_timer = timer_duration - ((this.time_ms_cached + duration) - this.last_timer_time);
             if (rcode < CPU_STATE_WAIT_FRAME || time_to_timer <= 1) {
                 window.postMessage("zzt_tick", "*");
             } else if (rcode >= CPU_STATE_WAIT_TIMER) {

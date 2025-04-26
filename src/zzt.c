@@ -49,7 +49,7 @@ bool developer_mode = false;
 // #define DEBUG_FS_ACCESS
 // #define DEBUG_INTERRUPTS
 // #define DEBUG_KEYSTROKES
-// #define DEBUG_PORTS
+#define DEBUG_PORTS
 
 #define STR_DS_DX (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->dx) & 0xFFFFF])
 #define STR_DS_SI (char*)(&cpu->ram[(cpu->seg[SEG_DS]*16 + cpu->si) & 0xFFFFF])
@@ -86,7 +86,7 @@ typedef struct {
 	bool lock_palette;
 
 	u8 palette_dac[EGA_COLOR_COUNT * 3];
-    u8 palette_lut[LUT_COLOR_COUNT];
+	u8 palette_lut[LUT_COLOR_COUNT];
 
 	u32 palette[PALETTE_COLOR_COUNT];
 
@@ -107,9 +107,9 @@ typedef struct {
 
 	// I/O
 	u8 cga_status, cga_palette, cga_crt_index;
-	u8 port_42_latch;
-	u16 port_42;
-	// u8 port_43[3]; (not actually used)
+	u16 pit_value[3];
+	u8 pit_latch[3];
+	u8 pit_mode[3];
 	u8 port_61;
 	u8 port_201;
 
@@ -375,21 +375,31 @@ static void cpu_func_port_out_main(cpu_state* cpu, u16 addr, u16 val) {
 	zzt_state* zzt = (zzt_state*) cpu;
 
 	switch (addr) {
-		case 0x42:
-			if (zzt->port_42_latch) zzt->port_42 = (zzt->port_42 & 0xFF) | ((val << 8) & 0xFF00);
-			else zzt->port_42 = (zzt->port_42 & 0xFF00) | (val & 0xFF);
-			zzt->port_42_latch ^= 1;
-//			if (!port_42_latch && (port_43[2] & 0x04) == 0x04 && (port_61 & 3) == 3) {
-			if (!(zzt->port_42_latch) && (zzt->port_61 & 3) == 3) {
-				speaker_on(cpu->cycles, 1193182.0 / zzt->port_42);
+		case 0x40:
+		case 0x41:
+		case 0x42: {
+			int idx = addr - 0x40;
+			int write_mode = (zzt->pit_mode[idx] >> 4) & 0x3;
+			if (write_mode == 3) {
+				write_mode = zzt->pit_latch[idx] ? 2 : 1;
+				zzt->pit_latch[idx] ^= 1;
 			}
-			return;
+			if (write_mode == 2) zzt->pit_value[idx] = (zzt->pit_value[idx] & 0xFF) | ((val << 8) & 0xFF00);
+			else if (write_mode == 1) zzt->pit_value[idx] = (zzt->pit_value[idx] & 0xFF00) | (val & 0xFF);
+//			if (!port_42_latch && (pit_mode[2] & 0x04) == 0x04 && (port_61 & 3) == 3) {
+			if (idx == 2 && !(zzt->pit_latch[idx]) && (zzt->port_61 & 3) == 3) {
+				speaker_on(cpu->cycles, 1193181.66 / zzt->pit_value[idx]);
+			}
+		} return;
 		case 0x43: {
-/*			int addr = (val >> 6) & 0x3;
-			if (addr == 3) return;
-			if ((val & 0x30) == 0) {
-				zzt->port_43[addr] = val;
-			} */
+			int idx = (val >> 6) & 0x3;
+			if (idx != 3 && (val & 0x30) != 0) {
+				zzt->pit_mode[idx] = val;
+			} else {
+#ifdef DEBUG_PORTS
+				fprintf(stderr, "PIT unknown port 0x43 write %02X\n", val);
+#endif
+			}
 		} return;
 		case 0x61:
 			zzt->port_61 = val;
@@ -1502,6 +1512,11 @@ void zzt_init(int memory_kbs) {
 	zzt.mouse_y = 350 / 2;
 	zzt.port_201 = 0xF0;
 
+	zzt.pit_value[0] = 0xFFFF;
+	zzt.pit_mode[0] = 0x30;
+	zzt.pit_mode[1] = 0x30;
+	zzt.pit_mode[2] = 0x30;
+
 	zzt.charset_default = true;
 
 	cpu_init_globals();
@@ -1573,14 +1588,27 @@ static void zzt_update_keys(void) {
 	}
 }
 
+// the long story:
+// 3.579545 MHz - NTSC dotclock
+// dotclock * 4 = 14.31818
+// 14.31818 / 12 ~= 1.19318166 - PIT frequency
+// 65535 - maximum PIT cycle count before reload
+// (65535 / 1193181.66) = SYS_TIMER_TIME (seconds)
+
+double zzt_get_pit_tick_ms(void) {
+	int value = zzt.pit_value[0];
+	if (!value) value = 65536;
+	return (1000 * value) / 1193181.66;
+}
+
 void zzt_mark_timer(void) {
-	zzt.timer_time += SYS_TIMER_TIME;
+	zzt.timer_time += zzt_get_pit_tick_ms();
 	zzt_update_keys();
 	cpu_emit_interrupt(&(zzt.cpu), 0x08);
 }
 
 void zzt_mark_timer_turbo(void) {
-	zzt.timer_time += SYS_TIMER_TIME;
+	zzt.timer_time += zzt_get_pit_tick_ms();
 	cpu_emit_interrupt(&(zzt.cpu), 0x08);
 }
 

@@ -44,14 +44,6 @@ typedef enum {
 	BLINK_OVERRIDE_DISABLE // high colors
 } zzt_blink_override_t;
 
-// the long story:
-// 3.579545 MHz - NTSC dotclock
-// dotclock * 4 = 14.31818
-// 14.31818 / 12 ~= 1.19318166 - PIT frequency
-// 65535 - maximum PIT cycle count before reload
-// (65535 / 1193181.66) = SYS_TIMER_TIME (seconds)
-#define SYS_TIMER_TIME 54.92457871
-
 #define ZZT_KMOD_RSHIFT 0x01
 #define ZZT_KMOD_LSHIFT 0x02
 #define ZZT_KMOD_CTRL   0x04
@@ -119,6 +111,8 @@ USER_FUNCTION
 void zzt_set_timer_offset(long ms);
 USER_FUNCTION
 void zzt_set_max_extended_memory(int kilobytes);
+USER_FUNCTION
+double zzt_get_pit_tick_ms(void);
 
 typedef struct {
 	u8 chr;
