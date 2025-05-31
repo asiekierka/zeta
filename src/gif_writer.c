@@ -69,7 +69,7 @@ typedef struct s_gif_writer_state {
 
 	lzw_encode_state lzw;
 
-	u16 gif_delay_buffer;
+	u32 accumulated_delay; // 16.16 fixed-point value, in units of 10ms
 } gif_writer_state;
 
 static void lzw_write_buffer(lzw_encode_state *lzw, FILE *file) {
@@ -231,9 +231,11 @@ static void gif_writer_write_delay(gif_writer_state *s) {
 	if (s->file_delay_loc > 0) {
 		size_t curr_loc = ftell(s->file);
 		fseek(s->file, s->file_delay_loc, SEEK_SET);
-		fput16le(s->file, s->gif_delay_buffer >> 1);
+		fput16le(s->file, s->accumulated_delay >> 16);
 		fseek(s->file, curr_loc, SEEK_SET);
-		s->gif_delay_buffer &= 0x1;
+
+		// Preserve fraction of GIF delay
+		s->accumulated_delay &= 0xFFFF;
 		s->file_delay_loc = 0;
 	}
 }
@@ -266,7 +268,7 @@ static bool can_draw_char_vram_difference(int x, int y) {
 }
 
 void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
-	s->gif_delay_buffer += 11;
+	s->accumulated_delay += (u32) ((zzt_get_pit_tick_ms() * 6553.6) + 0.5);
 	u32 palette_optimized[16];
 
 	int new_screen_w, new_screen_h, new_char_w, new_char_h;
@@ -277,7 +279,7 @@ void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
 	bool blink = zzt_get_blink() != 0;
 	bool blink_active = false;
 	if (blink) {
-		int blink_pits = zzt_get_active_blink_duration_ms() / 55;
+		int blink_pits = (int) (zzt_get_active_blink_duration_ms() / zzt_get_pit_tick_ms());
 		if (blink_pits > 0) {
 			blink_active = blink && ((pit_ticks / blink_pits) & 1);
 		}
@@ -357,7 +359,7 @@ void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
 	int ph = (cy2 - cy1 + 1) * s->char_height;
 
 	if (pw <= 0 || ph <= 0) {
-		if (s->gif_delay_buffer >= 64000) {
+		if ((s->accumulated_delay >> 16) >= 32000) {
 			// failsafe
 			px = 0; py = 0;
 			pw = s->char_width * (s->screen_width <= 40 ? 2 : 1); ph = s->char_height;
