@@ -15,8 +15,9 @@ Use `make PLATFORM=platform`, where platform is generally of the form platform-f
 
 ### Recommended platforms
 
-* mingw32-sdl - SDL frontend, Windows
-* unix-sdl - SDL frontend, Linux
+* mingw32-sdl3 - SDL3 frontend, Windows
+* unix-sdl2 - SDL2 frontend, Linux
+* unix-sdl3 - SDL3 frontend, Linux
 * wasm - WebAssembly library
 
 ### Unsupported
