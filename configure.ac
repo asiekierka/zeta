@@ -1,4 +1,4 @@
-AC_INIT([zeta], [1.1.1], [kontakt@asie.pl])
+AC_INIT([zeta], [1.1.3], [kontakt@asie.pl])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([autoconfig.h])

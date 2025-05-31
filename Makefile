@@ -16,7 +16,7 @@ CC = gcc
 endif
 endif
 
-VERSION ?= 1.1.2
+VERSION ?= 1.1.3
 
 RESDIR = res
 SRCDIR = src
