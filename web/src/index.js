@@ -216,7 +216,7 @@ window.ZetaInitialize = function(options, callback) {
             return emu;
         });
     }).then(_ => true).catch(reason => {
-        callback(undefined, reason);
+        if (callback != null) callback(undefined, reason);
         drawErrorMessage(canvas, ctx, reason);
     });
 }
