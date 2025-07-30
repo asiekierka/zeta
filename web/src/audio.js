@@ -22,19 +22,15 @@
 
 import { time_ms } from "./util.js";
 
-let audioCtx = undefined;
-
-document.addEventListener('mousedown', function(event) {
-	if (audioCtx == undefined) {
-		audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
+let audioCtx = new window.AudioContext();
+let tryAudioCtxUnsuspend = function(event) {
+	if (audioCtx.state === "suspended") {
+		audioCtx.resume().then(() => {});
 	}
-});
+};
 
-document.addEventListener('keydown', function(event) {
-	if (audioCtx == undefined) {
-		audioCtx = new (window.AudioContext || window.webkitAudioContext) ();
-	}
-});
+document.addEventListener('mousedown', tryAudioCtxUnsuspend);
+document.addEventListener('keydown', tryAudioCtxUnsuspend);
 
 export class OscillatorBasedAudio {
 	constructor(options) {
@@ -43,12 +39,12 @@ export class OscillatorBasedAudio {
 		this.timeSpeakerOn = 0;
 		this.audioGain = undefined;
 		this.pc_speaker = undefined;
-		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.1));
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.05));
 		this.noteDelay = 1;
 	}
 
 	on(time, cycles, freq) {
-		if (audioCtx == undefined)
+		if (audioCtx.state === "suspended")
 			return;
 
 		let cTime = audioCtx.currentTime;
@@ -110,7 +106,7 @@ export class BufferBasedAudio {
 		this.sampleRate = (options && options.sampleRate) || 48000;
 		this.bufferSize = (options && options.bufferSize) || 2048;
 		this.noteDelay = (options && options.noteDelay) || undefined;
-		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.1));
+		this.volume = Math.min(1.0, Math.max(0.0, (options && options.volume) || 0.05));
 		this.timeUnit = (this.bufferSize / this.sampleRate);
 		this.initialized = false;
 		this.lastTimeMs = 0;
@@ -150,7 +146,9 @@ export class BufferBasedAudio {
 
 	_initSpeaker() {
 		if (this.initialized) return true;
-		if (audioCtx == undefined) return false;
+		if (audioCtx.state === "suspended") return false;
+		// FIXME
+		if (audioCtx.currentTime < 0.2) return false;
 		this.initialized = true;
 
 		this.time = audioCtx.currentTime;
