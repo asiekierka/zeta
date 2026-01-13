@@ -1,6 +1,6 @@
 AC_INIT([zeta], [1.1.3], [kontakt@asie.pl])
 AM_INIT_AUTOMAKE([foreign])
-AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([autoconfig.h])
 
 AC_PROG_CC
@@ -24,10 +24,10 @@ FRONTEND_LDFLAGS=""
 AC_C_BIGENDIAN([AC_DEFINE(ZETA_BIG_ENDIAN, 1, [Platform is big endian.])])
 AX_CHECK_ALIGNED_ACCESS_REQUIRED
 
-AX_CHECK_COMPILE_FLAG([-std=c11], [
-	FRONTEND_CFLAGS="$FRONTEND_CFLAGS -std=c11"
+AX_CHECK_COMPILE_FLAG([-std=gnu11], [
+	FRONTEND_CFLAGS="$FRONTEND_CFLAGS -std=gnu11"
 ], [
-	echo "C compiler cannot compile C11 code"
+	echo "C compiler cannot compile GNU C11 code"
 	exit -1
 ])
 
