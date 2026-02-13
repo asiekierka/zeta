@@ -61,11 +61,23 @@ else ifeq (${PLATFORM},macos-sdl3)
 USE_SDL3 = 1
 CC = clang
 LIBS = -framework OpenGL -lSDL3 -lpng -lm
+TARGET = $(BUILDDIR)/zeta86
+CFLAGS += -isystem /opt/homebrew/include
+LDFLAGS += -L/opt/homebrew/lib
+ifeq (${ARCH},x86_64)
+CFLAGS += -target x86_64-apple-macos10.12
+LDFLAGS += -target x86_64-apple-macos10.12
+else ifeq (${ARCH},aarch64)
+CFLAGS += -target arm64-apple-macos11
+LDFLAGS += -target arm64-apple-macos11
+endif
 else ifeq (${PLATFORM},macos-sdl2)
 USE_SDL2 = 1
 CC = clang
 LIBS = -framework OpenGL -lSDL2main -lSDL2 -lpng -lm
 TARGET = $(BUILDDIR)/zeta86
+CFLAGS += -isystem /opt/homebrew/include
+LDFLAGS += -L/opt/homebrew/lib
 ifeq (${ARCH},x86_64)
 CFLAGS += -target x86_64-apple-macos10.12
 LDFLAGS += -target x86_64-apple-macos10.12

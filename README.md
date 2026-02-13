@@ -9,12 +9,14 @@ of them in modern environments, as well as easy packaging, distribution and embe
 
 You're going to need the development headers/package for SDL2 (`sdl2-devel` on Fedora, `libsdl2-dev` on Debian/Ubuntu, `sdl2` on Arch, etc).
 
-## Compiling (Makefile, unsupported)
+## Compiling (Makefile)
 
-Use `make PLATFORM=platform`, where platform is generally of the form platform-frontend.
+Use `make PLATFORM=platform`, where platform is usually of the form "platform-frontend".
 
 ### Recommended platforms
 
+* macos-sdl2 - SDL2 frontend, macOS
+* macos-sdl3 - SDL3 frontend, macOS
 * mingw32-sdl3 - SDL3 frontend, Windows
 * unix-sdl2 - SDL2 frontend, Linux
 * unix-sdl3 - SDL3 frontend, Linux
