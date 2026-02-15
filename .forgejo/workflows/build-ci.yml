@@ -1,0 +1,66 @@
+name: Build CI-specific versions
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows_x64:
+    if: false
+    env:
+      SYSROOT: /usr/x86_64-w64-mingw32/sys-root/mingw
+    runs-on: docker
+    container: fedora:latest
+    steps:
+      - name: Install dependencies
+        run: dnf -y install nodejs autoconf automake binutils cpp gcc make pkgconf pkgconf-m4 pkgconf-pkg-config zip unzip git mingw64-gcc mingw64-gcc-c++ mingw64-zlib mingw64-zlib-static mingw64-libpng mingw64-libpng-static mingw64-SDL3 mingw64-win-iconv python3-pillow
+      - uses: actions/checkout@v4
+      - name: Build
+        run: x86_64-w64-mingw32-meson setup build && cd build && ninja
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE docs/* build/zeta86.exe $SYSROOT/bin/SDL3.dll dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Windows)
+          path: dist/*
+
+  build_linux_x64:
+    runs-on: docker
+    container: ubuntu:24.04
+    steps:
+      - name: Update Ubuntu packages
+        run: apt-get update
+      - name: Set up Ubuntu packages
+        run: apt-get install -y git nodejs zip libsdl2-dev && pip install Pillow
+      - uses: actions/checkout@v4
+      - name: Build
+        run: meson setup build -Dfrontend=sdl2 && cd build && ninja
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/zeta dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Linux)
+          path: dist/*
+
+  build_linux_aarch64:
+    if: false
+    runs-on: docker
+    container: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Ubuntu packages
+        run: apt-get update
+      - name: Set up Ubuntu packages
+        run: apt-get install -y git zip libsdl2-dev && pip install Pillow
+      - name: Build
+        run: meson setup build -Dfrontend=sdl2 && cd build && ninja
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/zeta dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Zeta (Linux, AArch64)
+          path: dist/*
