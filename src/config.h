@@ -62,24 +62,9 @@
 #define USE_OPCODES_SALC
 #define USE_CPU_PARITY_FLAG
 
-#ifdef HAVE_CONFIG_H
-
-#include "autoconfig.h"
-
-#ifndef HAVE_ALIGNED_ACCESS_REQUIRED
-#define UNALIGNED_OK
-#endif
-
+#ifdef ZETA_MESON_BUILD
+#include "config_build.h"
 #else
-
-#define HAVE_FTRUNCATE 1
-#define HAVE_OPENDIR 1
-
-// General configuration
-
-//#define ZETA_BIG_ENDIAN
-#define UNALIGNED_OK
-
 // Audio configuration
 // RESAMPLE_NEAREST, RESAMPLE_LINEAR, RESAMPLE_BANDLIMITED
 #ifdef __EMSCRIPTEN__
@@ -88,10 +73,7 @@
 #define RESAMPLE_BANDLIMITED
 #endif
 
-// Libraries
-#define USE_OPENGL
-// #define USE_OPENGL_ES /* GLES 1.1, not production ready */
-#define USE_LIBPNG
+#define UNALIGNED_OK
 #endif
 
 #endif /* __CONFIG_H__ */

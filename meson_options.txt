@@ -1,0 +1,2 @@
+option('frontend', type: 'combo', choices: ['auto', 'curses', 'sdl2', 'sdl3'], value: 'auto')
+option('resampler', type: 'combo', choices: ['auto', 'nearest', 'linear', 'bandlimited'], value: 'auto')

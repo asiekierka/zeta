@@ -57,34 +57,6 @@ CFLAGS += -mwindows
 LDFLAGS += -mwindows
 LIBS = -Wl,-Bstatic -lmingw32 -lwinpthread -lm -lgcc -lSDL2main -lpng -lz -lssp -Wl,-Bdynamic -lSDL2 -lopengl32
 TARGET = $(BUILDDIR)/zeta86.exe
-else ifeq (${PLATFORM},macos-sdl3)
-USE_SDL3 = 1
-CC = clang
-LIBS = -framework OpenGL -lSDL3 -lpng -lm
-TARGET = $(BUILDDIR)/zeta86
-CFLAGS += -isystem /opt/homebrew/include
-LDFLAGS += -L/opt/homebrew/lib
-ifeq (${ARCH},x86_64)
-CFLAGS += -target x86_64-apple-macos10.12
-LDFLAGS += -target x86_64-apple-macos10.12
-else ifeq (${ARCH},aarch64)
-CFLAGS += -target arm64-apple-macos11
-LDFLAGS += -target arm64-apple-macos11
-endif
-else ifeq (${PLATFORM},macos-sdl2)
-USE_SDL2 = 1
-CC = clang
-LIBS = -framework OpenGL -lSDL2main -lSDL2 -lpng -lm
-TARGET = $(BUILDDIR)/zeta86
-CFLAGS += -isystem /opt/homebrew/include
-LDFLAGS += -L/opt/homebrew/lib
-ifeq (${ARCH},x86_64)
-CFLAGS += -target x86_64-apple-macos10.12
-LDFLAGS += -target x86_64-apple-macos10.12
-else ifeq (${ARCH},aarch64)
-CFLAGS += -target arm64-apple-macos11
-LDFLAGS += -target arm64-apple-macos11
-endif
 else ifeq (${PLATFORM},unix-sdl2)
 USE_SDL2 = 1
 LIBS = -lGL -lSDL2 -lSDL2main -lpng -lm
@@ -122,7 +94,7 @@ else
 LDFLAGS += -s ASSERTIONS=1
 endif
 else
-$(error Please specify PLATFORM: macos-sdl3, mingw32-sdl3, unix-curses, unix-headless, unix-sdl2, unix-sdl3, wasm)
+$(error Please specify PLATFORM: mingw32-sdl3, unix-curses, unix-headless, unix-sdl2, unix-sdl3, wasm)
 endif
 
 OBJS =	$(OBJDIR)/8x8.o \
@@ -189,7 +161,7 @@ $(OBJDIR)/8x14.o: $(OBJDIR)/8x14.c
 
 $(OBJDIR)/8x14.c: $(OBJDIR)/8x14.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)
-	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x14_bin $(OBJDIR)/8x14.c $(OBJDIR)/8x14.h $(OBJDIR)/8x14.bin
+	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x14_bin $(OBJDIR)/8x14.c $(OBJDIR)/8x14.bin
 
 $(OBJDIR)/8x14.bin: $(FONTSDIR)/pc_ega.png $(TOOLSDIR)/font2raw.py
 	@mkdir -p $(@D)
@@ -201,7 +173,7 @@ $(OBJDIR)/8x8.o: $(OBJDIR)/8x8.c
 
 $(OBJDIR)/8x8.c: $(OBJDIR)/8x8.bin $(TOOLSDIR)/bin2c.py
 	@mkdir -p $(@D)
-	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x8_bin $(OBJDIR)/8x8.c $(OBJDIR)/8x8.h $(OBJDIR)/8x8.bin
+	python3 $(TOOLSDIR)/bin2c.py --field_name res_8x8_bin $(OBJDIR)/8x8.c $(OBJDIR)/8x8.bin
 
 $(OBJDIR)/8x8.bin: $(FONTSDIR)/pc_cga.png $(TOOLSDIR)/font2raw.py
 	@mkdir -p $(@D)
@@ -209,7 +181,7 @@ $(OBJDIR)/8x8.bin: $(FONTSDIR)/pc_cga.png $(TOOLSDIR)/font2raw.py
 
 $(OBJDIR)/win32-resources.o: mingw/resources.rc
 	@mkdir -p $(@D)
-	$(WINDRES) -i $< -o $@	
+	$(WINDRES) -i $< -o $@
 
 .PHONY: clean
 

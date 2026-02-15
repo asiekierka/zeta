@@ -1,0 +1,18 @@
+#define VERSION "@version@"
+
+#mesondefine USE_SDL
+#mesondefine USE_SDL2
+#mesondefine USE_SDL3
+#mesondefine USE_CURSES
+
+#mesondefine HAVE_FTRUNCATE
+#mesondefine HAVE_OPENDIR
+
+#mesondefine USE_OPENGL
+#mesondefine USE_OPENGL_ES
+#mesondefine USE_LIBPNG
+
+#mesondefine UNALIGNED_OK
+
+#mesondefine RESAMPLE_LINEAR
+#mesondefine RESAMPLE_BANDLIMITED
