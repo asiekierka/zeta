@@ -1,9 +1,10 @@
 project(
     'zeta', ['c'],
-    version: '1.1.4',
+    version: '1.1.5',
     default_options: ['b_lto=true', 'buildtype=release', 'debug=false', 'optimization=3', 'c_std=gnu23,gnu2x', 'warning_level=3']
 )
 cc = meson.get_compiler('c')
+windows_build = target_machine.system() == 'windows'
 
 conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
@@ -133,7 +134,7 @@ conf_data.set('UNALIGNED_OK', unaligned_ok)
 conf_data.set('ZETA_BIG_ENDIAN', target_machine.endian() == 'big')
 
 if full_frontend
-  libpng_dep = dependency('libpng16', required: false)
+  libpng_dep = dependency('libpng16', required: false, static: windows_build)
   if libpng_dep.found()
     zeta_dependencies += libpng_dep
   endif
@@ -198,9 +199,11 @@ if math_dep.found()
   zeta_dependencies += math_dep
 endif
 
-if target_machine.system() == 'windows'
+if windows_build
   windows = import('windows')
   zeta_sources += windows.compile_resources('mingw/resources.rc')
+  add_global_link_arguments('-static-libgcc', language: 'c')
+  zeta_dependencies += cc.find_library('ssp', required: true, static: true)
 endif
 
 configure_file(input : 'meson_config.h.in',
