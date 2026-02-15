@@ -20,10 +20,6 @@
  * SOFTWARE.
  */
 
-#ifdef __APPLE__
-#include <unistd.h>
-#include <pwd.h>
-#endif
 #include <limits.h>
 
 double posix_zzt_arg_note_delay = -1.0;
@@ -161,20 +157,6 @@ static int posix_zzt_init(int argc, char **argv) {
 	int starting_volume = 20;
 
 	getcwd(cwd, PATH_MAX);
-
-#ifdef __APPLE__
-	if (access("../Info.plist", F_OK) == 0) {
-		// We're in a relative path inside the .app.
-		chdir("../../..");
-	} else {
-		if (!strcmp(cwd, "/") || !strncmp(cwd, "/Applications", 13)) {
-			// We're in no reasonable path. Assume the user's root directory.
-			struct passwd *pw = getpwuid(geteuid());
-			if (pw != NULL)
-				chdir(pw->pw_dir);
-		}
-	}
-#endif
 
 #ifdef USE_GETOPT
 	while ((c = getopt(argc, argv, "dD:be:hl:m:M:tV:")) >= 0) {

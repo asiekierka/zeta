@@ -1,0 +1,11 @@
+[binaries]
+c = ['clang', '--target=x86_64-apple-macos10.13']
+cpp = ['clang++', '--target=x86_64-apple-macos10.13']
+ar = 'ar'
+nm = 'nm'
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'

@@ -201,7 +201,7 @@ endif
 
 if windows_build
   windows = import('windows')
-  zeta_sources += windows.compile_resources('mingw/resources.rc')
+  zeta_sources += windows.compile_resources('res/mingw/resources.rc')
   add_global_link_arguments('-static-libgcc', language: 'c')
   zeta_dependencies += cc.find_library('ssp', required: true, static: true)
 endif

@@ -11,19 +11,19 @@
     <key>CFBundleIdentifier</key>
     <string>pl.asie.zeta</string>
     <key>CFBundleExecutable</key>
-    <string>zeta86</string>
+    <string>zeta.sh</string>
     <key>CFBundleIconFile</key>
-    <string>zeta86.icns</string>
+    <string>zeta.icns</string>
     <key>CFBundleDisplayName</key>
     <string>Zeta</string>
     <key>CFBundleName</key>
     <string>Zeta</string>
     <key>CFBundleVersion</key>
-    <string>1.0.5</string>
+    <string>1.1.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.5</string>
+    <string>1.1.5</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright (c) 2019, 2020, 2021, 2022, 2023 Adrian Siekierka</string>
+    <string>Copyright (c) 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 Adrian Siekierka</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>LSApplicationCategoryType</key>

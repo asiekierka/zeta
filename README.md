@@ -11,7 +11,7 @@ of them in modern environments, as well as easy packaging, distribution and embe
 
 ### WebAssembly
 
-    $ meson setup build --cross-file tools/cross-wasm.txt
+    $ meson setup build --cross-file scripts/cross-wasm.txt
     $ cd build
     $ meson compile
 
