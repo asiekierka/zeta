@@ -5,8 +5,6 @@ project(
 )
 cc = meson.get_compiler('c')
 
-add_project_arguments('-DZETA_MESON_BUILD', language: 'c')
-
 conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
 

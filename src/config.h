@@ -62,18 +62,6 @@
 #define USE_OPCODES_SALC
 #define USE_CPU_PARITY_FLAG
 
-#ifdef ZETA_MESON_BUILD
 #include "config_build.h"
-#else
-// Audio configuration
-// RESAMPLE_NEAREST, RESAMPLE_LINEAR, RESAMPLE_BANDLIMITED
-#ifdef __EMSCRIPTEN__
-#define RESAMPLE_LINEAR
-#else
-#define RESAMPLE_BANDLIMITED
-#endif
-
-#define UNALIGNED_OK
-#endif
 
 #endif /* __CONFIG_H__ */
