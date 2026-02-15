@@ -64,23 +64,27 @@ if frontend == 'auto'
 endif
 
 full_frontend = false
+getopt_required = false
 zeta_sources = zeta_core_sources
 zeta_dependencies = []
 if frontend == 'sdl3'
   zeta_sources += zeta_posix_sources + zeta_frontend_sources + zeta_sdl3_sources
   zeta_dependencies += sdl3_dep
   full_frontend = true
+  getopt_required = true
   conf_data.set('USE_SDL', true)
   conf_data.set('USE_SDL3', true)
 elif frontend == 'sdl2'
   zeta_sources += zeta_posix_sources + zeta_frontend_sources + zeta_sdl2_sources
   zeta_dependencies += sdl2_dep
   full_frontend = true
+  getopt_required = true
   conf_data.set('USE_SDL', true)
   conf_data.set('USE_SDL2', true)
 elif frontend == 'curses'
   zeta_sources += zeta_posix_sources + zeta_curses_sources
   zeta_dependencies += ncurses_dep
+  getopt_required = true
   conf_data.set('USE_CURSES', true)
 else
   error('unsupported frontend specified: @0@', frontend)
@@ -89,6 +93,10 @@ endif
 have_cosf = cc.has_function('cosf', prefix: '#include <math.h>')
 conf_data.set('HAVE_FTRUNCATE', cc.has_function('ftruncate', prefix: '#include <unistd.h>'))
 conf_data.set('HAVE_OPENDIR', cc.has_function('opendir', prefix: '#include <dirent.h>'))
+
+if not cc.has_function('getopt', prefix: '#include <unistd.h>') and getopt_required
+  error('getopt is required')
+endif
 
 # TODO: UNALIGNED_OK
 conf_data.set('ZETA_BIG_ENDIAN', target_machine.endian() == 'big')
