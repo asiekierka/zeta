@@ -197,9 +197,9 @@ void ui_tick(void) {
 #if defined(__EMSCRIPTEN__)
             char is[80];
             snprintf(is, sizeof(is) - 1, "zeta " VERSION " (emsdk %d.%d.%d)",
-                __EMSCRIPTEN_major__,
-                __EMSCRIPTEN_minor__,
-                __EMSCRIPTEN_tiny__);
+                __EMSCRIPTEN_MAJOR__,
+                __EMSCRIPTEN_MINOR__,
+                __EMSCRIPTEN_TINY__);
 #elif defined(USE_SDL3)
             int sdl_v = SDL_GetVersion();
             char is[80];

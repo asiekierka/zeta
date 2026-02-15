@@ -16,15 +16,15 @@ zeta_core_sources = [
   'src/zzt_ems.c',
   'src/ui.c',
   'src/audio_shared.c',
-  'src/audio_stream.c',
-  'src/util.c'
+  'src/audio_stream.c'
 ]
 
 zeta_frontend_sources = [
   'src/render_software.c',
   'src/audio_writer.c',
   'src/gif_writer.c',
-  'src/screenshot_writer.c'
+  'src/screenshot_writer.c',
+  'src/util.c'
 ]
 
 zeta_posix_sources = [
@@ -87,14 +87,13 @@ if frontend == 'wasm'
     '-s', 'MALLOC="emmalloc"', '-s', 'FILESYSTEM=0',
     '-s', 'INITIAL_MEMORY=4194304', '-s', 'STACK_SIZE=262144',
     '-L@0@/src'.format(meson.current_source_dir()), '-lemscripten_glue.js',
-    '--closure-args', '--js @0@'.format(emscripten_externs.full_path()),
-    '-Wl,-O3'
+    '--closure-args', '--js @0@'.format(emscripten_externs.full_path())
   ]
   zeta_filename = 'zeta_native'
   if get_option('debug')
-    zeta_link_args += ['-s', 'ASSERTIONS=1']
+    zeta_link_args += ['-s', 'ASSERTIONS=1', '-Og', '-Wl,-Og']
   else
-    zeta_link_args += ['-s', 'ASSERTIONS=0']
+    zeta_link_args += ['-s', 'ASSERTIONS=0', '-O3', '-Wl,-O3']
   endif
 elif frontend == 'sdl3'
   zeta_sources += zeta_posix_sources + zeta_frontend_sources + zeta_sdl3_sources
