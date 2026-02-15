@@ -25,7 +25,6 @@
 
 // SDL port configuration
 
-// 60/16 Hz (blink every 16 frames at 60 Hz)
 #define ENABLE_AUDIO_WRITER
 #define ENABLE_GIF_WRITER
 #define ENABLE_SCREENSHOTS

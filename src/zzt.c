@@ -470,7 +470,7 @@ void zzt_set_max_extended_memory(int kilobytes) {
 
 static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 	zzt_state *state = (zzt_state*) cpu;
-	
+
 #ifdef DEBUG_INTERRUPTS
 	if (!(intr == 0x21 && cpu->ah == 0x06) /* DOS direct write */) {
 		fprintf(stderr, "dbg: interrupt %02X %04X\n", intr, cpu->ax);
@@ -1500,6 +1500,7 @@ void zzt_init(int memory_kbs) {
 	zzt.key_delay = 500;
 	zzt.key_repeat_delay = 100;
 	zzt.blink_user_override = BLINK_OVERRIDE_OFF;
+	// 60/16 Hz (blink every 16 frames at 60 Hz)
 	zzt.blink_duration_ms = 267;
 
 	zzt.timer_time = 0;
