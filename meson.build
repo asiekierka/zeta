@@ -70,7 +70,7 @@ getopt_required = false
 zeta_sources = zeta_core_sources
 zeta_dependencies = []
 zeta_link_args = []
-zeta_filename = 'zeta'
+zeta_filename = 'zeta86'
 
 if frontend == 'wasm'
   emscripten_externs = configure_file(input: 'src/emscripten_externs.js', output: '@PLAINNAME@', copy: true)
