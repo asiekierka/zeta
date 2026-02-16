@@ -212,5 +212,6 @@ configure_file(input : 'meson_config.h.in',
 
 zeta_exe = executable(zeta_filename, zeta_sources,
   include_directories: include_directories(['src']),
+  install: true,
   dependencies: zeta_dependencies,
   link_args: zeta_link_args)
