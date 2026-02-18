@@ -42,6 +42,7 @@ zeta_sdl2_sources = [
 ]
 
 zeta_sdl3_sources = [
+  'src/sdl3/cwdprompt.c',
   'src/sdl3/frontend.c',
   'src/sdl3/render_opengl.c',
   'src/sdl3/render_software.c'

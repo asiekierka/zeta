@@ -127,11 +127,21 @@ static int posix_try_run_zzt(int exec_count, char **execs, const char *arg_name,
 			while (zzt_execute(10000) != STATE_END) { }
 		}
 	} else {
+		bool second_run = false;
+
+try_open_executable:
 		int exeh = vfs_open("zzt.exe", 0);
 		if (exeh < 0) {
 			exeh = vfs_open("superz.exe", 0);
 			strcat(arg_buf, "/e ");
 		}
+#ifdef USE_SDL
+		if (exeh < 0 && !second_run) {
+			prompt_user_cwd();
+			second_run = true;
+			goto try_open_executable;
+		}
+#endif
 		if (exeh < 0)
 			return INIT_ERR_NO_EXECUTABLE_ZZT;
 		strncat(arg_buf, arg_name, MAX_BUFFER_SIZE);
@@ -243,7 +253,11 @@ static int posix_zzt_init(int argc, char **argv) {
 		char *dot_ptr = strrchr(arg_name, '.');
 		if (dot_ptr == NULL) dot_ptr = arg_name + strlen(arg_name);
 		*dot_ptr = 0;
-		if (strcasecmp(arg_name, "zeta86") != 0) {
+		if (strcasecmp(arg_name, "zeta86") != 0
+#ifdef _WIN32
+			&& strcasecmp(arg_name, "zeta86.exe") != 0
+#endif
+		) {
 			strncpy(dot_ptr, ".zzt", MAX_BUFFER_SIZE - (dot_ptr - arg_name));
 
 			if (!posix_vfs_exists(arg_name)) {

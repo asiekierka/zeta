@@ -60,4 +60,8 @@ typedef struct {
 
 void calc_render_area(SDL_FRect *rect, int w, int h, double *scale_out, int flags);
 
+// provided by cwdprompt.c
+
+void prompt_user_cwd(void);
+
 #endif /* __FRONTEND_SDL_H__ */
