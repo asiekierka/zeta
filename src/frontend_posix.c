@@ -130,20 +130,23 @@ static int posix_try_run_zzt(int exec_count, char **execs, const char *arg_name,
 		bool second_run = false;
 
 try_open_executable:
+		bool is_superz = false;
 		int exeh = vfs_open("zzt.exe", 0);
 		if (exeh < 0) {
 			exeh = vfs_open("superz.exe", 0);
-			strcat(arg_buf, "/e ");
+			is_superz = true;
 		}
 #ifdef USE_SDL3
 		if (exeh < 0 && !second_run) {
-			prompt_user_cwd();
 			second_run = true;
+			prompt_user_cwd();
 			goto try_open_executable;
 		}
 #endif
 		if (exeh < 0)
 			return INIT_ERR_NO_EXECUTABLE_ZZT;
+		if (is_superz)
+			strcat(arg_buf, "/e ");
 		strncat(arg_buf, arg_name, MAX_BUFFER_SIZE);
 		zzt_load_binary(exeh, arg_buf);
 		vfs_close(exeh);
