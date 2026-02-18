@@ -305,8 +305,8 @@ void calc_render_area(SDL_FRect *rect, int w, int h, double *scale_out, int flag
 
 		if (flags & AREA_WITHOUT_SCALE) scale = 1.0;
 
-		rect->x = ((w - iw) * scale) / 2;
-		rect->y = ((h - ih) * scale) / 2;
+		rect->x = (int) (((w - iw) * scale) / 2);
+		rect->y = (int) (((h - ih) * scale) / 2);
 		rect->w = iw * scale;
 		rect->h = ih * scale;
 	}
