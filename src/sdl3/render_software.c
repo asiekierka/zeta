@@ -82,8 +82,12 @@ static void sdl_render_software_update_charset(int charw_arg, int charh_arg, u8 
         }
 
         playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
-        SDL_SetTextureScaleMode(playfieldtex, SDL_SCALEMODE_NEAREST);
-    }
+#if SDL_VERSION_ATLEAST(3,4,0)
+		SDL_SetTextureScaleMode(playfieldtex, SDL_SCALEMODE_PIXELART);
+#else
+		SDL_SetTextureScaleMode(playfieldtex, SDL_SCALEMODE_NEAREST);
+#endif
+	}
 
     force_update = 1;
 }

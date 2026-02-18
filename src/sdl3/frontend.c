@@ -108,9 +108,9 @@ void zeta_show_developer_warning(const char *format, ...) {
 	va_list val;
 	
 	if (!developer_mode) return;
-	debug_title[128] = 0;
+	debug_title[sizeof(debug_title) - 1] = 0;
 	snprintf(debug_title, 128, "Developer Warning @ %04X:%04X", zzt_get_ip() >> 16, zzt_get_ip() & 0xFFFF);
-	debug_message[4096] = 0;
+	debug_message[sizeof(debug_message) - 1] = 0;
 	va_start(val, format);
 	vsnprintf(debug_message, 4096, format, val);
 	va_end(val);
@@ -397,7 +397,10 @@ int main(int argc, char **argv) {
 
 	SDL_Thread* zzt_thread;
 
-        SDL_SetAppMetadata("Zeta", VERSION, "pl.asie.zeta");
+#if SDL_VERSION_ATLEAST(3,4,0)
+	SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
+#endif
+	SDL_SetAppMetadata("Zeta", VERSION, "pl.asie.zeta");
 	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init failed! %s", SDL_GetError());
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Could not initialize SDL!", NULL);
