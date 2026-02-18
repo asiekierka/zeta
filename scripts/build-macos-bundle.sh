@@ -19,7 +19,7 @@ for ARCH in x86_64 arm64; do
 	meson "$BUILDDIR"/"$ARCH" --cross-file scripts/cross-darwin-"$ARCH".txt
 	cd "$BUILDDIR"/"$ARCH"
 	meson compile
-	cp zeta ../Zeta.app/Contents/MacOS/zeta-"$ARCH"
+	cp zeta86 ../Zeta.app/Contents/MacOS/zeta-"$ARCH"
 	cd ../Zeta.app/Contents/MacOS
 	install_name_tool -add_rpath @executable_path/../Frameworks zeta-"$ARCH"
 	cd ../../../..
@@ -32,5 +32,5 @@ cp res/macos/zeta.sh "$BUILDDIR"/Zeta.app/Contents/MacOS/
 chmod +x "$BUILDDIR"/Zeta.app/Contents/macOS/zeta.sh
 
 cd "$BUILDDIR"/Zeta.app/Contents/MacOS
-lipo -create -output zeta zeta-x86_64 zeta-arm64
+lipo -create -output zeta86 zeta-x86_64 zeta-arm64
 rm zeta-*
