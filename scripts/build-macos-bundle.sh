@@ -29,6 +29,8 @@ cp -aR $HOME/Library/Frameworks/SDL3.xcframework/macos-arm64_x86_64/SDL3.framewo
 cp res/macos/Info.plist "$BUILDDIR"/Zeta.app/Contents/
 cp res/macos/zeta.icns "$BUILDDIR"/Zeta.app/Contents/Resources/
 cp res/macos/zeta.sh "$BUILDDIR"/Zeta.app/Contents/MacOS/
+cp res/macos/LICENSE-sdl3.txt "$BUILDDIR"/Zeta.app/Contents/MacOS/
+cp LICENSE "$BUILDDIR"/Zeta.app/Contents/MacOS/
 chmod +x "$BUILDDIR"/Zeta.app/Contents/macOS/zeta.sh
 
 cd "$BUILDDIR"/Zeta.app/Contents/MacOS
