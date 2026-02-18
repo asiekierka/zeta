@@ -84,7 +84,8 @@ static SDL_Texture *create_texture_from_array(SDL_Renderer *renderer, int access
 
 static void prepare_render_opengl(void) {
 	SDL_FRect rect;
-	int w, h, scale;
+	int w, h;
+	double scale;
 	SDL_GetWindowSizeInPixels(window, &w, &h);
 	calc_render_area(&rect, w, h, &scale, AREA_WITHOUT_SCALE);
 

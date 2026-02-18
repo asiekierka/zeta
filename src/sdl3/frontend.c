@@ -21,6 +21,7 @@
  */
 
 #include "../config.h"
+#include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_messagebox.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -285,19 +286,24 @@ static u32* palette_update_data = NULL;
 static u8 windowed = 1;
 static int windowed_old_w, windowed_old_h;
 
-void calc_render_area(SDL_FRect *rect, int w, int h, int *scale_out, int flags) {
+void calc_render_area(SDL_FRect *rect, int w, int h, double *scale_out, int flags) {
 	int iw = 80*charw;
 	int ih = 25*charh;
 
-	int scale = 1;
+	double scale = 1.0;
+#if 1
 	while (((scale+1)*iw <= w) && ((scale+1)*ih <= h)) scale++;
+#else
+	scale = ((double) w / iw);
+	if (((double) h / ih) < scale) scale = ((double) h / ih);
+#endif
 	if (scale_out != NULL) *scale_out = scale;
 
 	if (rect != NULL) {
 		w /= scale;
 		h /= scale;
 
-		if (flags & AREA_WITHOUT_SCALE) scale = 1;
+		if (flags & AREA_WITHOUT_SCALE) scale = 1.0;
 
 		rect->x = ((w - iw) * scale) / 2;
 		rect->y = ((h - ih) * scale) / 2;
@@ -309,7 +315,8 @@ void calc_render_area(SDL_FRect *rect, int w, int h, int *scale_out, int flags) 
 static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_scale) {
 	int iw = 80*charw;
 	int ih = 25*charh;
-	int w, h, scale;
+	int w, h;
+	double scale;
 
 	if (window == NULL) return;
 
@@ -320,9 +327,9 @@ static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_s
 	if (delta_is_scale) {
 		scale = delta;
 	} else {
-		scale += delta;
+		scale = (int) (scale + delta);
 	}
-	if (scale < 1) scale = 1;
+	if (scale < 0.001) scale = 1.0;
 
 	last_window_scale = scale;
 	iw *= scale;
@@ -417,19 +424,19 @@ int main(int argc, char **argv) {
 		char cwd[1025];
 		char message[1281];
 
-		getcwd(cwd, 1024);
-		cwd[1024] = 0;
+		getcwd(cwd, sizeof(cwd) - 1);
+		cwd[sizeof(cwd) - 1] = 0;
 		fprintf(stderr, "Could not load ZZT from '%s'!\n", cwd);
 
 		switch (posix_init_result) {
 			case INIT_ERR_NO_EXECUTABLE: {
-				snprintf(message, 1280, "Requested executable not found. Is your downloaded game package complete?\n\n%s", cwd);
-				message[1280] = 0;
+				snprintf(message, sizeof(message) - 1, "Requested executable not found. Is your downloaded game package complete?\n\n%s", cwd);
+				message[sizeof(message) - 1] = 0;
 				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing executable", message, NULL);
 			} break;
 			case INIT_ERR_NO_EXECUTABLE_ZZT: {
-				snprintf(message, 1280, "ZZT.EXE not found. Is your downloaded game package complete?\n\n%s", cwd);
-				message[1280] = 0;
+				snprintf(message, sizeof(message) - 1, "ZZT.EXE not found. Is your downloaded game package complete?\n\n%s", cwd);
+				message[sizeof(message) - 1] = 0;
 				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ZZT.EXE not found", message, NULL);
 			} break;
 		}
@@ -438,7 +445,7 @@ int main(int argc, char **argv) {
 	}
 
 	snprintf(window_name, sizeof(window_name), "Zeta %s", VERSION);
-	window_name[64] = 0;
+	window_name[sizeof(window_name) - 1] = 0;
 
 	sdl_renderer *renderer = NULL;
 #ifdef USE_OPENGL
@@ -727,6 +734,48 @@ int main(int argc, char **argv) {
 						zzt_mouse_axis(1, event.motion.yrel);
 					}
 					break;
+				case SDL_EVENT_GAMEPAD_ADDED: {
+					SDL_Gamepad *gamepad = SDL_OpenGamepad(event.gdevice.which);
+					if (!gamepad) {
+						fprintf(stderr, "Failed to open gamepad: %s\n", SDL_GetError());
+					} else {
+						fprintf(stderr, "Detected gamepad: %s", SDL_GetGamepadName(gamepad));
+					}
+				} break;
+				case SDL_EVENT_GAMEPAD_REMOVED: {
+					SDL_Gamepad *gamepad = SDL_GetGamepadFromID(event.gdevice.which);
+					if (gamepad) {
+						SDL_CloseGamepad(gamepad);
+					}
+				} break;
+				case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
+					if (event.gaxis.axis == 0 || event.gaxis.axis == 1)
+						zzt_joy_axis(event.gaxis.axis, event.gaxis.value / 256);
+				} break;
+				case SDL_EVENT_GAMEPAD_BUTTON_DOWN: {
+					if (event.gbutton.button == 0 || event.gbutton.button == 1)
+						zzt_joy_set(event.gbutton.button);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
+						zzt_joy_axis(1, 127);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
+						zzt_joy_axis(1, -127);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
+						zzt_joy_axis(0, -127);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+						zzt_joy_axis(0, 127);
+				} break;
+				case SDL_EVENT_GAMEPAD_BUTTON_UP: {
+					if (event.gbutton.button == 0 || event.gbutton.button == 1)
+						zzt_joy_clear(event.gbutton.button);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
+						zzt_joy_axis(1, 0);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
+						zzt_joy_axis(1, 0);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
+						zzt_joy_axis(0, 0);
+					else if (event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+						zzt_joy_axis(0, 0);
+				} break;
 				case SDL_EVENT_QUIT:
 					cont_loop = 0;
 					break;

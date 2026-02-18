@@ -1,2 +1,3 @@
 option('frontend', type: 'combo', choices: ['auto', 'curses', 'sdl2', 'sdl3'], value: 'auto')
+option('opengl', type: 'feature')
 option('resampler', type: 'combo', choices: ['auto', 'nearest', 'linear', 'bandlimited'], value: 'auto')

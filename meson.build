@@ -140,11 +140,19 @@ if full_frontend
   endif
   conf_data.set('USE_LIBPNG', libpng_dep.found())
 
-  opengl_dep = dependency('GL', required: false)
-  if opengl_dep.found()
-    zeta_dependencies += opengl_dep
+  if not get_option('opengl').disabled()
+    opengl_dep = dependency('GL', required: get_option('opengl'))
+    if opengl_dep.found()
+      zeta_dependencies += opengl_dep
+    endif
+    conf_data.set('USE_OPENGL', opengl_dep.found())
+  else
+    conf_data.set('USE_OPENGL', false)
   endif
-  conf_data.set('USE_OPENGL', opengl_dep.found())
+else
+  if get_option('opengl').enabled()
+    error('opengl not supported by frontend')
+  endif
 endif
 
 font2raw_prog = find_program('tools/font2raw.py')
