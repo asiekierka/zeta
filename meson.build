@@ -1,7 +1,7 @@
 project(
     'zeta', ['c'],
     version: '1.1.5',
-    default_options: ['b_lto=true', 'buildtype=release', 'debug=false', 'optimization=3', 'c_std=gnu23,gnu2x', 'warning_level=3']
+    default_options: ['b_lto=true', 'buildtype=release', 'debug=false', 'optimization=3', 'c_std=gnu2x', 'warning_level=3']
 )
 cc = meson.get_compiler('c')
 windows_build = target_machine.system() == 'windows'

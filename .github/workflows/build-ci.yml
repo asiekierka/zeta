@@ -1,0 +1,43 @@
+name: Build CI-specific versions
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  build_linux_x64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Ubuntu packages
+        run: sudo apt-get update
+      - name: Set up Ubuntu packages
+        run: sudo apt-get install -y meson git zip libsdl2-dev && pip install Pillow
+      - name: Build
+        run: meson build && cd build && ninja
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/zeta86 dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zeta (Linux)
+          path: dist/*
+
+  build_linux_aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Ubuntu packages
+        run: sudo apt-get update
+      - name: Set up Ubuntu packages
+        run: sudo apt-get install -y meson git zip libsdl2-dev && pip install Pillow
+      - name: Build
+        run: meson build && cd build && ninja
+      - name: Package artifact
+        run: mkdir dist && cp LICENSE build/zeta86 dist/
+      - name: Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zeta (Linux, AArch64)
+          path: dist/*

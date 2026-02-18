@@ -135,7 +135,7 @@ try_open_executable:
 			exeh = vfs_open("superz.exe", 0);
 			strcat(arg_buf, "/e ");
 		}
-#ifdef USE_SDL
+#ifdef USE_SDL3
 		if (exeh < 0 && !second_run) {
 			prompt_user_cwd();
 			second_run = true;
