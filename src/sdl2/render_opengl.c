@@ -144,7 +144,7 @@ static void update_opengl_tables(void) {
 		ogl_buf_texcache[tpos+7] = GLTY(chr,1);
 	}
 
-	for (int i = 0; i < 2000; i++) {
+	for (int i = 0; i < 4000; i++) {
 		int x = i % 80;
 		int y = i / 80;
 		ogl_buf_pos[i * 8 + 0] = GLVX(x,80);
@@ -186,7 +186,7 @@ static void update_opengl_tables(void) {
 		ogl_buf_texcache[tpos+11] = GLTY(chr,1);
 	}
 
-	for (int i = 0; i < 2000; i++) {
+	for (int i = 0; i < 4000; i++) {
 		int x = i % 80;
 		int y = i / 80;
 		ogl_buf_pos[i * 12 + 0] = GLVX(x,80);
@@ -223,10 +223,10 @@ static void update_opengl_tables(void) {
 }
 
 static void init_opengl_tables(void) {
-	ogl_buf_pos = malloc((80 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
+	ogl_buf_pos = malloc((80 * 50) * GL_COMPONENT_POINTS * 2 * sizeof(short));
 	ogl_buf_pos40 = malloc((40 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(short));
-	ogl_buf_col = malloc(2 * (80 * 25) * GL_COMPONENT_POINTS * 4 * sizeof(char));
-	ogl_buf_tex = malloc((80 * 25) * GL_COMPONENT_POINTS * 2 * sizeof(float));
+	ogl_buf_col = malloc(2 * (80 * 50) * GL_COMPONENT_POINTS * 4 * sizeof(char));
+	ogl_buf_tex = malloc((80 * 50) * GL_COMPONENT_POINTS * 2 * sizeof(float));
 	ogl_buf_colcache = malloc(16 * 4 * GL_COMPONENT_POINTS * sizeof(char));
 	ogl_buf_texcache = malloc(256 * 2 * GL_COMPONENT_POINTS * sizeof(float));
 
@@ -267,7 +267,7 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 
 			int bpos_s = vpos * 2 * GL_COMPONENT_POINTS;
 			memcpy(ogl_buf_col + bpos_s, ogl_buf_colcache + (4*GL_COMPONENT_POINTS*bgcol), 4*GL_COMPONENT_POINTS*sizeof(char));
-			memcpy(ogl_buf_col + bpos_s + (8000 * GL_COMPONENT_POINTS), ogl_buf_colcache + (4*GL_COMPONENT_POINTS*fgcol), 4*GL_COMPONENT_POINTS*sizeof(char));
+			memcpy(ogl_buf_col + bpos_s + (80*50*4 * GL_COMPONENT_POINTS), ogl_buf_colcache + (4*GL_COMPONENT_POINTS*fgcol), 4*GL_COMPONENT_POINTS*sizeof(char));
 
 			int tpos_s = bpos_s >> 1;
 			memcpy(ogl_buf_tex + tpos_s, ogl_buf_texcache + chr*2*GL_COMPONENT_POINTS, 2*GL_COMPONENT_POINTS*sizeof(float));
@@ -286,10 +286,14 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 	glVertexPointer(2, GL_SHORT, 0, width == 40 ? ogl_buf_pos40 : ogl_buf_pos);
 	glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col);
 
+        if (charh == 8 && height <= 25) {
+		glScalef(1.0f, 2.0f, 1.0f);
+	}
+
 #ifdef USE_OPENGL_ES
-	glDrawArrays(GL_TRIANGLES, 0, width * 25 * 6);
+	glDrawArrays(GL_TRIANGLES, 0, width * height * 6);
 #else
-	glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+	glDrawArrays(GL_QUADS, 0, width * height * 4);
 #endif
 
 	OGL_GUARD();
@@ -307,13 +311,13 @@ static void render_opengl(u8 *vram, int regen_visuals, int blink_mode) {
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-		glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 25 * 4 * GL_COMPONENT_POINTS * sizeof(char)));
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, ogl_buf_col + (80 * 50 * 4 * GL_COMPONENT_POINTS * sizeof(char)));
 		glTexCoordPointer(2, GL_FLOAT, 0, ogl_buf_tex);
 
 #ifdef USE_OPENGL_ES
-		glDrawArrays(GL_TRIANGLES, 0, width * 25 * 6);
+		glDrawArrays(GL_TRIANGLES, 0, width * height * 6);
 #else
-		glDrawArrays(GL_QUADS, 0, width * 25 * 4);
+		glDrawArrays(GL_QUADS, 0, width * height * 4);
 #endif
 
 		OGL_GUARD();
