@@ -83,7 +83,7 @@ static void sdl_render_software_update_charset(int charw_arg, int charh_arg, u8 
             SDL_DestroyTexture(playfieldtex);
         }
 
-        playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 25*charh);
+        playfieldtex = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, 80*charw, 50*charh);
     }
 
     force_update = 1;
@@ -95,14 +95,14 @@ static void sdl_render_software_update_palette(u32 *data_arg) {
 }
 
 static void sdl_render_software_draw(u8 *vram, int blink_mode) {
-	SDL_Rect dest;
+	SDL_Rect src, dest;
 	void *buffer;
 	int w, h, pitch;
 
-	int swidth;
+	int swidth, sheight;
 	int sflags = 0;
 	int should_render = force_update || (blink_mode != last_blink_mode);
-	zzt_get_screen_size(&swidth, NULL);
+	zzt_get_screen_size(&swidth, &sheight);
 
 	if (palette_update_data == NULL || charset_update_data == NULL) {
 		return;
@@ -120,11 +120,16 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 	SDL_GetRendererOutputSize(renderer, &w, &h);
 	calc_render_area(&dest, w, h, NULL, 0);
 
+	src.x = 0;
+	src.y = 0;
+	src.w = swidth * charw;
+	src.h = sheight * charh;
+
 	if (should_render) {
 		SDL_LockTexture(playfieldtex, NULL, &buffer, &pitch);
 		render_software_rgb(
 			buffer,
-			swidth, pitch / 4, sflags,
+			swidth, sheight, pitch / 4, sflags,
 			vram, charset_update_data,
 			charw, charh,
 			palette_update_data
@@ -134,7 +139,7 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, playfieldtex, NULL, &dest);
+	SDL_RenderCopy(renderer, playfieldtex, &src, &dest);
 
 	SDL_RenderPresent(renderer);
 

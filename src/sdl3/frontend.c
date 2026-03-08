@@ -175,7 +175,7 @@ static SDL_Mutex *render_data_update_mutex;
 
 static SDL_Mutex *zzt_thread_lock;
 static SDL_Condition *zzt_thread_cond;
-static u8 zzt_vram_copy[80*25*2];
+static u8 zzt_vram_copy[80*50*2];
 static u8 zzt_thread_running;
 static atomic_int zzt_renderer_waiting = 0;
 static u8 zzt_turbo = 0;
@@ -287,8 +287,16 @@ static u8 windowed = 1;
 static int windowed_old_w, windowed_old_h;
 
 void calc_render_area(SDL_FRect *rect, int w, int h, double *scale_out, int flags) {
-	int iw = 80*charw;
-	int ih = 25*charh;
+	int swidth, sheight;
+	zzt_get_screen_size(&swidth, &sheight);
+
+	int iw = swidth*charw;
+	int ih = sheight*charh;
+
+	if (charh == 8 && sheight <= 25) {
+	    ih *= 2;
+	}
+	if (swidth <= 40) iw *= 2;
 
 	double scale = 1.0;
 #if 1
@@ -313,8 +321,17 @@ void calc_render_area(SDL_FRect *rect, int w, int h, double *scale_out, int flag
 }
 
 static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_scale) {
-	int iw = 80*charw;
-	int ih = 25*charh;
+	int swidth, sheight;
+	zzt_get_screen_size(&swidth, &sheight);
+
+	int iw = swidth*charw;
+	int ih = sheight*charh;
+
+	if (charh == 8 && sheight <= 25) {
+	    ih *= 2;
+	}
+	if (swidth <= 40) iw *= 2;
+
 	int w, h;
 	double scale;
 
@@ -515,9 +532,9 @@ int main(int argc, char **argv) {
 		atomic_fetch_sub(&zzt_renderer_waiting, 1);
 
 		u8* ram = zzt_get_ram();
-		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*25*2);
+		should_render = memcmp(ram + 0xB8000, zzt_vram_copy, 80*50*2);
 		if (should_render) {
-			memcpy(zzt_vram_copy, ram + 0xB8000, 80*25*2);
+			memcpy(zzt_vram_copy, ram + 0xB8000, 80*50*2);
 			renderer->update_vram(zzt_vram_copy);
 		}
 
@@ -553,8 +570,8 @@ int main(int argc, char **argv) {
 						char filename[24];
 
 						int sflags = 0;
-						int swidth;
-						zzt_get_screen_size(&swidth, NULL);
+						int swidth, sheight;
+						zzt_get_screen_size(&swidth, &sheight);
 
 						if (blink_duration_ms < 0) sflags |= RENDER_BLINK_OFF;
 						else if (sdl_is_blink_phase(zeta_time_ms())) sflags |= RENDER_BLINK_PHASE;
@@ -569,7 +586,7 @@ int main(int argc, char **argv) {
 						if (file != NULL) {
 							if (write_screenshot(
 								file, stype,
-								swidth, sflags,
+								swidth, sheight, sflags,
 								zzt_get_ram() + 0xB8000, zzt_get_charset(NULL, NULL),
 								charw, charh,
 								zzt_get_palette()

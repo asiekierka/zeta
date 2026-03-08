@@ -35,7 +35,7 @@
 #endif
 
 typedef struct {
-    uint8_t screen_backup[80 * 25 * 2];
+    uint8_t screen_backup[80 * 50 * 2];
     bool screen_redraw;
     int option_y;
 } ui_state_t;
@@ -86,14 +86,14 @@ void ui_activate(void) {
     ui_state->screen_redraw = true;
     ui_state->option_y = 0;
 
-    memcpy(ui_state->screen_backup, zzt_get_ram() + 0xB8000, 80 * 25 * 2);
+    memcpy(ui_state->screen_backup, zzt_get_ram() + 0xB8000, 80 * 50 * 2);
     speaker_off(zzt_get_cycles());
 }
 
 static void ui_deactivate(void) {
     if (!ui_is_active()) return;
 
-    memcpy(zzt_get_ram() + 0xB8000, ui_state->screen_backup, 80 * 25 * 2);
+    memcpy(zzt_get_ram() + 0xB8000, ui_state->screen_backup, 80 * 50 * 2);
 #ifndef AVOID_MALLOC
     free(ui_state);
 #endif
@@ -105,7 +105,7 @@ bool ui_is_active(void) {
 }
 
 static void ui_draw_char(int x, int y, uint8_t chr, uint8_t col) {
-    if (x < 0 || y < 0 || x >= 80 || y >= 25) return;
+    if (x < 0 || y < 0 || x >= 80 || y >= 50) return;
 
     int x_mul = (zzt_video_mode() & 2) ? 160 : 80;
     uint8_t *vid_mem = zzt_get_ram() + 0xB8000;
@@ -114,7 +114,7 @@ static void ui_draw_char(int x, int y, uint8_t chr, uint8_t col) {
 }
 
 static void ui_darken_char(int x, int y) {
-    if (x < 0 || y < 0 || x >= 80 || y >= 25) return;
+    if (x < 0 || y < 0 || x >= 80 || y >= 50) return;
 
     int x_mul = (zzt_video_mode() & 2) ? 160 : 80;
     uint8_t *vid_mem = zzt_get_ram() + 0xB8000 + y * x_mul + x * 2 + 1;

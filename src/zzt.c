@@ -78,7 +78,9 @@ typedef struct {
 	double timer_time;
 
 	// video
+	int display_height;
 	int char_width, char_height;
+	int requested_char_height;
 	bool charset_default;
 	u8 charset[256*16];
 	int blink;
@@ -311,16 +313,20 @@ static void zzt_load_charset_default() {
 	zzt_get_screen_size(&width, &height);
 
 	if (width <= 40) {
-		zzt_load_charset(8, -8, res_8x8_bin, true);
+		zzt_load_charset(8, 8, res_8x8_bin, true);
 	} else {
-		zzt_load_charset(8, 14, res_8x14_bin, true);
+		if (height > 30) {
+			zzt_load_charset(8, 8, res_8x8_bin, true);
+		} else {
+			zzt_load_charset(8, 14, res_8x14_bin, true);
+		}
 	}
 }
 
 USER_FUNCTION
 void zzt_force_default_charset(zzt_default_charset_style_t style) {
 	if (style == DEFAULT_CHARSET_STYLE_CGA) {
-		zzt_load_charset(8, -8, res_8x8_bin, true);
+		zzt_load_charset(8, 8, res_8x8_bin, true);
 	} else if (style == DEFAULT_CHARSET_STYLE_EGA) {
 		zzt_load_charset(8, 14, res_8x14_bin, true);
 	} else {
@@ -615,6 +621,9 @@ int zzt_load_palette_default(void) {
 
 
 static void cpu_func_intr_0x10(cpu_state* cpu) {
+	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BX=%04X BL=%02X\n",
+		cpu->ax, cpu->ah, cpu->al, cpu->bx, cpu->bl);
+
 	switch (cpu->ah) {
 		case 0x00: // set video mode
 			video_mode = cpu->al & 0x7F;
@@ -651,8 +660,11 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 		} return;
 		case 0x09:
 		case 0x0A: {
+			int char_rows;
+			zzt_get_screen_size(NULL, &char_rows);
+
 			u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
-			for (int i = 0; i < cpu->cx && addr < 160*25; i++, addr+=2) {
+			for (int i = 0; i < cpu->cx && addr < 160*char_rows; i++, addr+=2) {
 				cpu->ram[addr] = cpu->al;
 				if (cpu->ah == 0x09) cpu->ram[addr + 1] = cpu->bl;
 			}
@@ -785,23 +797,13 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 						return;
 					}
 
-					// TODO: this is jank...
-					if (cpu->bh == 8) {
-						for (int i = 0; i < size*2; i+=2) {
-							if ((outpos + i) >= (512*(cpu->bh))) break;
-							zzt.charset[outpos + i] = buffer[i >> 1];
-							zzt.charset[outpos + i + 1] = buffer[i >> 1];
-						}
-
-						zzt.char_height = cpu->bh * 2;
-					} else {
-						for (int i = 0; i < size; i++) {
-							if ((outpos + i) >= (256*(cpu->bh))) break;
-							zzt.charset[outpos + i] = buffer[i];
-						}
-
-						zzt.char_height = cpu->bh;
+					for (int i = 0; i < size; i++) {
+						if ((outpos + i) >= (256*(cpu->bh))) break;
+						zzt.charset[outpos + i] = buffer[i];
 					}
+
+					zzt.char_height = cpu->bh;
+					zzt.requested_char_height = cpu->bh;
 
 					zzt.charset_default = false;
 					zeta_update_charset(zzt.char_width, zzt.char_height, zzt.charset);
@@ -809,10 +811,12 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				case 0x01:
 				case 0x11: {
 					zzt_load_charset(8, 14, res_8x14_bin, true);
+					zzt.requested_char_height = 14;
 				} return;
 				case 0x02:
 				case 0x12: {
-					zzt_load_charset(8, -8, res_8x8_bin, true);
+					zzt_load_charset(8, 8, res_8x8_bin, true);
+					zzt.requested_char_height = 8;
 				} return;
 				case 0x30: {
 					if (cpu->bh == 0x00 || cpu->bh == 0x04) {
@@ -825,7 +829,10 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 						fprintf(stderr, "int 0x10: unimplemented font pointer specifier %02X\n", cpu->bh);
 					}
 					cpu->cx = zzt.char_height;
-					cpu->dl = 25;
+
+					int char_rows;
+					zzt_get_screen_size(NULL, &char_rows);
+					cpu->dl = char_rows;
 				} return;
 			}
 			break;
@@ -839,8 +846,20 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				} return;
 				case 0x30: {
 					// set vertical resolution
-					// todo: stub
-					cpu->al = 0x12;
+					switch (cpu->al) {
+						case 0x00:
+							zzt.display_height = 200;
+							cpu->al = 0x12;
+							break;
+						case 0x01:
+							zzt.display_height = 350;
+							cpu->al = 0x12;
+							break;
+						case 0x02:
+							zzt.display_height = 400;
+							cpu->al = 0x12;
+							break;
+					}
 				} return;
 			}
 			break;
@@ -1383,19 +1402,13 @@ void zzt_load_binary(int handle, const char *arg) {
 int zzt_load_charset(int width, int height, u8 *data, bool is_default) {
 	if (zzt.lock_charset) return 0;
 
-	int do_doubling = 0;
-	if (height < 0) {
-		height = (-height) * 2;
-		do_doubling = 1;
-	}
-
 	if (width != 8 || height <= 0 || height > 16) return -1;
 
 	zzt.char_width = width;
 	zzt.char_height = height;
 	zzt.charset_default &= is_default;
 	for (int i = 0; i < 256*height; i++) {
-		zzt.charset[i] = data[i >> do_doubling];
+		zzt.charset[i] = data[i];
 	}
 
 	zeta_update_charset(width, height, zzt.charset);
@@ -1435,7 +1448,7 @@ int zzt_load_blink(int blink) {
 
 void zzt_get_screen_size(int *width, int *height) {
 	if (width != NULL) *width = (zzt_video_mode() & 2) ? 80 : 40;
-	if (height != NULL) *height = 25;
+	if (height != NULL) *height = (zzt.requested_char_height == 8 && (zzt_video_mode() & 2)) ? (zzt.display_height / 8) : 25;
 }
 
 u8 *zzt_get_charset(int *width, int *height) {
@@ -1518,7 +1531,9 @@ void zzt_init(int memory_kbs) {
 	zzt.pit_mode[1] = 0x30;
 	zzt.pit_mode[2] = 0x30;
 
+	zzt.display_height = 200;
 	zzt.charset_default = true;
+	zzt.requested_char_height = 14;
 
 	cpu_init_globals();
 	cpu_init(&(zzt.cpu));

@@ -24,17 +24,14 @@
 #include <stdlib.h>
 #include "render_software.h"
 
-#define POS_MUL (scr_width <= 40 ? 2 : 1)
-
-void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
-	int pos_mul = POS_MUL;
+void render_software_rgb(u32 *buffer, int scr_width, int scr_height, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
 	int pos = 0;
 
 	if (row_length < 0) {
-		row_length = scr_width * char_width * pos_mul;
+		row_length = scr_width * char_width;
 	}
 
-	for (int y = 0; y < 25; y++) {
+	for (int y = 0; y < scr_height; y++) {
 		for (int x = 0; x < scr_width; x++, pos += 2) {
 			u8 chr = video[pos];
 			u8 col = video[pos + 1];
@@ -52,25 +49,23 @@ void render_software_rgb(u32 *buffer, int scr_width, int row_length, int flags, 
 
 			for (int cy = 0; cy < char_height; cy++, char_data++) {
 				int line = *char_data;
-				int bpos = ((y * char_height + cy) * row_length) + ((x * char_width) * pos_mul);
-				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos += pos_mul) {
+				int bpos = ((y * char_height + cy) * row_length) + ((x * char_width));
+				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos++) {
 					u32 col = palette[(line & 0x80) ? fg : bg];
 					buffer[bpos] = col;
-					if (pos_mul == 2) buffer[bpos+1] = col;
 				}
 			}
 		}
 	}
 }
 
-void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height,
+void render_software_paletted_range(u8 *buffer, int scr_width, int scr_height, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height,
 	int x1, int y1, int x2, int y2, render_software_char_draw_check_func char_draw_check_func)
 {
-	int pos_mul = POS_MUL;
 	int x_pitch = (scr_width - (x2 - x1 + 1)) << 1;
 
 	if (row_length < 0) {
-		row_length = (x2 - x1 + 1) * char_width * pos_mul;
+		row_length = (x2 - x1 + 1) * char_width;
 	}
 
 	int pos = (y1 * scr_width + x1) << 1;
@@ -97,12 +92,9 @@ void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, i
 
 			for (int cy = 0; cy < char_height; cy++, char_data++) {
 				int line = *char_data;
-				int bpos = (((y - y1) * char_height + cy) * row_length) + (((x - x1) * char_width) * pos_mul);
-				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos += pos_mul) {
+				int bpos = (((y - y1) * char_height + cy) * row_length) + (((x - x1) * char_width));
+				for (int cx = 0; cx < char_width; cx++, line <<= 1, bpos++) {
 					buffer[bpos] = (line & 0x80) ? fg : bg;
-					if (pos_mul == 2) {
-						buffer[bpos+1] = (line & 0x80) ? fg : bg;
-					}
 				}
 			}
 		}
@@ -110,7 +102,7 @@ void render_software_paletted_range(u8 *buffer, int scr_width, int row_length, i
 	}
 }
 
-void render_software_paletted(u8 *buffer, int scr_width, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height) {
-	render_software_paletted_range(buffer, scr_width, row_length, flags, video, charset, char_width, char_height,
-		0, 0, scr_width - 1, 24, NULL);
+void render_software_paletted(u8 *buffer, int scr_width, int scr_height, int row_length, int flags, u8 *video, u8 *charset, int char_width, int char_height) {
+	render_software_paletted_range(buffer, scr_width, scr_height, row_length, flags, video, charset, char_width, char_height,
+		0, 0, scr_width - 1, scr_height - 1, NULL);
 }

@@ -393,7 +393,7 @@ void gif_writer_frame(gif_writer_state *s, u32 pit_ticks) {
 	if (use_transparency) {
 		memset(pixels, 0x10, pw * ph);
 	}
-	render_software_paletted_range(pixels, s->screen_width, -1, RENDER_BLINK_OFF, s->prev_video, charset, s->char_width, s->char_height,
+	render_software_paletted_range(pixels, s->screen_width, s->screen_height, -1, RENDER_BLINK_OFF, s->prev_video, charset, s->char_width, s->char_height,
 		cx1, cy1, cx2, cy2, use_transparency ? can_draw_char_vram_difference : NULL);
 
 	gif_writer_write_delay(s);

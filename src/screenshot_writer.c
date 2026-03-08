@@ -96,31 +96,31 @@ static int write_screenshot_bmp(FILE *output, u8 *buffer, u32 *palette, int flag
 	return 0;
 }
 
-int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
+int write_screenshot(FILE *output, int type, int scr_width, int scr_height, int flags, u8 *video, u8 *charset, int char_width, int char_height, u32 *palette) {
 	void *buffer;
 
 	int paletted = (type == SCREENSHOT_TYPE_BMP || type == SCREENSHOT_TYPE_PNG);
 
-	buffer = malloc(char_width * char_height * scr_width * POS_MUL * 25 * (paletted ? sizeof(u8) : sizeof(u32)));
+	buffer = malloc(char_width * char_height * scr_width * POS_MUL * scr_height * (paletted ? sizeof(u8) : sizeof(u32)));
 	if (buffer == NULL) {
 		return -1;
 	}
 
 	if (paletted) {
-		render_software_paletted(buffer, scr_width, -1, flags, video, charset, char_width, char_height);
+		render_software_paletted(buffer, scr_width, scr_height, -1, flags, video, charset, char_width, char_height);
 	} else {
-		render_software_rgb(buffer, scr_width, -1, flags, video, charset, char_width, char_height, palette);
+		render_software_rgb(buffer, scr_width, scr_height, -1, flags, video, charset, char_width, char_height, palette);
 	}
 
 	int result;
 
 	switch (type) {
 		case SCREENSHOT_TYPE_BMP:
-			result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * 25);
+			result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * scr_height);
 			break;
 #ifdef USE_LIBPNG
 		case SCREENSHOT_TYPE_PNG:
-			result = write_screenshot_png(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * 25);
+			result = write_screenshot_png(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * scr_height);
 			break;
 #endif
 		default:

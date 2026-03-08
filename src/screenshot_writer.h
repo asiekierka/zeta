@@ -31,6 +31,6 @@
 #define SCREENSHOT_TYPE_PNG 1
 
 USER_FUNCTION
-int write_screenshot(FILE *output, int type, int scr_width, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette);
+int write_screenshot(FILE *output, int type, int scr_width, int scr_height, int flags, u8 *ram, u8 *charset, int char_width, int char_height, u32 *palette);
 
 #endif /* __SCREENSHOT_RENDER_H__ */
