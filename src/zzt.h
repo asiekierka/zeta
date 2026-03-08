@@ -130,6 +130,10 @@ int zzt_get_cycles(void);
 USER_FUNCTION
 void zzt_get_screen_size(int *width, int *height);
 USER_FUNCTION
+int zzt_get_screen_width(void);
+USER_FUNCTION
+int zzt_get_screen_height(void);
+USER_FUNCTION
 u8 *zzt_get_charset(int *width, int *height);
 USER_FUNCTION
 bool zzt_get_charset_default(void);

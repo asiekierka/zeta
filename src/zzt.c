@@ -323,7 +323,6 @@ static void zzt_load_charset_default() {
 	}
 }
 
-USER_FUNCTION
 void zzt_force_default_charset(zzt_default_charset_style_t style) {
 	if (style == DEFAULT_CHARSET_STYLE_CGA) {
 		zzt_load_charset(8, 8, res_8x8_bin, true);
@@ -1446,9 +1445,17 @@ int zzt_load_blink(int blink) {
 	return 0;
 }
 
+int zzt_get_screen_width(void) {
+	return (zzt_video_mode() & 2) ? 80 : 40;
+}
+
+int zzt_get_screen_height(void) {
+	return (zzt.requested_char_height == 8 && (zzt_video_mode() & 2)) ? (zzt.display_height / 8) : 25;
+}
+
 void zzt_get_screen_size(int *width, int *height) {
-	if (width != NULL) *width = (zzt_video_mode() & 2) ? 80 : 40;
-	if (height != NULL) *height = (zzt.requested_char_height == 8 && (zzt_video_mode() & 2)) ? (zzt.display_height / 8) : 25;
+	if (width != NULL) *width = zzt_get_screen_width();
+	if (height != NULL) *height = zzt_get_screen_height();
 }
 
 u8 *zzt_get_charset(int *width, int *height) {

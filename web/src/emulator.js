@@ -333,7 +333,7 @@ class Emulator {
         this._pollGamepads();
 
         const ptr = this.emu._zzt_get_ram();
-        const heap = new Uint8Array(this.emu.HEAPU8.buffer, ptr + 0xB8000, 80*25*2);
+        const heap = new Uint8Array(this.emu.HEAPU8.buffer, ptr + 0xB8000, this.render.scrWidth*this.render.scrHeight*2);
 
         this.render.render(heap, this.emu._zzt_video_mode(), this.time_ms_cached);
 

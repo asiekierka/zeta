@@ -34,7 +34,6 @@ export class CanvasBasedRenderer {
 
 		this.video_mode = -1;
 		this.chrBuf = [];
-		this.drawChrWidth = undefined;
 		this.chrWidth = undefined;
 		this.scrWidth = undefined;
 		this.chrHeight = undefined;
@@ -64,20 +63,23 @@ export class CanvasBasedRenderer {
 	}
 
 	_updVideoMode(val, time) {
-		if (val != this.video_mode) {
+		let oldScrWidth = this.scrWidth;
+		let oldScrHeight = this.scrHeight;
+		this.scrWidth = this.emu._zzt_get_screen_width();
+		this.scrHeight = this.emu._zzt_get_screen_height();
+
+		if (this.video_mode != val || oldScrWidth != this.scrWidth || oldScrHeight != this.scrHeight) {
 			this.chrBuf = [];
-			if ((val & 0x02) == 2) {
-				this.scrWidth = 80;
-			} else {
-				this.scrWidth = 40;
-			}
-			this.scrHeight = 25;
 			this.video_mode = val;
 		}
 
-		this.drawChrWidth = this.chrWidth * Math.round(80 / this.scrWidth);
-		this.pw = this.scrWidth*this.drawChrWidth;
-		this.ph = this.scrHeight*this.chrHeight;
+		this.scrXScale = 1;
+		this.scrYScale = 1;
+		if (this.chrHeight == 8 && this.scrHeight <= 25) this.scrYScale *= 2;
+		if (this.scrWidth <= 40) this.scrXScale *= 2;
+
+		this.pw = this.scrWidth*this.chrWidth*this.scrXScale;
+		this.ph = this.scrHeight*this.chrHeight*this.scrYScale;
 		this.cw = this.canvas.width;
 		this.ch = this.canvas.height;
 		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));
@@ -205,17 +207,16 @@ export class CanvasBasedRenderer {
 		this._updVideoMode(mode, time);
 
 		let pos = 0;
-		let xScale = Math.floor(80 / this.scrWidth);
 		var targetCanvas = this.canvas;
 		var targetCtx = this.ctx;
 
-		if (this.scale > 1 || xScale > 1 || this.x_offset != 0 || this.y_offset != 0) {
+		if (this.scale > 1 || this.scrXScale > 1 || this.scrYScale > 1 || this.x_offset != 0 || this.y_offset != 0) {
 			targetCanvas = this.offscreenCanvas;
 			targetCtx = this.offscreenCtx;
 		}
 
 		if (this.asciiFg != null && this.palette != null) {
-			for (var y = 0; y < 25; y++) {
+			for (var y = 0; y < this.scrHeight; y++) {
 				for (var x = 0; x < this.scrWidth; x++, pos+=2) {
 					this._drawChar(targetCtx, x, y, heap[pos], heap[pos+1]);
 				}
@@ -225,7 +226,9 @@ export class CanvasBasedRenderer {
 		if (targetCtx != this.ctx) {
 			this.ctx.fillStyle = "#000000";
 			this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-			this.ctx.drawImage(targetCanvas, 0, 0, 80*this.chrWidth / xScale, 25*this.chrHeight, this.x_offset, this.y_offset, 80*this.chrWidth * this.scale, 25*this.chrHeight * this.scale);
+			this.ctx.drawImage(targetCanvas,
+				0, 0, this.scrWidth*this.chrWidth, this.scrHeight*this.chrHeight,
+				this.x_offset, this.y_offset, this.scrWidth*this.chrWidth*this.scrXScale*this.scale, this.scrHeight*this.chrHeight*this.scrYScale*this.scale);
 		}
 	}
 
