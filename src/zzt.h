@@ -33,9 +33,15 @@
 extern bool developer_mode;
 
 typedef enum {
-	DEFAULT_CHARSET_STYLE_EGA,
-	DEFAULT_CHARSET_STYLE_CGA
-} zzt_default_charset_style_t;
+	ZZT_STYLE_DEFAULT,
+	ZZT_STYLE_1991, /* CGA + adjusted palette */
+	ZZT_STYLE_1994, /* EGA + normal palette */
+	ZZT_STYLE_1999, /* 8x12 + normal palette */
+	ZZT_STYLE_2002, /* 8x12 + bad palette */
+	ZZT_STYLE_COUNT
+} zzt_style_t;
+
+extern const char *zzt_style_names[];
 
 typedef enum {
 	BLINK_OVERRIDE_OFF,
@@ -134,6 +140,10 @@ int zzt_get_screen_width(void);
 USER_FUNCTION
 int zzt_get_screen_height(void);
 USER_FUNCTION
+int zzt_get_x_stretch(void);
+USER_FUNCTION
+int zzt_get_y_stretch(void);
+USER_FUNCTION
 u8 *zzt_get_charset(int *width, int *height);
 USER_FUNCTION
 bool zzt_get_charset_default(void);
@@ -145,7 +155,11 @@ int zzt_get_blink(void);
 USER_FUNCTION
 int zzt_load_charset(int width, int height, u8* data, bool is_default);
 USER_FUNCTION
-void zzt_force_default_charset(zzt_default_charset_style_t style);
+zzt_style_t zzt_get_style(void);
+USER_FUNCTION
+void zzt_set_style(zzt_style_t style);
+USER_FUNCTION
+bool zzt_is_charset_default(void);
 USER_FUNCTION
 int zzt_load_palette(u32* colors);
 USER_FUNCTION

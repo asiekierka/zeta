@@ -65,11 +65,12 @@ static const char* ui_lines_header[] = {
 
 static const char* ui_lines_options[] = {
     "  Volume:      ",
+    "  Style:         ",
     "  Player step sound: [ ]",
     "  Blinking disabled: [ ]",
     "  Exit"
 };
-#define UI_LINES_OPTIONS_COUNT 4
+#define UI_LINES_OPTIONS_COUNT 5
 
 void ui_activate(void) {
     if (ui_is_active()) return;
@@ -233,8 +234,10 @@ void ui_tick(void) {
         // draw options values
         snprintf(sbuf, sizeof(sbuf) - 1, "%d%%", audio_stream_get_volume() * 10 / 6);
         ui_draw_string(woptx + 10, wopty, sbuf, 0x1F);
-        ui_draw_check(woptx, wopty + 1, ui_lines_options[1], !audio_get_remove_player_movement_sound(), 0x1F);
-        ui_draw_check_char(woptx, wopty + 2, ui_lines_options[2], get_blink_char(zzt_get_blink_user_override()), 0x1F);
+        snprintf(sbuf, sizeof(sbuf) - 1, "%s", zzt_is_charset_default() ? zzt_style_names[zzt_get_style()] : "<custom>");
+        ui_draw_string(woptx + 9, wopty + 1, sbuf, zzt_is_charset_default() ? 0x1F : 0x17);
+        ui_draw_check(woptx, wopty + 2, ui_lines_options[1], !audio_get_remove_player_movement_sound(), 0x1F);
+        ui_draw_check_char(woptx, wopty + 3, ui_lines_options[2], get_blink_char(zzt_get_blink_user_override()), 0x1F);
 
         // draw arrow
         ui_draw_char(woptx, wopty + ui_state->option_y, '>', 0x1F);
@@ -254,8 +257,15 @@ void ui_tick(void) {
                     audio_stream_set_volume(audio_stream_get_volume() + 6);
                 }
             } else if (ui_state->option_y == 1) {
-                audio_set_remove_player_movement_sound(!audio_get_remove_player_movement_sound());
+                if (zzt_is_charset_default()) {
+                    zzt_style_t new_style = zzt_get_style() + 1;
+                    if (new_style == ZZT_STYLE_COUNT)
+                        new_style = ZZT_STYLE_DEFAULT;
+                    zzt_set_style(new_style);
+                }
             } else if (ui_state->option_y == 2) {
+                audio_set_remove_player_movement_sound(!audio_get_remove_player_movement_sound());
+            } else if (ui_state->option_y == 3) {
                 switch (zzt_get_blink_user_override()) {
                     case BLINK_OVERRIDE_OFF:
                         zzt_set_blink_user_override(BLINK_OVERRIDE_FREEZE);

@@ -191,7 +191,39 @@ generated_8x14_c = custom_target(
   install: false
 )
 
-zeta_sources += [generated_8x8_c, generated_8x14_c]
+generated_8x8_cga_bin = custom_target(
+  'generate-8x8_cga-bin',
+  input: 'fonts/pc_cga_orig.png',
+  output: '8x8_cga.bin',
+  command: [font2raw_prog, '@INPUT@', '8', '8', 'a', '@OUTPUT@'],
+  install: false
+)
+
+generated_8x8_cga_c = custom_target(
+  'generate-8x8_cga-c',
+  input: generated_8x8_cga_bin,
+  output: '8x8_cga.c',
+  command: [bin2c_prog, '--field_name', 'res_8x8_cga_bin', '@OUTPUT@', '@INPUT@'],
+  install: false
+)
+
+generated_8x12_window_bin = custom_target(
+  'generate-8x12_window-bin',
+  input: 'fonts/window_8x12.png',
+  output: '8x12_window.bin',
+  command: [font2raw_prog, '@INPUT@', '8', '12', 'a', '@OUTPUT@'],
+  install: false
+)
+
+generated_8x12_window_c = custom_target(
+  'generate-8x12_window-c',
+  input: generated_8x12_window_bin,
+  output: '8x12_window.c',
+  command: [bin2c_prog, '--field_name', 'res_8x12_window_bin', '@OUTPUT@', '@INPUT@'],
+  install: false
+)
+
+zeta_sources += [generated_8x8_c, generated_8x14_c, generated_8x8_cga_c, generated_8x12_window_c]
 
 resampler = get_option('resampler')
 if resampler == 'auto'

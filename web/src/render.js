@@ -73,10 +73,8 @@ export class CanvasBasedRenderer {
 			this.video_mode = val;
 		}
 
-		this.scrXScale = 1;
-		this.scrYScale = 1;
-		if (this.chrHeight == 8 && this.scrHeight <= 25) this.scrYScale *= 2;
-		if (this.scrWidth <= 40) this.scrXScale *= 2;
+		this.scrXScale = this.emu._zzt_get_x_stretch();
+		this.scrYScale = this.emu._zzt_get_y_stretch();
 
 		this.pw = this.scrWidth*this.chrWidth*this.scrXScale;
 		this.ph = this.scrHeight*this.chrHeight*this.scrYScale;

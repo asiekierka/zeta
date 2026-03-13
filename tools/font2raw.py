@@ -27,13 +27,14 @@ if "dbl" in format:
 glyph_invert_x = ("invert_x" in format)
 
 im = Image.open(in_filename).convert("RGBA")
+glyphs_in_row = im.width // glyph_width
 
 with open(out_filename, "wb") as fp:
 	v = 0
 	vp = 0
 	for ig in range(0, 256):
-		igx = (ig & 31) * glyph_width
-		igy = (ig >> 5) * glyph_height
+		igx = (ig % glyphs_in_row) * glyph_width
+		igy = (ig // glyphs_in_row) * glyph_height
 		for iy in range(0, glyph_height):
 			for irows in range(0, glyph_repeat_rows):
 				for ix in range(0, glyph_width):

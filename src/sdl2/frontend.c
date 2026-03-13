@@ -284,13 +284,8 @@ void calc_render_area(SDL_Rect *rect, int w, int h, int *scale_out, int flags) {
 	int swidth, sheight;
 	zzt_get_screen_size(&swidth, &sheight);
 
-	int iw = swidth*charw;
-	int ih = sheight*charh;
-
-	if (charh == 8 && sheight <= 25) {
-	    ih *= 2;
-	}
-	if (swidth <= 40) iw *= 2;
+	int iw = swidth*charw*zzt_get_x_stretch();
+	int ih = sheight*charh*zzt_get_y_stretch();
 
 	int scale = 1;
 	while (((scale+1)*iw <= w) && ((scale+1)*ih <= h)) scale++;
@@ -313,13 +308,8 @@ static void sdl_resize_window(int delta, bool only_if_too_small, bool delta_is_s
 	int swidth, sheight;
 	zzt_get_screen_size(&swidth, &sheight);
 
-	int iw = swidth*charw;
-	int ih = sheight*charh;
-
-	if (charh == 8 && sheight <= 25) {
-	    ih *= 2;
-	}
-	if (swidth <= 40) iw *= 2;
+	int iw = swidth*charw*zzt_get_x_stretch();
+	int ih = sheight*charh*zzt_get_y_stretch();
 
 	int w, h, scale;
 

@@ -71,6 +71,8 @@ typedef struct {
 
 extern unsigned char res_8x14_bin[];
 extern unsigned char res_8x8_bin[];
+extern unsigned char res_8x8_cga_bin[];
+extern unsigned char res_8x12_window_bin[];
 
 typedef struct {
 	cpu_state cpu;
@@ -86,6 +88,7 @@ typedef struct {
 	int blink;
 	bool lock_charset;
 	bool lock_palette;
+	zzt_style_t style;
 
 	u8 palette_dac[EGA_COLOR_COUNT * 3];
 	u8 palette_lut[LUT_COLOR_COUNT];
@@ -125,6 +128,21 @@ typedef struct {
 	u8 blink_user_override;
 	int blink_duration_ms;
 } zzt_state;
+
+static uint32_t cga5153_colors[16] = {
+	// https://int10h.org/blog/2022/06/ibm-5153-color-true-cga-palette/
+	0x000000, 0x0000C4, 0x00C400, 0x00C4C4, 0xC40000, 0xC400C4, 0xC47E00, 0xC4C4C4,
+	0x4E4E4E, 0x4E4EDC, 0x4EDC4E, 0x4EF3F3, 0xDC4E4E, 0xF34EF3, 0xF3F34E, 0xFFFFFF
+};
+
+static uint32_t bad_colors[16] = {
+	0x000000, 0x000080, 0x008000, 0x008080, 0x800000, 0x800080, 0x808000, 0xC0C0C0,
+	0x808080, 0x0000FF, 0x00FF00, 0x00FFFF, 0xFF0000, 0xFF00FF, 0xFFFF00, 0xFFFFFF
+};
+
+const char *zzt_style_names[] = {
+	"Default", "1991", "1994", "1999", "2002"
+};
 
 zzt_state zzt;
 
@@ -321,18 +339,45 @@ static void zzt_load_charset_default() {
 			zzt_load_charset(8, 14, res_8x14_bin, true);
 		}
 	}
+
+	zzt.charset_default = true;
 }
 
-void zzt_force_default_charset(zzt_default_charset_style_t style) {
-	if (style == DEFAULT_CHARSET_STYLE_CGA) {
-		zzt_load_charset(8, 8, res_8x8_bin, true);
-	} else if (style == DEFAULT_CHARSET_STYLE_EGA) {
-		zzt_load_charset(8, 14, res_8x14_bin, true);
-	} else {
-		return;
-	}
+bool zzt_is_charset_default(void) {
+	return zzt.charset_default;
+}
 
-	zzt.charset_default = false;
+zzt_style_t zzt_get_style(void) {
+	return zzt.style;
+}
+
+void zzt_set_style(zzt_style_t style) {
+	zzt.style = style;
+
+	switch (style) {
+		case ZZT_STYLE_DEFAULT:
+			zzt_load_charset_default();
+			zzt_load_palette_default();
+			break;
+		case ZZT_STYLE_1991:
+			zzt_load_charset(8, 8, res_8x8_cga_bin, true);
+			zzt_load_palette(cga5153_colors);
+			break;
+		case ZZT_STYLE_1994:
+			zzt_load_charset(8, 14, res_8x14_bin, true);
+			zzt_load_palette_default();
+			break;
+		case ZZT_STYLE_1999:
+			zzt_load_charset(8, 12, res_8x12_window_bin, true);
+			zzt_load_palette_default();
+			for (int i = 0; i < EGA_COLOR_COUNT * 3; i++)
+				zzt.palette_dac[i] &= 0xFC;
+			break;
+		case ZZT_STYLE_2002:
+			zzt_load_charset(8, 12, res_8x12_window_bin, true);
+			zzt_load_palette(bad_colors);
+			break;
+	}
 }
 
 static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
@@ -618,7 +663,6 @@ int zzt_load_palette_default(void) {
 	return 0;
 }
 
-
 static void cpu_func_intr_0x10(cpu_state* cpu) {
 	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BX=%04X BL=%02X\n",
 		cpu->ax, cpu->ah, cpu->al, cpu->bx, cpu->bl);
@@ -626,7 +670,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 	switch (cpu->ah) {
 		case 0x00: // set video mode
 			video_mode = cpu->al & 0x7F;
-			if (zzt.charset_default) {
+			if (zzt.charset_default && zzt.style == ZZT_STYLE_DEFAULT) {
 				zzt_load_charset_default();
 			}
 			return;
@@ -1451,6 +1495,20 @@ int zzt_get_screen_width(void) {
 
 int zzt_get_screen_height(void) {
 	return (zzt.requested_char_height == 8 && (zzt_video_mode() & 2)) ? (zzt.display_height / 8) : 25;
+}
+
+int zzt_get_x_stretch(void) {
+	if (zzt_get_screen_width() == 40 && (zzt.style != ZZT_STYLE_1999 && zzt.style != ZZT_STYLE_2002)) {
+		return 2;
+	}
+	return 1;
+}
+
+int zzt_get_y_stretch(void) {
+	if (zzt.char_height == 8 && zzt_get_screen_height() <= 25 && (zzt.style != ZZT_STYLE_1999 && zzt.style != ZZT_STYLE_2002)) {
+		return 2;
+	}
+	return 1;
 }
 
 void zzt_get_screen_size(int *width, int *height) {
