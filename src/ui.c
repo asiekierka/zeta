@@ -236,11 +236,11 @@ void ui_tick(void) {
         ui_draw_string(woptx + 10, wopty, sbuf, 0x1F);
         snprintf(sbuf, sizeof(sbuf) - 1, "%s", zzt_is_charset_default() ? zzt_style_names[zzt_get_style()] : "<custom>");
         ui_draw_string(woptx + 9, wopty + 1, sbuf, zzt_is_charset_default() ? 0x1F : 0x17);
-        ui_draw_check(woptx, wopty + 2, ui_lines_options[1], !audio_get_remove_player_movement_sound(), 0x1F);
-        ui_draw_check_char(woptx, wopty + 3, ui_lines_options[2], get_blink_char(zzt_get_blink_user_override()), 0x1F);
+        ui_draw_check(woptx, wopty + 2, ui_lines_options[2], !audio_get_remove_player_movement_sound(), 0x1F);
+        ui_draw_check_char(woptx, wopty + 3, ui_lines_options[3], get_blink_char(zzt_get_blink_user_override()), 0x1F);
 
         // draw arrow
-        ui_draw_char(woptx, wopty + ui_state->option_y, '>', 0x1F);
+        ui_draw_char(woptx, wopty + ui_state->option_y, 16, 0x1D);
     }
 
     zzt_key_t key = zzt_key_pop();
