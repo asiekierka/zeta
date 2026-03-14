@@ -469,6 +469,13 @@ export function createEmulator(render, audio, vfs, options) {
                 }
             }
 
+            if (options && options.render && options.render.style) {
+                 if (options.render.style == "1991") emu._zzt_set_style(1);
+                 if (options.render.style == "1994") emu._zzt_set_style(2);
+                 if (options.render.style == "1999") emu._zzt_set_style(3);
+                 if (options.render.style == "2002") emu._zzt_set_style(4);
+            }
+
             if (options && options.commands) {
                 const lastCommand = options.commands.length - 1;
                 for (var i = 0; i <= lastCommand; i++) {

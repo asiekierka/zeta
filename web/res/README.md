@@ -58,6 +58,7 @@ The entrypoint is "ZetaLoad(options, callback);". The callback is optional, and 
       * Set to 0 to disable blinking - force low colors (can be changed back in the F11 menu).
       * Set to -1 to disable blinking - enable high colors (can be changed back by the running engine).
     * charset_override: the location of a PNG image file (16x16 chars) overriding the engine's character set, if present.
+    * style: the built-in rendering style to use: "1991", "1994", "1999", "2002"
 * audio:
     * bufferSize (buffer): the audio buffer size, in samples.
     * sampleRate (buffer): the audio sampling rate, in Hz.

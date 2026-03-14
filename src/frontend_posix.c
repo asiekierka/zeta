@@ -47,7 +47,7 @@ static int posix_vfs_exists(const char *filename) {
 }
 
 static void posix_zzt_help(int argc, char **argv) {
-	char *owner = (argv > 0 && argv[0] != NULL && strlen(argv[0]) > 0) ? argv[0] : "zeta";
+	char *owner = (argc > 0 && argv[0] != NULL && strlen(argv[0]) > 0) ? argv[0] : "zeta";
 
 	fprintf(stderr, "Usage: %s [arguments] [world file]\n", owner);
 	fprintf(stderr, "\n");
@@ -219,7 +219,7 @@ static int posix_zzt_init(int argc, char **argv) {
 				break;
 #endif
 			case '?':
-				fprintf(stderr, "Could not parse options! Try %s -h for help.\n", argv > 0 ? argv[0] : "running with");
+				fprintf(stderr, "Could not parse options! Try %s -h for help.\n", argc > 0 ? argv[0] : "running with");
 				exit(0);
 				return INIT_ERR_GENERIC;
 		}

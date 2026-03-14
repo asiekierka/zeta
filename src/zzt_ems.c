@@ -51,7 +51,6 @@ static ems_status ems_resize_handles(ems_state *ems, u16 new_size) {
         old_handles = ems->handles;
         ems->handles = realloc(old_handles, sizeof(ems_handle) * new_size);
         if (ems->handles == NULL) {
-            ems->handles = old_handles;
             return EMS_STATUS_OUT_OF_HANDLES;
         }
     }
@@ -134,7 +133,6 @@ static ems_status ems_map_page(cpu_state *cpu, ems_state *ems, u8 physical_page,
                 phys_data = ems->handles[handle].data;
                 ems->handles[handle].data = realloc(phys_data, sizeof(u8) * (logical_page + 1) * EMS_PAGE_SIZE);
                 if (ems->handles[handle].data == NULL) {
-                    ems->handles[handle].data = phys_data;
                     return EMS_STATUS_INTERNAL_ERROR;
                 }
             }

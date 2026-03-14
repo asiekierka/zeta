@@ -854,12 +854,14 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				} return;
 				case 0x01:
 				case 0x11: {
-					zzt_load_charset(8, 14, res_8x14_bin, true);
+				        if (zzt_get_style() == ZZT_STYLE_DEFAULT)
+						zzt_load_charset(8, 14, res_8x14_bin, true);
 					zzt.requested_char_height = 14;
 				} return;
 				case 0x02:
 				case 0x12: {
-					zzt_load_charset(8, 8, res_8x8_bin, true);
+				        if (zzt_get_style() == ZZT_STYLE_DEFAULT)
+						zzt_load_charset(8, 8, res_8x8_bin, true);
 					zzt.requested_char_height = 8;
 				} return;
 				case 0x30: {
