@@ -1,6 +1,6 @@
 project(
     'zeta', ['c'],
-    version: '1.1.5',
+    version: '1.2.0',
     default_options: ['b_lto=true', 'buildtype=release', 'debug=false', 'optimization=3', 'c_std=gnu2x', 'warning_level=3']
 )
 cc = meson.get_compiler('c')
