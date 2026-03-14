@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#include <SDL3/SDL_pixels.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,7 +138,8 @@ static void sdl_render_software_draw(u8 *vram, int blink_mode) {
 		SDL_UnlockTexture(playfieldtex);
 	}
 
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	uint32_t border_color = zzt_get_border_color();
+	SDL_SetRenderDrawColor(renderer, ((border_color >> 16) & 0xFF), ((border_color >> 8) & 0xFF), border_color & 0xFF, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, playfieldtex, &src, &dest);
 

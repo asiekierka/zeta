@@ -85,10 +85,10 @@ typedef struct {
 	int requested_char_height;
 	bool charset_default;
 	u8 charset[256*16];
-	int blink;
+	bool blink;
 	bool lock_charset;
 	bool lock_palette;
-	zzt_style_t style;
+	u8 style;
 
 	u8 palette_dac[EGA_COLOR_COUNT * 3];
 	u8 palette_lut[LUT_COLOR_COUNT];
@@ -378,6 +378,7 @@ void zzt_set_style(zzt_style_t style) {
 			zzt_load_palette(bad_colors);
 			break;
 	}
+	zeta_update_blink(zzt_get_active_blink_duration_ms());
 }
 
 static u16 cpu_func_port_in_main(cpu_state* cpu, u16 addr) {
@@ -558,7 +559,7 @@ static int cpu_func_interrupt_main(cpu_state* cpu, u8 intr) {
 		case 0x21: return cpu_func_intr_0x21(cpu);
 		case 0x33: cpu_func_intr_0x33(cpu); break;
 #ifdef USE_EMS_EMULATION
-		case 0x67: cpu_func_intr_ems(cpu, &(state->ems));
+		case 0x67: cpu_func_intr_ems(cpu, &(state->ems)); break;
 #endif
 #ifdef USE_ZETA_INTERRUPT_EXTENSIONS
 		case 0xa5: return cpu_func_intr_0xa5(cpu);
@@ -707,7 +708,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 			zzt_get_screen_size(NULL, &char_rows);
 
 			u32 addr = TEXT_ADDR(cpu->bl, cpu->bh);
-			for (int i = 0; i < cpu->cx && addr < 160*char_rows; i++, addr+=2) {
+			for (int i = 0; i < cpu->cx && addr < 160*(u32)char_rows; i++, addr+=2) {
 				cpu->ram[addr] = cpu->al;
 				if (cpu->ah == 0x09) cpu->ram[addr + 1] = cpu->bl;
 			}
@@ -727,14 +728,14 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 #ifdef DEBUG_INTERRUPTS
 					fprintf(stderr, "int 0x10: set LUT index %d to %d\n", cpu->bl, cpu->bh);
 #endif
-					if (cpu->bl >= 0 && cpu->bl < LUT_COLOR_COUNT) {
+					if (cpu->bl < LUT_COLOR_COUNT) {
 						zzt.palette_lut[cpu->bl] = cpu->bh;
 						zzt_refresh_palette();
 					}
 				} return;
 				case 0x07: {
 					// load LUT index
-					if (cpu->bl >= 0 && cpu->bl < LUT_COLOR_COUNT) {
+					if (cpu->bl < LUT_COLOR_COUNT) {
 						cpu->bh = zzt.palette_lut[cpu->bl];
 					}
 				} return;
@@ -775,7 +776,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 #ifdef DEBUG_INTERRUPTS
 					fprintf(stderr, "int 0x10: set color %d to [%d, %d, %d]\n", cpu->bx, cpu->dh, cpu->ch, cpu->cl);
 #endif
-					if (cpu->bx >= 0 && cpu->bx < EGA_COLOR_COUNT) {
+					if (cpu->bx < EGA_COLOR_COUNT) {
 						zzt.palette_dac[cpu->bx * 3 + 0] = (cpu->dh & 0x3F) * 255 / 63;
 						zzt.palette_dac[cpu->bx * 3 + 1] = (cpu->ch & 0x3F) * 255 / 63;
 						zzt.palette_dac[cpu->bx * 3 + 2] = (cpu->cl & 0x3F) * 255 / 63;
@@ -784,7 +785,7 @@ static void cpu_func_intr_0x10(cpu_state* cpu) {
 				} return;
 				case 0x15: {
 					// read palette color
-					if (cpu->bl >= 0 && cpu->bl < EGA_COLOR_COUNT) {
+					if (cpu->bl < EGA_COLOR_COUNT) {
 						cpu->dh = zzt.palette_dac[cpu->bl * 3 + 0] * 63 / 255;
 						cpu->ch = zzt.palette_dac[cpu->bl * 3 + 1] * 63 / 255;
 						cpu->cl = zzt.palette_dac[cpu->bl * 3 + 2] * 63 / 255;
@@ -1484,7 +1485,7 @@ int zzt_load_palette(u32 *colors) {
 }
 
 int zzt_load_blink(int blink) {
-	zzt.blink = blink;
+	zzt.blink = blink != 0;
 	zeta_update_blink(zzt_get_active_blink_duration_ms());
 	return 0;
 }
@@ -1526,6 +1527,14 @@ u32 *zzt_get_palette(void) {
 	return zzt.palette;
 }
 
+u32 zzt_get_border_color(void) {
+	if (zzt.style == ZZT_STYLE_1991) {
+		return zzt.palette[1];
+	} else {
+		return zzt.palette[0];
+	}
+}
+
 int zzt_get_blink(void) {
 	return zzt.blink;
 }
@@ -1544,6 +1553,9 @@ int zzt_get_blink_duration_ms(void) {
 }
 
 int zzt_get_active_blink_duration_ms(void) {
+	// Handle style overrides
+	if (zzt.style == ZZT_STYLE_1999 || zzt.style == ZZT_STYLE_2002)
+		return -1;
 	// Handle user overrides
 	if (zzt.blink_user_override == BLINK_OVERRIDE_FREEZE)
 		return 0;

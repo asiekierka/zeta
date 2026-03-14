@@ -150,6 +150,8 @@ bool zzt_get_charset_default(void);
 USER_FUNCTION
 u32 *zzt_get_palette(void);
 USER_FUNCTION
+u32 zzt_get_border_color(void);
+USER_FUNCTION
 int zzt_get_blink(void);
 
 USER_FUNCTION

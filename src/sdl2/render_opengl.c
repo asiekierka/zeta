@@ -96,7 +96,8 @@ static void prepare_render_opengl(void) {
 #else
 	glOrtho(-(rect.x), rect.w + (rect.x), rect.h + (rect.y), -(rect.y), -1, 1);
 #endif
-	glClearColor(0, 0, 0, 1);
+	uint32_t border_color = zzt_get_border_color();
+	glClearColor(((border_color >> 16) & 0xFF) / 255.0f, ((border_color >> 8) & 0xFF) / 255.0f, (border_color & 0xFF) / 255.0f, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
