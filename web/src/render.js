@@ -76,8 +76,15 @@ export class CanvasBasedRenderer {
 		this.scrXScale = this.emu._zzt_get_x_stretch();
 		this.scrYScale = this.emu._zzt_get_y_stretch();
 
+		let oldPw = this.pw;
+		let oldPh = this.ph;
 		this.pw = this.scrWidth*this.chrWidth*this.scrXScale;
 		this.ph = this.scrHeight*this.chrHeight*this.scrYScale;
+
+		if (oldPw != this.pw || oldPh != this.ph) {
+			this.canvas.dispatchEvent(new CustomEvent("zetaResolutionChanged", {bubbles: true, detail: {width: this.pw, height: this.ph}}));
+		}
+
 		this.cw = this.canvas.width;
 		this.ch = this.canvas.height;
 		this.scale = Math.floor(Math.min(this.cw / this.pw, this.ch / this.ph));

@@ -92,3 +92,9 @@ File entries are stored in the form of an object containing the following keys:
 * emu.loadPalette(palette) - argument format as in options.emulator.palette. Returns true upon success.
 * emu.setBlinkCycleDuration(duration) - sets blink cycle duration in seconds. Returns true upon success.
 * emu.setVolume(volume) - sets volume in range 0.0 - 1.0. Returns true upon success.
+
+## Events
+
+Zeta emits certain custom DOM events:
+
+* `zetaResolutionChanged` - Whenever the rendered resolution changes (by video mode or charset changes). Provides `e.detail.width` and `e.detail.height`, which are the unscaled width and height in pixels.
