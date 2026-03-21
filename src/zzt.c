@@ -665,9 +665,6 @@ int zzt_load_palette_default(void) {
 }
 
 static void cpu_func_intr_0x10(cpu_state* cpu) {
-	fprintf(stderr, "int 0x10 AX=%04X AH=%02X AL=%02X BX=%04X BL=%02X\n",
-		cpu->ax, cpu->ah, cpu->al, cpu->bx, cpu->bl);
-
 	switch (cpu->ah) {
 		case 0x00: // set video mode
 			video_mode = cpu->al & 0x7F;
