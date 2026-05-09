@@ -13,7 +13,7 @@ jobs:
       - name: Update Ubuntu packages
         run: sudo apt-get update
       - name: Set up Ubuntu packages
-        run: sudo apt-get install -y meson git zip libsdl2-dev && pip install Pillow
+        run: sudo apt-get install -y meson git zip libpng-dev libsdl2-dev && pip install Pillow
       - name: Build
         run: meson build && cd build && ninja
       - name: Package artifact
@@ -31,7 +31,7 @@ jobs:
       - name: Update Ubuntu packages
         run: sudo apt-get update
       - name: Set up Ubuntu packages
-        run: sudo apt-get install -y meson git zip libsdl2-dev && pip install Pillow
+        run: sudo apt-get install -y meson git zip libpng-dev libsdl2-dev && pip install Pillow
       - name: Build
         run: meson build && cd build && ninja
       - name: Package artifact

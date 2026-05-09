@@ -33,7 +33,7 @@ jobs:
       - name: Update Ubuntu packages
         run: apt-get update
       - name: Set up Ubuntu packages
-        run: apt-get install -y git nodejs zip libsdl2-dev && pip install Pillow
+        run: apt-get install -y git nodejs zip libsdl2-dev libpng-dev && pip install Pillow
       - uses: actions/checkout@v4
       - name: Build
         run: meson setup build -Dfrontend=sdl2 && cd build && ninja
@@ -54,7 +54,7 @@ jobs:
       - name: Update Ubuntu packages
         run: apt-get update
       - name: Set up Ubuntu packages
-        run: apt-get install -y git zip libsdl2-dev && pip install Pillow
+        run: apt-get install -y git zip libsdl2-dev libpng-dev && pip install Pillow
       - name: Build
         run: meson setup build -Dfrontend=sdl2 && cd build && ninja
       - name: Package artifact
