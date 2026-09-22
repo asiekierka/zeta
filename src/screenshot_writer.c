@@ -26,8 +26,6 @@
 #include "util.h"
 #include "screenshot_writer.h"
 
-#define POS_MUL (scr_width <= 40 ? 2 : 1)
-
 #ifdef USE_LIBPNG
 #include <png.h>
 
@@ -101,7 +99,7 @@ int write_screenshot(FILE *output, int type, int scr_width, int scr_height, int 
 
 	int paletted = (type == SCREENSHOT_TYPE_BMP || type == SCREENSHOT_TYPE_PNG);
 
-	buffer = malloc(char_width * char_height * scr_width * POS_MUL * scr_height * (paletted ? sizeof(u8) : sizeof(u32)));
+	buffer = malloc(char_width * char_height * scr_width * scr_height * (paletted ? sizeof(u8) : sizeof(u32)));
 	if (buffer == NULL) {
 		return -1;
 	}
@@ -116,11 +114,11 @@ int write_screenshot(FILE *output, int type, int scr_width, int scr_height, int 
 
 	switch (type) {
 		case SCREENSHOT_TYPE_BMP:
-			result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * scr_height);
+			result = write_screenshot_bmp(output, (u8*) buffer, palette, flags, char_width * scr_width, char_height * scr_height);
 			break;
 #ifdef USE_LIBPNG
 		case SCREENSHOT_TYPE_PNG:
-			result = write_screenshot_png(output, (u8*) buffer, palette, flags, char_width * scr_width * POS_MUL, char_height * scr_height);
+			result = write_screenshot_png(output, (u8*) buffer, palette, flags, char_width * scr_width, char_height * scr_height);
 			break;
 #endif
 		default:
